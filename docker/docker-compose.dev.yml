@@ -1,0 +1,111 @@
+# Development stack with hot-reload. Uses the Dockerfile's `build` stage (full deps),
+# bind-mounts each service's `src/` so `nest start --watch` recompiles on change, and
+# keeps the container's linux-native node_modules intact.
+#   docker compose -f docker/docker-compose.dev.yml up --build
+name: fitness-dev
+
+x-dev-base: &dev-base
+  restart: unless-stopped
+  networks: [fitness]
+  volumes:
+    - ../packages:/app/packages
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    networks: [fitness]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fitness}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitness_dev_password}
+      AUTH_DB_NAME: ${AUTH_DB_NAME:-auth_db}
+      CORE_DB_NAME: ${CORE_DB_NAME:-core_db}
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+      - ./postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fitness}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    <<: *dev-base
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: build
+      args:
+        SERVICE: auth-service
+    command: sh -c "pnpm --filter @fitness/auth-service exec prisma migrate deploy && pnpm --filter @fitness/auth-service dev"
+    volumes:
+      - ../apps/auth-service/src:/app/apps/auth-service/src
+      - ../packages:/app/packages
+    environment:
+      NODE_ENV: development
+      AUTH_SERVICE_PORT: 3001
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-fitness}:${POSTGRES_PASSWORD:-fitness_dev_password}@postgres:5432/${AUTH_DB_NAME:-auth_db}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_at_least_32_chars_long_xx}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret_at_least_32_chars_long_x}
+    ports:
+      - '3001:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  core-service:
+    <<: *dev-base
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: build
+      args:
+        SERVICE: core-service
+    command: sh -c "pnpm --filter @fitness/core-service exec prisma migrate deploy && pnpm --filter @fitness/core-service dev"
+    volumes:
+      - ../apps/core-service/src:/app/apps/core-service/src
+      - ../packages:/app/packages
+    environment:
+      NODE_ENV: development
+      CORE_SERVICE_PORT: 3002
+      CORE_DATABASE_URL: postgresql://${POSTGRES_USER:-fitness}:${POSTGRES_PASSWORD:-fitness_dev_password}@postgres:5432/${CORE_DB_NAME:-core_db}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_at_least_32_chars_long_xx}
+    ports:
+      - '3002:3002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    <<: *dev-base
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: build
+      args:
+        SERVICE: gateway
+    command: sh -c "pnpm --filter @fitness/gateway dev"
+    volumes:
+      - ../apps/gateway/src:/app/apps/gateway/src
+      - ../packages:/app/packages
+    environment:
+      NODE_ENV: development
+      GATEWAY_PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CORE_SERVICE_URL: http://core-service:3002
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev_access_secret_at_least_32_chars_long_xx}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - '3000:3000'
+    depends_on:
+      - auth-service
+      - core-service
+
+volumes:
+  pgdata_dev:
+
+networks:
+  fitness:
+    driver: bridge

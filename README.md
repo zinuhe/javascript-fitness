@@ -55,6 +55,42 @@ pnpm docker:dev               # levanta postgres + servicios con hot-reload
 - Gateway: http://localhost:3000 · Swagger agregado en `/docs`
 - auth-service: http://localhost:3001 · core-service: http://localhost:3002
 
+Las migraciones Prisma se aplican solas al arrancar cada contenedor (entrypoint). Para
+sembrar el catálogo de ejercicios: `pnpm --filter @fitness/core-service prisma:seed`.
+
+### Desarrollo sin Docker (híbrido)
+
+Si prefieres correr solo Postgres en Docker y los servicios en el host:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml up postgres -d
+pnpm --filter @fitness/auth-service prisma:migrate:dev
+pnpm --filter @fitness/core-service prisma:migrate:dev
+pnpm dev            # arranca los tres servicios en watch
+```
+
+## Endpoints principales (a través del gateway, prefijo `/api`)
+
+| Método   | Ruta                         | Auth | Descripción                   |
+| -------- | ---------------------------- | ---- | ----------------------------- |
+| POST     | `/api/auth/register`         | —    | Registro + tokens             |
+| POST     | `/api/auth/login`            | —    | Login                         |
+| POST     | `/api/auth/refresh`          | —    | Rotar refresh token           |
+| GET      | `/api/auth/me`               | JWT  | Perfil del usuario            |
+| GET/POST | `/api/exercises`             | JWT  | Catálogo de ejercicios (CRUD) |
+| GET/POST | `/api/workouts`              | JWT  | Entrenamientos del usuario    |
+| GET      | `/api/workouts/progress/:id` | JWT  | Progreso por ejercicio        |
+
+### Smoke test rápido
+
+```bash
+# Registro
+curl -s localhost:3000/api/auth/register -H 'content-type: application/json' \
+  -d '{"email":"a@b.com","password":"S3curePass","displayName":"Alex"}'
+# Usa el accessToken devuelto:
+TOKEN=... ; curl -s localhost:3000/api/auth/me -H "authorization: Bearer $TOKEN"
+```
+
 ## Scripts
 
 | Comando           | Acción                                      |

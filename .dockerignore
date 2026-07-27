@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/generated/prisma
+.git
+.github
+**/*.log
+Others

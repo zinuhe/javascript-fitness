@@ -1,0 +1,9 @@
+{
+  "name": "@fitness/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Placeholder for the frontend (React, TBD). Not implemented yet.",
+  "scripts": {
+    "placeholder": "echo 'web frontend not implemented yet'"
+  }
+}

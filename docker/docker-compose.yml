@@ -1,0 +1,90 @@
+# Prod-like orchestration: builds each service image and runs the full stack.
+#   docker compose -f docker/docker-compose.yml up --build
+name: fitness
+
+x-service-base: &service-base
+  restart: unless-stopped
+  networks: [fitness]
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    networks: [fitness]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fitness}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitness_dev_password}
+      AUTH_DB_NAME: ${AUTH_DB_NAME:-auth_db}
+      CORE_DB_NAME: ${CORE_DB_NAME:-core_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fitness}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    <<: *service-base
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE: auth-service
+    environment:
+      NODE_ENV: production
+      AUTH_SERVICE_PORT: 3001
+      AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-fitness}:${POSTGRES_PASSWORD:-fitness_dev_password}@postgres:5432/${AUTH_DB_NAME:-auth_db}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-1209600}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  core-service:
+    <<: *service-base
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE: core-service
+    environment:
+      NODE_ENV: production
+      CORE_SERVICE_PORT: 3002
+      CORE_DATABASE_URL: postgresql://${POSTGRES_USER:-fitness}:${POSTGRES_PASSWORD:-fitness_dev_password}@postgres:5432/${CORE_DB_NAME:-core_db}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    <<: *service-base
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE: gateway
+    environment:
+      NODE_ENV: production
+      GATEWAY_PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CORE_SERVICE_URL: http://core-service:3002
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - '${GATEWAY_PORT:-3000}:3000'
+    depends_on:
+      - auth-service
+      - core-service
+
+volumes:
+  pgdata:
+
+networks:
+  fitness:
+    driver: bridge
