@@ -100,8 +100,10 @@ TOKEN=... ; curl -s localhost:3000/api/auth/me -H "authorization: Bearer $TOKEN"
 | `pnpm lint`       | ESLint en todo el workspace                 |
 | `pnpm typecheck`  | Chequeo de tipos                            |
 | `pnpm test`       | Tests unitarios (Jest)                      |
-| `pnpm test:e2e`   | Tests e2e (Testcontainers + supertest)      |
 | `pnpm docker:dev` | Entorno Docker de desarrollo                |
+
+> Los tests e2e (Testcontainers + supertest) están planificados como siguiente paso; el
+> script `test:e2e` queda reservado en cada servicio pero aún sin implementar.
 
 ## Convenciones
 
