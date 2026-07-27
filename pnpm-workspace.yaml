@@ -1,3 +1,11 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Native/postinstall build scripts we explicitly trust (pnpm blocks the rest by default).
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - prisma
+  - argon2
+  - '@scarf/scarf'
