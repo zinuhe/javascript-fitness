@@ -1,0 +1,93 @@
+// Core service datastore. Owns the exercise catalog and workout logs.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CORE_DATABASE_URL")
+}
+
+enum MuscleGroup {
+  chest
+  back
+  shoulders
+  biceps
+  triceps
+  legs
+  glutes
+  core
+  full_body
+  cardio
+}
+
+enum Equipment {
+  barbell
+  dumbbell
+  machine
+  cable
+  bodyweight
+  kettlebell
+  bands
+  other
+}
+
+model Exercise {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String
+  muscleGroup MuscleGroup
+  equipment   Equipment
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  workoutExercises WorkoutExercise[]
+
+  @@unique([name, equipment])
+  @@map("exercises")
+}
+
+model Workout {
+  id          String   @id @default(uuid()) @db.Uuid
+  // Logical reference to the auth-service user (no cross-DB FK).
+  userId      String   @db.Uuid
+  performedAt DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  exercises WorkoutExercise[]
+
+  @@index([userId, performedAt])
+  @@map("workouts")
+}
+
+model WorkoutExercise {
+  id         String @id @default(uuid()) @db.Uuid
+  workoutId  String @db.Uuid
+  exerciseId String @db.Uuid
+  order      Int
+
+  workout  Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  sets     WorkoutSet[]
+
+  @@index([workoutId])
+  @@index([exerciseId])
+  @@map("workout_exercises")
+}
+
+model WorkoutSet {
+  id                String  @id @default(uuid()) @db.Uuid
+  workoutExerciseId String  @db.Uuid
+  order             Int
+  reps              Int
+  weightKg          Decimal @db.Decimal(6, 2)
+  rpe               Decimal? @db.Decimal(3, 1)
+  restSeconds       Int?
+
+  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+
+  @@index([workoutExerciseId])
+  @@map("workout_sets")
+}
