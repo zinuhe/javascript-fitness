@@ -12,6 +12,12 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:gateway": "pnpm --filter @fitness/gateway dev",
+    "dev:auth": "pnpm --filter @fitness/auth-service dev",
+    "dev:core": "pnpm --filter @fitness/core-service dev",
+    "start:gateway": "pnpm --filter @fitness/gateway start",
+    "start:auth": "pnpm --filter @fitness/auth-service start",
+    "start:core": "pnpm --filter @fitness/core-service start",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

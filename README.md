@@ -66,8 +66,29 @@ docker compose -f docker/docker-compose.dev.yml up postgres -d
 pnpm --filter @fitness/auth-service exec prisma migrate deploy
 pnpm --filter @fitness/core-service exec prisma migrate deploy
 pnpm --filter @fitness/core-service prisma:seed   # optional
-pnpm build && pnpm dev        # start the three services
 ```
+
+## Running the services
+
+### All at once
+
+```bash
+pnpm build   # first time / after changing shared packages
+pnpm dev     # starts gateway + auth + core together (Turborepo, watch)
+```
+
+### Individually (one per terminal)
+
+There is a script per service in the root `package.json`:
+
+| Service      | Dev (watch)        | Built (`node dist/main.js`) |
+| ------------ | ------------------ | --------------------------- |
+| gateway      | `pnpm dev:gateway` | `pnpm start:gateway`        |
+| auth-service | `pnpm dev:auth`    | `pnpm start:auth`           |
+| core-service | `pnpm dev:core`    | `pnpm start:core`           |
+
+The `dev:*` scripts recompile on change. The `start:*` scripts run the compiled output
+(run `pnpm build` first) and are the most stable for just poking at the API.
 
 ## Health / heartbeat endpoints
 
