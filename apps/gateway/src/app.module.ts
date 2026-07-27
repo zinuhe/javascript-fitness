@@ -10,6 +10,8 @@ import { HealthModule } from './health/health.module';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      // Load the repo-root .env when running from the app dir (pnpm dev); ignored in Docker.
+      envFilePath: ['../../.env'],
       load: [() => loadGatewayEnv() as unknown as Record<string, unknown>],
     }),
     LoggerModule.forRootAsync({

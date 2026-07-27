@@ -12,6 +12,9 @@ import { AuthModule } from './modules/auth/auth.module';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      // Load the repo-root .env when running from the app dir (pnpm dev). In Docker the
+      // file is absent and env comes from compose — a missing file is silently ignored.
+      envFilePath: ['../../.env'],
       // Fail fast: the whole env is parsed + validated once at startup.
       load: [() => loadAuthEnv() as unknown as Record<string, unknown>],
     }),

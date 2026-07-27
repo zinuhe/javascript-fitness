@@ -14,6 +14,8 @@ import { WorkoutsModule } from './modules/workouts/workouts.module';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      // Load the repo-root .env when running from the app dir (pnpm dev); ignored in Docker.
+      envFilePath: ['../../.env'],
       load: [() => loadCoreEnv() as unknown as Record<string, unknown>],
     }),
     LoggerModule.forRootAsync({
