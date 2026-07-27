@@ -1,6 +1,8 @@
 // Core service datastore. Owns the exercise catalog and workout logs.
 generator client {
   provider = "prisma-client-js"
+  // Isolated output so each service's client doesn't clobber the others in the monorepo.
+  output   = "../generated/prisma"
 }
 
 datasource db {

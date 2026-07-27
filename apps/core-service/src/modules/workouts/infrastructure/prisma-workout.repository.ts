@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../../../generated/prisma';
 import type { Workout, WorkoutExercise, WorkoutSet } from '@fitness/contracts';
 import { PrismaService } from '../../../prisma/prisma.service';
 import type {
