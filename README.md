@@ -1,117 +1,130 @@
 # Fitness — Gym Exercise Tracker
 
-Backend de microservicios para registrar y seguir entrenamientos de gimnasio.
+Microservices backend for logging and tracking gym workouts.
 **Node.js + TypeScript · NestJS · Prisma · PostgreSQL · Docker.**
 
-> Estado: en construcción. El frontend (probablemente React) aún no está decidido; solo
-> existe un placeholder en `apps/web`.
+> Status: work in progress. The frontend (likely React) is not decided yet; only a
+> placeholder exists in `apps/web`.
 
-## Arquitectura
+## Architecture
 
 ```
-Cliente ──▶ API Gateway ──▶ auth-service ──▶ Postgres (auth_db)
-              (JWT,          core-service ──▶ Postgres (core_db)
-           rate-limit,
+Client ──▶ API Gateway ──▶ auth-service ──▶ Postgres (auth_db)
+             (JWT,          core-service ──▶ Postgres (core_db)
+          rate-limit,
              CORS)
 ```
 
-- **Monorepo** con pnpm workspaces + Turborepo.
-- **2 microservicios + gateway**, comunicación **REST síncrona** a través del gateway.
-- **Arquitectura hexagonal** (ports & adapters) dentro de cada servicio: la lógica de
-  negocio depende de **interfaces Repository**, y Prisma vive solo en los adaptadores de
-  `infrastructure` → cambiar de fuente de datos no toca el dominio.
-- **Una base de datos por servicio** (`auth_db`, `core_db`) sobre un único contenedor
-  Postgres.
+- **Monorepo** with pnpm workspaces + Turborepo.
+- **2 microservices + gateway**, communicating over **synchronous REST** through the gateway.
+- **Hexagonal architecture** (ports & adapters) inside each service: business logic depends
+  on **Repository interfaces**, and Prisma lives only in the `infrastructure` adapters →
+  swapping the data source never touches the domain.
+- **One database per service** (`auth_db`, `core_db`) on a single Postgres container.
 
-### Estructura
+### Structure
 
-| Ruta                 | Descripción                                                     |
-| -------------------- | --------------------------------------------------------------- |
-| `apps/gateway`       | API Gateway / BFF — único punto de entrada público              |
-| `apps/auth-service`  | Autenticación y usuarios (JWT access + refresh, argon2)         |
-| `apps/core-service`  | Ejercicios, entrenamientos, series y progreso                   |
-| `apps/web`           | Placeholder del frontend React                                  |
-| `packages/contracts` | Tipos/interfaces de API compartidos (framework-agnósticos)      |
-| `packages/common`    | Errores de dominio, filtro problem+json, correlation-id, logger |
-| `packages/config`    | tsconfig base y validación de entorno (Zod)                     |
-| `docker/`            | `docker-compose` de dev y prod-like                             |
+| Path                 | Description                                                |
+| -------------------- | ---------------------------------------------------------- |
+| `apps/gateway`       | API Gateway / BFF — the only public entry point            |
+| `apps/auth-service`  | Authentication and users (JWT access + refresh, argon2)    |
+| `apps/core-service`  | Exercises, workouts, sets and progress                     |
+| `apps/web`           | Frontend placeholder (React, TBD)                          |
+| `packages/contracts` | Shared API types/interfaces (framework-agnostic)           |
+| `packages/common`    | Domain errors, problem+json filter, correlation-id, logger |
+| `packages/config`    | Base tsconfig and environment validation (Zod)             |
+| `docker/`            | `docker-compose` for dev and prod-like                     |
 
-## Prerrequisitos
+## Prerequisites
 
-- **Node.js ≥ 20** (recomendado 24; hay `.nvmrc`).
-- **pnpm** — actívalo con `corepack enable`.
-- **Docker Desktop** — para Postgres y los contenedores.
+- **Node.js ≥ 20** (24 recommended; see `.nvmrc`).
+- **pnpm** — enable it with `corepack enable`.
+- **Docker Desktop** — for Postgres and the containers.
 
-## Puesta en marcha (desarrollo)
+## Getting started (development)
 
 ```bash
 corepack enable
 pnpm install
-cp .env.example .env          # ajusta secretos
-pnpm build                    # compila los paquetes compartidos
-pnpm docker:dev               # levanta postgres + servicios con hot-reload
+cp .env.example .env          # adjust secrets
+pnpm build                    # compile the shared packages
+pnpm docker:dev               # start postgres + services with hot-reload
 ```
 
-- Gateway: http://localhost:3000 · Swagger agregado en `/docs`
+- Gateway: http://localhost:3000 · aggregated Swagger at `/docs`
 - auth-service: http://localhost:3001 · core-service: http://localhost:3002
 
-Las migraciones Prisma se aplican solas al arrancar cada contenedor (entrypoint). Para
-sembrar el catálogo de ejercicios: `pnpm --filter @fitness/core-service prisma:seed`.
+Prisma migrations are applied automatically when each container starts (entrypoint). To
+seed the exercise catalog: `pnpm --filter @fitness/core-service prisma:seed`.
 
-### Desarrollo sin Docker (híbrido)
+### Development without Docker (hybrid)
 
-Si prefieres correr solo Postgres en Docker y los servicios en el host:
+If you prefer to run only Postgres in Docker and the services on the host:
 
 ```bash
 docker compose -f docker/docker-compose.dev.yml up postgres -d
-pnpm --filter @fitness/auth-service prisma:migrate:dev
-pnpm --filter @fitness/core-service prisma:migrate:dev
-pnpm dev            # arranca los tres servicios en watch
+pnpm --filter @fitness/auth-service exec prisma migrate deploy
+pnpm --filter @fitness/core-service exec prisma migrate deploy
+pnpm --filter @fitness/core-service prisma:seed   # optional
+pnpm build && pnpm dev        # start the three services
 ```
 
-## Endpoints principales (a través del gateway, prefijo `/api`)
+## Health / heartbeat endpoints
 
-| Método   | Ruta                         | Auth | Descripción                   |
-| -------- | ---------------------------- | ---- | ----------------------------- |
-| POST     | `/api/auth/register`         | —    | Registro + tokens             |
-| POST     | `/api/auth/login`            | —    | Login                         |
-| POST     | `/api/auth/refresh`          | —    | Rotar refresh token           |
-| GET      | `/api/auth/me`               | JWT  | Perfil del usuario            |
-| GET/POST | `/api/exercises`             | JWT  | Catálogo de ejercicios (CRUD) |
-| GET/POST | `/api/workouts`              | JWT  | Entrenamientos del usuario    |
-| GET      | `/api/workouts/progress/:id` | JWT  | Progreso por ejercicio        |
+Each service exposes **unauthenticated** health endpoints (no gateway, no JWT):
 
-### Smoke test rápido
+| Service      | Liveness                           | Readiness (checks the DB)         |
+| ------------ | ---------------------------------- | --------------------------------- |
+| gateway      | `GET http://localhost:3000/health` | —                                 |
+| auth-service | `GET http://localhost:3001/health` | `GET http://localhost:3001/ready` |
+| core-service | `GET http://localhost:3002/health` | `GET http://localhost:3002/ready` |
+
+`GET /health` returns `{"status":"ok",...}` — ideal for a Postman ping or a container
+healthcheck.
+
+## Main endpoints (through the gateway, `/api` prefix)
+
+| Method   | Path                         | Auth | Description             |
+| -------- | ---------------------------- | ---- | ----------------------- |
+| POST     | `/api/auth/register`         | —    | Register + tokens       |
+| POST     | `/api/auth/login`            | —    | Login                   |
+| POST     | `/api/auth/refresh`          | —    | Rotate refresh token    |
+| GET      | `/api/auth/me`               | JWT  | User profile            |
+| GET/POST | `/api/exercises`             | JWT  | Exercise catalog (CRUD) |
+| GET/POST | `/api/workouts`              | JWT  | User workouts           |
+| GET      | `/api/workouts/progress/:id` | JWT  | Per-exercise progress   |
+
+### Quick smoke test
 
 ```bash
-# Registro
+# Register
 curl -s localhost:3000/api/auth/register -H 'content-type: application/json' \
   -d '{"email":"a@b.com","password":"S3curePass","displayName":"Alex"}'
-# Usa el accessToken devuelto:
+# Use the returned accessToken:
 TOKEN=... ; curl -s localhost:3000/api/auth/me -H "authorization: Bearer $TOKEN"
 ```
 
 ## Scripts
 
-| Comando           | Acción                                      |
-| ----------------- | ------------------------------------------- |
-| `pnpm build`      | Compila todos los paquetes/apps (Turborepo) |
-| `pnpm dev`        | Modo desarrollo (watch)                     |
-| `pnpm lint`       | ESLint en todo el workspace                 |
-| `pnpm typecheck`  | Chequeo de tipos                            |
-| `pnpm test`       | Tests unitarios (Jest)                      |
-| `pnpm docker:dev` | Entorno Docker de desarrollo                |
+| Command           | Action                              |
+| ----------------- | ----------------------------------- |
+| `pnpm build`      | Build every package/app (Turborepo) |
+| `pnpm dev`        | Development mode (watch)            |
+| `pnpm lint`       | ESLint across the workspace         |
+| `pnpm typecheck`  | Type-check                          |
+| `pnpm test`       | Unit tests (Jest)                   |
+| `pnpm docker:dev` | Dockerized development environment  |
 
-> Los tests e2e (Testcontainers + supertest) están planificados como siguiente paso; el
-> script `test:e2e` queda reservado en cada servicio pero aún sin implementar.
+> End-to-end tests (Testcontainers + supertest) are planned as the next step; the
+> `test:e2e` script is reserved in each service but not implemented yet.
 
-## Convenciones
+## Conventions
 
-- **Commits**: Conventional Commits (validado por commitlint). Scopes: `auth`, `core`,
+- **Commits**: Conventional Commits (validated by commitlint). Scopes: `auth`, `core`,
   `gateway`, `contracts`, `common`, `config`, `docker`, `ci`, `repo`.
-- **Errores**: respuestas RFC 7807 (`application/problem+json`) con `correlationId`.
-- **Validación**: DTOs con `class-validator` + `ValidationPipe` global.
+- **Errors**: RFC 7807 responses (`application/problem+json`) with a `correlationId`.
+- **Validation**: `class-validator` DTOs + a global `ValidationPipe`.
 
-## Licencia
+## License
 
-MIT — ver [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE).
