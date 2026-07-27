@@ -14,7 +14,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:seed": "node --experimental-strip-types prisma/seed.ts"
+    "prisma:seed": "node prisma/seed.cjs"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"

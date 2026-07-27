@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 # Creates one database per microservice inside the shared Postgres container.
 # Runs automatically on first container start (empty data volume).
-set -euo pipefail
+# NOTE: postgres:*-alpine ships only /bin/sh (no bash), so keep this POSIX-compatible.
+set -eu
 
 create_db() {
-  local db="$1"
+  db="$1"
   echo "  creating database '$db'"
   psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
     SELECT 'CREATE DATABASE "$db"'

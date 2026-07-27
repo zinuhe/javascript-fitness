@@ -1,9 +1,10 @@
-import { PrismaClient, type Prisma } from '../generated/prisma';
+// Starter catalog seed. Plain CommonJS so it runs with a bare `node` against the
+// generated (CommonJS) Prisma client, no TS runner or experimental flags required.
+const { PrismaClient } = require('../generated/prisma');
 
 const prisma = new PrismaClient();
 
-/** Starter catalog of common exercises. Idempotent thanks to skipDuplicates. */
-const EXERCISES: Prisma.ExerciseCreateManyInput[] = [
+const EXERCISES = [
   { name: 'Barbell Bench Press', muscleGroup: 'chest', equipment: 'barbell' },
   { name: 'Incline Dumbbell Press', muscleGroup: 'chest', equipment: 'dumbbell' },
   { name: 'Pull-up', muscleGroup: 'back', equipment: 'bodyweight' },
@@ -17,11 +18,8 @@ const EXERCISES: Prisma.ExerciseCreateManyInput[] = [
   { name: 'Plank', muscleGroup: 'core', equipment: 'bodyweight' },
 ];
 
-async function main(): Promise<void> {
-  const result = await prisma.exercise.createMany({
-    data: EXERCISES,
-    skipDuplicates: true,
-  });
+async function main() {
+  const result = await prisma.exercise.createMany({ data: EXERCISES, skipDuplicates: true });
   console.log(`Seed complete: ${result.count} exercises inserted.`);
 }
 
@@ -30,4 +28,4 @@ main()
     console.error(err);
     process.exit(1);
   })
-  .finally(() => void prisma.$disconnect());
+  .finally(() => prisma.$disconnect());

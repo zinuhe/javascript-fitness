@@ -43,29 +43,35 @@ async function bootstrap(): Promise<void> {
   );
 
   // ── Reverse proxy ─────────────────────────────────────────────────────────────
-  // Public auth routes.
+  // NOTE: proxies are registered without an Express mount path and matched via
+  // `pathFilter` instead, so the original `req.url` (with the `/api/...` prefix) reaches
+  // `pathRewrite`. Mounting with a path would make Express strip the prefix first.
+
+  // Public auth routes: /api/auth/* → auth-service /auth/*
   app.use(
-    '/api/auth',
     createProxyMiddleware({
       target: authUrl,
       changeOrigin: true,
+      pathFilter: (path: string) => path.startsWith('/api/auth'),
       pathRewrite: { '^/api/auth': '/auth' },
     }),
   );
 
-  // Protected core routes — JWT verified at the edge before proxying.
+  // Protected core routes: JWT verified at the edge, then /api/{resource}/* → /{resource}/*
   const jwtGuard = createJwtMiddleware(jwtSecret);
-  for (const resource of ['exercises', 'workouts'] as const) {
-    app.use(
-      `/api/${resource}`,
-      jwtGuard,
-      createProxyMiddleware({
-        target: coreUrl,
-        changeOrigin: true,
-        pathRewrite: { [`^/api/${resource}`]: `/${resource}` },
-      }),
-    );
-  }
+  const isCorePath = (path: string): boolean =>
+    path.startsWith('/api/exercises') || path.startsWith('/api/workouts');
+  app.use((req: Request, res: Response, next: NextFunction) =>
+    isCorePath(req.url) ? jwtGuard(req, res, next) : next(),
+  );
+  app.use(
+    createProxyMiddleware({
+      target: coreUrl,
+      changeOrigin: true,
+      pathFilter: (path: string) => isCorePath(path),
+      pathRewrite: { '^/api': '' },
+    }),
+  );
 
   // ── Aggregated docs (gateway surface + links to per-service Swagger) ───────────
   const swaggerConfig = new DocumentBuilder()
