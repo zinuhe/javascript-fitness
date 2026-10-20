@@ -1,5 +1,6 @@
 # Prod-like orchestration: builds each service image and runs the full stack.
-#   docker compose -f docker/docker-compose.yml up --build
+#   docker compose --env-file .env -f docker/docker-compose.yml up --build   (from the repo root)
+# `--env-file` is required: Compose otherwise looks for `.env` next to this file, not in the root.
 name: fitness
 
 x-service-base: &service-base
@@ -38,8 +39,8 @@ services:
       NODE_ENV: production
       AUTH_SERVICE_PORT: 3001
       AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-fitness}:${POSTGRES_PASSWORD:-fitness_dev_password}@postgres:5432/${AUTH_DB_NAME:-auth_db}?schema=public
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in the repo-root .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in the repo-root .env}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-1209600}
     depends_on:
@@ -57,7 +58,7 @@ services:
       NODE_ENV: production
       CORE_SERVICE_PORT: 3002
       CORE_DATABASE_URL: postgresql://${POSTGRES_USER:-fitness}:${POSTGRES_PASSWORD:-fitness_dev_password}@postgres:5432/${CORE_DB_NAME:-core_db}?schema=public
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in the repo-root .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -74,7 +75,7 @@ services:
       GATEWAY_PORT: 3000
       AUTH_SERVICE_URL: http://auth-service:3001
       CORE_SERVICE_URL: http://core-service:3002
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in the repo-root .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     ports:
       - '${GATEWAY_PORT:-3000}:3000'

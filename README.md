@@ -62,7 +62,7 @@ seed the exercise catalog: `pnpm --filter @fitness/core-service prisma:seed`.
 If you prefer to run only Postgres in Docker and the services on the host:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml up postgres -d
+docker compose --env-file .env -f docker/docker-compose.dev.yml up postgres -d
 pnpm --filter @fitness/auth-service exec prisma migrate deploy
 pnpm --filter @fitness/core-service exec prisma migrate deploy
 pnpm --filter @fitness/core-service prisma:seed   # optional

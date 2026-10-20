@@ -1,7 +1,7 @@
 # Development stack with hot-reload. Uses the Dockerfile's `build` stage (full deps),
 # bind-mounts each service's `src/` so `nest start --watch` recompiles on change, and
 # keeps the container's linux-native node_modules intact.
-#   docker compose -f docker/docker-compose.dev.yml up --build
+#   docker compose --env-file .env -f docker/docker-compose.dev.yml up --build   (from the repo root)
 name: fitness-dev
 
 x-dev-base: &dev-base
