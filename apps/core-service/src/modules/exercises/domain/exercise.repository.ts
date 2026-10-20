@@ -15,7 +15,14 @@ export interface ExerciseRepository {
   findMany(params: { skip: number; take: number }): Promise<{ items: Exercise[]; total: number }>;
   update(id: string, data: UpdateExerciseData): Promise<Exercise>;
   delete(id: string): Promise<void>;
-  existsByNameAndEquipment(name: string, equipment: Equipment): Promise<boolean>;
+  /** `excludeId` lets an update ignore the exercise being edited. */
+  existsByNameAndEquipment(
+    name: string,
+    equipment: Equipment,
+    excludeId?: string,
+  ): Promise<boolean>;
+  /** Whether any logged workout references this exercise (blocks deletion). */
+  isInUse(id: string): Promise<boolean>;
 }
 
 export const EXERCISE_REPOSITORY = Symbol('EXERCISE_REPOSITORY');

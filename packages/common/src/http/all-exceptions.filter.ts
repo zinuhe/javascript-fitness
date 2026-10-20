@@ -54,6 +54,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
+    const prismaProblem = this.fromPrismaError(exception);
+    if (prismaProblem) {
+      return { ...prismaProblem, instance, correlationId };
+    }
+
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const payload = exception.getResponse();
@@ -76,6 +81,44 @@ export class AllExceptionsFilter implements ExceptionFilter {
       detail: 'An unexpected error occurred.',
       instance,
       correlationId,
+    };
+  }
+
+  /**
+   * Safety net for constraint violations that slip past the application-level checks
+   * (e.g. two concurrent requests racing on a unique key). Matched by name/code rather
+   * than `instanceof` because each service generates its own isolated Prisma client.
+   */
+  private fromPrismaError(
+    exception: unknown,
+  ): Pick<ProblemDetails, 'type' | 'title' | 'status' | 'detail'> | null {
+    if (!(exception instanceof Error) || exception.name !== 'PrismaClientKnownRequestError') {
+      return null;
+    }
+    const known: Record<string, { code: string; status: number; detail: string }> = {
+      P2002: {
+        code: 'resource.conflict',
+        status: HttpStatus.CONFLICT,
+        detail: 'A resource with the same unique fields already exists.',
+      },
+      P2003: {
+        code: 'resource.constraint_violation',
+        status: HttpStatus.CONFLICT,
+        detail: 'The operation references a missing resource or one still in use.',
+      },
+      P2025: {
+        code: 'resource.not_found',
+        status: HttpStatus.NOT_FOUND,
+        detail: 'The requested resource does not exist.',
+      },
+    };
+    const match = known[(exception as Error & { code?: string }).code ?? ''];
+    if (!match) return null;
+    return {
+      type: `urn:fitness:error:${match.code}`,
+      title: match.code,
+      status: match.status,
+      detail: match.detail,
     };
   }
 

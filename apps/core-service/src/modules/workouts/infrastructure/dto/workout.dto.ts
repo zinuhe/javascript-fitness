@@ -28,9 +28,11 @@ export class CreateSetDto implements CreateSetRequest {
   @Max(1000)
   reps!: number;
 
-  @ApiProperty({ example: 80, minimum: 0 })
+  // Upper bound mirrors the DECIMAL(6,2) column so out-of-range values fail validation.
+  @ApiProperty({ example: 80, minimum: 0, maximum: 9999.99 })
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(9999.99)
   weightKg!: number;
 
   @ApiPropertyOptional({ example: 8, minimum: 0, maximum: 10 })
@@ -40,10 +42,11 @@ export class CreateSetDto implements CreateSetRequest {
   @Max(10)
   rpe?: number;
 
-  @ApiPropertyOptional({ example: 120, minimum: 0 })
+  @ApiPropertyOptional({ example: 120, minimum: 0, maximum: 3600 })
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(3600)
   restSeconds?: number;
 }
 
@@ -88,10 +91,11 @@ export class ListWorkoutsQueryDto {
   @IsPositive()
   page = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1 })
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @IsPositive()
+  @Max(100)
   pageSize = 20;
 }

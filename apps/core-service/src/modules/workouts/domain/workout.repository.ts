@@ -19,6 +19,8 @@ export interface WorkoutRepository {
     params: { skip: number; take: number },
   ): Promise<{ items: Workout[]; total: number }>;
   deleteForUser(id: string, userId: string): Promise<boolean>;
+  /** Returns the subset of `exerciseIds` that do not exist in the catalog. */
+  findMissingExerciseIds(exerciseIds: string[]): Promise<string[]>;
   /** All sets a user has logged for a given exercise, oldest first. */
   findSetHistory(userId: string, exerciseId: string): Promise<SetHistoryRow[]>;
 }

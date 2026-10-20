@@ -79,6 +79,16 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
     return result.count > 0;
   }
 
+  async findMissingExerciseIds(exerciseIds: string[]): Promise<string[]> {
+    const unique = [...new Set(exerciseIds)];
+    const found = await this.prisma.exercise.findMany({
+      where: { id: { in: unique } },
+      select: { id: true },
+    });
+    const existing = new Set(found.map((e) => e.id));
+    return unique.filter((id) => !existing.has(id));
+  }
+
   async findSetHistory(userId: string, exerciseId: string): Promise<SetHistoryRow[]> {
     const sets = await this.prisma.workoutSet.findMany({
       where: {

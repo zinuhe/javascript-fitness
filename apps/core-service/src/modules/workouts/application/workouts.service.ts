@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { NotFoundError } from '@fitness/common';
+import { NotFoundError, ValidationError } from '@fitness/common';
 import type {
   CreateWorkoutRequest,
   ExerciseProgress,
@@ -13,7 +13,19 @@ import { buildProgressPoints } from './progress.calculator';
 export class WorkoutsService {
   constructor(@Inject(WORKOUT_REPOSITORY) private readonly workouts: WorkoutRepository) {}
 
-  create(userId: string, input: CreateWorkoutRequest): Promise<Workout> {
+  async create(userId: string, input: CreateWorkoutRequest): Promise<Workout> {
+    const missing = await this.workouts.findMissingExerciseIds(
+      input.exercises.map((e) => e.exerciseId),
+    );
+    if (missing.length > 0) {
+      throw new ValidationError(
+        'Workout references unknown exercises',
+        'workout.unknown_exercise',
+        {
+          exerciseId: missing,
+        },
+      );
+    }
     return this.workouts.create({ ...input, userId });
   }
 

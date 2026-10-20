@@ -55,9 +55,25 @@ export class PrismaExerciseRepository implements ExerciseRepository {
     await this.prisma.exercise.delete({ where: { id } });
   }
 
-  async existsByNameAndEquipment(name: string, equipment: Equipment): Promise<boolean> {
+  async existsByNameAndEquipment(
+    name: string,
+    equipment: Equipment,
+    excludeId?: string,
+  ): Promise<boolean> {
     const found = await this.prisma.exercise.findFirst({
-      where: { name, equipment: equipment as never },
+      where: {
+        name,
+        equipment: equipment as never,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { id: true },
+    });
+    return found !== null;
+  }
+
+  async isInUse(id: string): Promise<boolean> {
+    const found = await this.prisma.workoutExercise.findFirst({
+      where: { exerciseId: id },
       select: { id: true },
     });
     return found !== null;

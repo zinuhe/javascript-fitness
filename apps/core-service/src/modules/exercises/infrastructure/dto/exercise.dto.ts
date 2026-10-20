@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { Equipment, MuscleGroup, type CreateExerciseRequest } from '@fitness/contracts';
 
@@ -35,10 +44,11 @@ export class ListExercisesQueryDto {
   @Min(1)
   page = 1;
 
-  @ApiPropertyOptional({ default: 20, minimum: 1 })
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100)
   pageSize = 20;
 }

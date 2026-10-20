@@ -46,12 +46,29 @@ export class ExercisesService {
   }
 
   async update(id: string, input: UpdateExerciseRequest): Promise<Exercise> {
-    await this.getById(id);
+    const current = await this.getById(id);
+    const name = input.name ?? current.name;
+    const equipment = input.equipment ?? current.equipment;
+    if (name !== current.name || equipment !== current.equipment) {
+      const exists = await this.exercises.existsByNameAndEquipment(name, equipment, id);
+      if (exists) {
+        throw new ConflictError(
+          'An exercise with this name and equipment already exists',
+          'exercise.duplicate',
+        );
+      }
+    }
     return this.exercises.update(id, input);
   }
 
   async remove(id: string): Promise<void> {
     await this.getById(id);
+    if (await this.exercises.isInUse(id)) {
+      throw new ConflictError(
+        'The exercise is referenced by logged workouts and cannot be deleted',
+        'exercise.in_use',
+      );
+    }
     await this.exercises.delete(id);
   }
 }
