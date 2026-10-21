@@ -6,6 +6,11 @@ ARG NODE_VERSION=24-slim
 # ── base ────────────────────────────────────────────────────────────────────────
 FROM node:${NODE_VERSION} AS base
 ENV PNPM_HOME="/pnpm" PATH="/pnpm:$PATH"
+# Prisma's query/schema engines link against libssl; the slim image ships without it, and
+# Prisma would otherwise fall back to an openssl-1.1.x engine that cannot load at runtime.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /app
 
@@ -18,8 +23,10 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter "@fitness/${SERVICE}" run prisma:generate || echo "no prisma for ${SERVICE}"
 # Build the service and its workspace dependencies (the trailing '...').
 RUN pnpm --filter "@fitness/${SERVICE}..." run build
-# Produce a self-contained package with only production deps.
-RUN pnpm --filter "@fitness/${SERVICE}" --prod deploy /out
+# Produce a self-contained package with only production deps. `--legacy` because pnpm 10+
+# otherwise requires `inject-workspace-packages=true`, which would also change how the
+# shared packages are linked in local dev (copies instead of live symlinks).
+RUN pnpm --filter "@fitness/${SERVICE}" --prod deploy --legacy /out
 
 # ── runtime ─────────────────────────────────────────────────────────────────────
 FROM base AS runtime
