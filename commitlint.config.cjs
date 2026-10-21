@@ -5,7 +5,7 @@ module.exports = {
     'scope-enum': [
       1,
       'always',
-      ['auth', 'core', 'gateway', 'contracts', 'common', 'config', 'docker', 'ci', 'repo'],
+      ['auth', 'core', 'gateway', 'web', 'contracts', 'common', 'config', 'docker', 'ci', 'repo'],
     ],
   },
 };

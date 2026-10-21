@@ -1,0 +1,31 @@
+# Rendered by the nginx image's envsubst step; only defined env vars (GATEWAY_URL) are
+# substituted, so nginx's own $variables below are left untouched.
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Same-origin API: the browser calls /api/* here and nginx forwards it to the gateway,
+    # so no CORS setup is needed for the containerised frontend.
+    location /api/ {
+        proxy_pass ${GATEWAY_URL};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Fingerprinted build assets can be cached forever.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # SPA fallback: client-side routes all serve index.html, which must not be cached.
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+    }
+}

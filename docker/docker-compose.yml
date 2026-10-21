@@ -83,6 +83,20 @@ services:
       - auth-service
       - core-service
 
+  # Frontend: static SPA on Nginx, which also proxies /api/* to the gateway.
+  web:
+    <<: *service-base
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+    environment:
+      GATEWAY_URL: http://gateway:3000
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      - gateway
+
 volumes:
   pgdata:
 

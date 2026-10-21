@@ -103,6 +103,24 @@ services:
       - auth-service
       - core-service
 
+  # Frontend: Vite dev server with HMR; /api/* is proxied to the gateway container.
+  web:
+    restart: unless-stopped
+    networks: [fitness]
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      target: dev
+    volumes:
+      - ../apps/web/src:/app/apps/web/src
+      - ../packages/contracts/src:/app/packages/contracts/src
+    environment:
+      VITE_API_PROXY_TARGET: http://gateway:3000
+    ports:
+      - '5173:5173'
+    depends_on:
+      - gateway
+
 volumes:
   pgdata_dev:
 

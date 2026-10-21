@@ -3,16 +3,17 @@
 Microservices backend for logging and tracking gym workouts.
 **Node.js + TypeScript · NestJS · Prisma · PostgreSQL · Docker.**
 
-> Status: work in progress. The frontend (likely React) is not decided yet; only a
-> placeholder exists in `apps/web`.
+> Status: work in progress. The frontend is a basic React SPA (`apps/web`).
+
+**Frontend: React 19 · TanStack Router · TanStack Query · Vite · Nginx.**
 
 ## Architecture
 
 ```
-Client ──▶ API Gateway ──▶ auth-service ──▶ Postgres (auth_db)
-             (JWT,          core-service ──▶ Postgres (core_db)
-          rate-limit,
-             CORS)
+Browser ──▶ web (Nginx) ──▶ API Gateway ──▶ auth-service ──▶ Postgres (auth_db)
+            SPA + /api       (JWT,          core-service ──▶ Postgres (core_db)
+            proxy         rate-limit,
+                             CORS)
 ```
 
 - **Monorepo** with pnpm workspaces + Turborepo.
@@ -29,7 +30,7 @@ Client ──▶ API Gateway ──▶ auth-service ──▶ Postgres (auth_db)
 | `apps/gateway`       | API Gateway / BFF — the only public entry point            |
 | `apps/auth-service`  | Authentication and users (JWT access + refresh, argon2)    |
 | `apps/core-service`  | Exercises, workouts, sets and progress                     |
-| `apps/web`           | Frontend placeholder (React, TBD)                          |
+| `apps/web`           | Frontend SPA (React + TanStack), served by Nginx           |
 | `packages/contracts` | Shared API types/interfaces (framework-agnostic)           |
 | `packages/common`    | Domain errors, problem+json filter, correlation-id, logger |
 | `packages/config`    | Base tsconfig and environment validation (Zod)             |
@@ -51,11 +52,22 @@ pnpm build                    # compile the shared packages
 pnpm docker:dev               # start postgres + services with hot-reload
 ```
 
+- Frontend: http://localhost:5173 (Vite, hot-reload) · `pnpm docker:up` serves it on :8080
 - Gateway: http://localhost:3000 · aggregated Swagger at `/docs`
 - auth-service: http://localhost:3001 · core-service: http://localhost:3002
 
 Prisma migrations are applied automatically when each container starts (entrypoint). To
 seed the exercise catalog: `pnpm --filter @fitness/core-service prisma:seed`.
+
+### Prod-like stack
+
+`pnpm docker:up` builds and starts everything (Postgres, the three services and the
+frontend). Open http://localhost:8080; only the frontend (:8080) and gateway (:3000) are
+published. The database starts empty — seed the catalog once from inside the container:
+
+```bash
+docker compose --env-file .env -f docker/docker-compose.yml exec core-service node prisma/seed.cjs
+```
 
 ### Development without Docker (hybrid)
 
@@ -74,7 +86,7 @@ pnpm --filter @fitness/core-service prisma:seed   # optional
 
 ```bash
 pnpm build   # first time / after changing shared packages
-pnpm dev     # starts gateway + auth + core together (Turborepo, watch)
+pnpm dev     # starts gateway + auth + core + web together (Turborepo, watch)
 ```
 
 ### Individually (one per terminal)
@@ -86,6 +98,7 @@ There is a script per service in the root `package.json`:
 | gateway      | `pnpm dev:gateway` | `pnpm start:gateway`        |
 | auth-service | `pnpm dev:auth`    | `pnpm start:auth`           |
 | core-service | `pnpm dev:core`    | `pnpm start:core`           |
+| web          | `pnpm dev:web`     | — (static build on Nginx)   |
 
 The `dev:*` scripts recompile on change. The `start:*` scripts run the compiled output
 (run `pnpm build` first) and are the most stable for just poking at the API.
@@ -142,7 +155,7 @@ TOKEN=... ; curl -s localhost:3000/api/auth/me -H "authorization: Bearer $TOKEN"
 ## Conventions
 
 - **Commits**: Conventional Commits (validated by commitlint). Scopes: `auth`, `core`,
-  `gateway`, `contracts`, `common`, `config`, `docker`, `ci`, `repo`.
+  `gateway`, `web`, `contracts`, `common`, `config`, `docker`, `ci`, `repo`.
 - **Errors**: RFC 7807 responses (`application/problem+json`) with a `correlationId`.
 - **Validation**: `class-validator` DTOs + a global `ValidationPipe`.
 
