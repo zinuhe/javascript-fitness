@@ -20,7 +20,7 @@ import { ErrorView, NotFound, Pending } from './components/ui';
 import { LoginPage, RegisterPage } from './pages/auth';
 import { AppLayout } from './pages/layout';
 import { WorkoutDetailPage, WorkoutsPage } from './pages/workouts';
-import { NewWorkoutPage } from './pages/new-workout';
+import { EditWorkoutPage, NewWorkoutPage } from './pages/workout-form';
 import { ExerciseDetailPage, ExercisesPage } from './pages/exercises';
 
 export interface RouterContext {
@@ -123,6 +123,17 @@ const workoutRoute = createRoute({
   component: WorkoutDetailPage,
 });
 
+const editWorkoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'workouts/$workoutId/edit',
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(workoutQuery(params.workoutId)),
+      context.queryClient.ensureQueryData(exercisesQuery),
+    ]),
+  component: EditWorkoutPage,
+});
+
 const exercisesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'exercises',
@@ -149,6 +160,7 @@ const routeTree = rootRoute.addChildren([
     workoutsRoute,
     newWorkoutRoute,
     workoutRoute,
+    editWorkoutRoute,
     exercisesRoute,
     exerciseRoute,
   ]),

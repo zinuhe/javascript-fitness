@@ -1,4 +1,4 @@
-import type { CreateWorkoutRequest, Workout } from '@fitness/contracts';
+import type { CreateWorkoutRequest, UpdateWorkoutRequest, Workout } from '@fitness/contracts';
 
 export interface CreateWorkoutData extends CreateWorkoutRequest {
   userId: string;
@@ -18,6 +18,11 @@ export interface WorkoutRepository {
     userId: string,
     params: { skip: number; take: number },
   ): Promise<{ items: Workout[]; total: number }>;
+  /**
+   * Replaces the workout's date, notes and exercises (with their sets) atomically.
+   * Returns null when the workout does not exist or belongs to another user.
+   */
+  replaceForUser(id: string, userId: string, data: UpdateWorkoutRequest): Promise<Workout | null>;
   deleteForUser(id: string, userId: string): Promise<boolean>;
   /** Returns the subset of `exerciseIds` that do not exist in the catalog. */
   findMissingExerciseIds(exerciseIds: string[]): Promise<string[]>;

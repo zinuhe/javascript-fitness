@@ -6,6 +6,7 @@ import type {
   Exercise,
   ExerciseProgressPoint,
   ProblemDetails,
+  UpdateWorkoutRequest,
   UserProfile,
   Workout,
 } from '@fitness/contracts';
@@ -286,6 +287,29 @@ export const handlers = [
     if (!user) return problem(401, 'Unauthorized');
     const workout = state.workouts.find((w) => w.id === params.id && w.userId === user.id);
     return workout ? HttpResponse.json(workout) : problem(404, 'Workout not found');
+  }),
+
+  http.put('/api/workouts/:id', async ({ request, params }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const body = (await request.json()) as UpdateWorkoutRequest;
+    const missing = body.exercises
+      .map((e) => e.exerciseId)
+      .filter((id) => !state.exercises.some((e) => e.id === id));
+    if (missing.length > 0) {
+      return problem(422, 'Workout references unknown exercises', { exerciseId: missing });
+    }
+    const index = state.workouts.findIndex((w) => w.id === params.id && w.userId === user.id);
+    if (index === -1) return problem(404, 'Workout not found');
+    const current = state.workouts[index];
+    // Same semantics as the API: notes/exercises replaced, omitted performedAt kept.
+    const rebuilt = buildWorkout(user.id, {
+      ...body,
+      performedAt: body.performedAt ?? current.performedAt,
+    });
+    const updated: Workout = { ...rebuilt, id: current.id, createdAt: current.createdAt };
+    state.workouts[index] = updated;
+    return HttpResponse.json(updated);
   }),
 
   http.delete('/api/workouts/:id', ({ request, params }) => {

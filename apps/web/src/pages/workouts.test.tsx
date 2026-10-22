@@ -260,6 +260,20 @@ describe('workout detail', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Workout not found');
   });
 
+  it('links to the edit form', async () => {
+    const me = signedInAs();
+    const { squat } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+    });
+    const { user, router } = renderApp(`/workouts/${workout.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Edit' }));
+
+    expect(await screen.findByRole('heading', { name: 'Edit workout' })).toBeInTheDocument();
+    expect(currentUrl(router)).toBe(`/workouts/${workout.id}/edit`);
+  });
+
   it('renews an expired session transparently while loading the page', async () => {
     const me = signedInAs();
     const { squat } = seedCatalog();
@@ -274,5 +288,73 @@ describe('workout detail', () => {
 
     expect(await screen.findByText('Still here')).toBeInTheDocument();
     await waitFor(() => expect(apiState.refreshCalls).toBe(1));
+  });
+});
+
+describe('editing a workout', () => {
+  it('starts from the saved session and replaces it, keeping RPE and rest', async () => {
+    const me = signedInAs();
+    const { squat, bench } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      performedAt: '2026-10-18T09:00:00.000Z',
+      notes: 'Leg day',
+      exercises: [
+        { exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100, rpe: 8, restSeconds: 180 }] },
+      ],
+    });
+    const { user, router } = renderApp(`/workouts/${workout.id}/edit`);
+
+    // Prefilled with the saved values.
+    expect(await exerciseSelect(1)).toHaveValue(squat.id);
+    expect(screen.getByLabelText('Reps')).toHaveValue(5);
+    expect(screen.getByLabelText('Notes')).toHaveValue('Leg day');
+
+    const weight = screen.getByLabelText('Weight (kg)');
+    await user.clear(weight);
+    await user.type(weight, '105');
+    await user.clear(screen.getByLabelText('Notes'));
+    await user.type(screen.getByLabelText('Notes'), 'Heavier');
+    await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
+    await user.selectOptions(await exerciseSelect(2), bench.name);
+    const exercise2 = screen.getByRole('group', { name: 'Exercise 2' });
+    await user.type(within(exercise2).getByLabelText('Reps'), '8');
+    await user.type(within(exercise2).getByLabelText('Weight (kg)'), '60');
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByText('Heavier')).toBeInTheDocument();
+    expect(currentUrl(router)).toBe(`/workouts/${workout.id}`);
+    const [saved] = apiState.workouts;
+    expect(apiState.workouts).toHaveLength(1);
+    expect(saved.id).toBe(workout.id);
+    expect(saved.exercises.map((e) => [e.exerciseId, e.sets])).toEqual([
+      [squat.id, [expect.objectContaining({ reps: 5, weightKg: 105, rpe: 8, restSeconds: 180 })]],
+      [bench.id, [expect.objectContaining({ reps: 8, weightKg: 60 })]],
+    ]);
+  });
+
+  it('leaves the workout untouched when cancelled', async () => {
+    const me = signedInAs();
+    const { squat } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      notes: 'Original',
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+    });
+    const { user, router } = renderApp(`/workouts/${workout.id}/edit`);
+
+    await user.type(await screen.findByLabelText('Notes'), ' changed');
+    await user.click(screen.getByRole('link', { name: 'Cancel' }));
+
+    expect(await screen.findByText('Original')).toBeInTheDocument();
+    expect(currentUrl(router)).toBe(`/workouts/${workout.id}`);
+    expect(apiState.workouts[0].notes).toBe('Original');
+  });
+
+  it('shows a not-found page when editing a workout that does not exist', async () => {
+    signedInAs();
+    seedCatalog();
+    renderApp('/workouts/does-not-exist/edit');
+
+    expect(await screen.findByRole('heading', { name: 'Not found' })).toBeInTheDocument();
   });
 });

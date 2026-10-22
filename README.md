@@ -125,15 +125,16 @@ healthcheck.
 
 ## Main endpoints (through the gateway, `/api` prefix)
 
-| Method   | Path                         | Auth | Description             |
-| -------- | ---------------------------- | ---- | ----------------------- |
-| POST     | `/api/auth/register`         | —    | Register + tokens       |
-| POST     | `/api/auth/login`            | —    | Login                   |
-| POST     | `/api/auth/refresh`          | —    | Rotate refresh token    |
-| GET      | `/api/auth/me`               | JWT  | User profile            |
-| GET/POST | `/api/exercises`             | JWT  | Exercise catalog (CRUD) |
-| GET/POST | `/api/workouts`              | JWT  | User workouts           |
-| GET      | `/api/workouts/progress/:id` | JWT  | Per-exercise progress   |
+| Method         | Path                         | Auth | Description                   |
+| -------------- | ---------------------------- | ---- | ----------------------------- |
+| POST           | `/api/auth/register`         | —    | Register + tokens             |
+| POST           | `/api/auth/login`            | —    | Login                         |
+| POST           | `/api/auth/refresh`          | —    | Rotate refresh token          |
+| GET            | `/api/auth/me`               | JWT  | User profile                  |
+| GET/POST       | `/api/exercises`             | JWT  | Exercise catalog (CRUD)       |
+| GET/POST       | `/api/workouts`              | JWT  | User workouts                 |
+| GET/PUT/DELETE | `/api/workouts/:id`          | JWT  | One workout (PUT replaces it) |
+| GET            | `/api/workouts/progress/:id` | JWT  | Per-exercise progress         |
 
 ### Quick smoke test
 

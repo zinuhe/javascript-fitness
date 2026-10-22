@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -56,6 +57,18 @@ export class WorkoutsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Workout> {
     return this.workouts.getById(user.sub, id);
+  }
+
+  @Put(':id')
+  @ApiOperation({
+    summary: 'Replace a workout: notes and exercises as given; omitted performedAt is kept',
+  })
+  update(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateWorkoutDto,
+  ): Promise<Workout> {
+    return this.workouts.update(user.sub, id, dto);
   }
 
   @Delete(':id')

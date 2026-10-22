@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma';
-import type { Workout, WorkoutExercise, WorkoutSet } from '@fitness/contracts';
+import type {
+  UpdateWorkoutRequest,
+  Workout,
+  WorkoutExercise,
+  WorkoutSet,
+} from '@fitness/contracts';
 import { PrismaService } from '../../../prisma/prisma.service';
 import type {
   CreateWorkoutData,
@@ -17,6 +22,27 @@ const workoutInclude = {
 
 type WorkoutWithRelations = Prisma.WorkoutGetPayload<{ include: typeof workoutInclude }>;
 
+/** Nested-create payload for a workout's exercises and sets, in the order given. */
+function exercisesCreate(
+  exercises: UpdateWorkoutRequest['exercises'],
+): Prisma.WorkoutExerciseCreateNestedManyWithoutWorkoutInput {
+  return {
+    create: exercises.map((we, exIndex) => ({
+      exerciseId: we.exerciseId,
+      order: exIndex,
+      sets: {
+        create: we.sets.map((set, setIndex) => ({
+          order: setIndex,
+          reps: set.reps,
+          weightKg: new Prisma.Decimal(set.weightKg),
+          rpe: set.rpe !== undefined ? new Prisma.Decimal(set.rpe) : null,
+          restSeconds: set.restSeconds,
+        })),
+      },
+    })),
+  };
+}
+
 /** Prisma adapter for {@link WorkoutRepository}. */
 @Injectable()
 export class PrismaWorkoutRepository implements WorkoutRepository {
@@ -28,25 +54,30 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         userId: data.userId,
         performedAt: data.performedAt ? new Date(data.performedAt) : new Date(),
         notes: data.notes,
-        exercises: {
-          create: data.exercises.map((we, exIndex) => ({
-            exerciseId: we.exerciseId,
-            order: exIndex,
-            sets: {
-              create: we.sets.map((set, setIndex) => ({
-                order: setIndex,
-                reps: set.reps,
-                weightKg: new Prisma.Decimal(set.weightKg),
-                rpe: set.rpe !== undefined ? new Prisma.Decimal(set.rpe) : null,
-                restSeconds: set.restSeconds,
-              })),
-            },
-          })),
-        },
+        exercises: exercisesCreate(data.exercises),
       },
       include: workoutInclude,
     });
     return this.toContract(row);
+  }
+
+  replaceForUser(id: string, userId: string, data: UpdateWorkoutRequest): Promise<Workout | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const owned = await tx.workout.findFirst({ where: { id, userId }, select: { id: true } });
+      if (!owned) return null;
+      // Sets cascade with their workout exercise; the new ones are created in order below.
+      await tx.workoutExercise.deleteMany({ where: { workoutId: id } });
+      const row = await tx.workout.update({
+        where: { id },
+        data: {
+          ...(data.performedAt ? { performedAt: new Date(data.performedAt) } : {}),
+          notes: data.notes ?? null,
+          exercises: exercisesCreate(data.exercises),
+        },
+        include: workoutInclude,
+      });
+      return this.toContract(row);
+    });
   }
 
   async findByIdForUser(id: string, userId: string): Promise<Workout | null> {

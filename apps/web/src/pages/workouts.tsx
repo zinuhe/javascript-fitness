@@ -112,16 +112,21 @@ export function WorkoutDetailPage() {
           </Link>
           <h1>{formatDate(workout.performedAt)}</h1>
         </div>
-        <button
-          type="button"
-          className="button danger"
-          disabled={remove.isPending}
-          onClick={() => {
-            if (confirm('Delete this workout? This cannot be undone.')) remove.mutate();
-          }}
-        >
-          Delete
-        </button>
+        <div className="row">
+          <Link to="/workouts/$workoutId/edit" params={{ workoutId }} className="button secondary">
+            Edit
+          </Link>
+          <button
+            type="button"
+            className="button danger"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (confirm('Delete this workout? This cannot be undone.')) remove.mutate();
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
       <ErrorMessage error={remove.error} />
       {workout.notes && <p className="notes">{workout.notes}</p>}

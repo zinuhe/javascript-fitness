@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   CreateExerciseRequest,
   CreateWorkoutRequest,
+  UpdateWorkoutRequest,
   Exercise,
   ExerciseProgress,
   LoginRequest,
@@ -84,5 +85,8 @@ export const createExercise = (input: CreateExerciseRequest) =>
 
 export const createWorkout = (input: CreateWorkoutRequest) =>
   api<Workout>('/workouts', { method: 'POST', body: input });
+
+export const updateWorkout = (id: string, input: UpdateWorkoutRequest) =>
+  api<Workout>(`/workouts/${id}`, { method: 'PUT', body: input });
 
 export const deleteWorkout = (id: string) => api<void>(`/workouts/${id}`, { method: 'DELETE' });

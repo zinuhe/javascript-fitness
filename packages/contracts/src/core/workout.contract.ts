@@ -44,6 +44,12 @@ export interface CreateWorkoutRequest {
   exercises: CreateWorkoutExerciseRequest[];
 }
 
+/**
+ * Full replacement of a workout (`PUT /workouts/:id`): notes and exercises are replaced as
+ * given (omitted notes are cleared); an omitted `performedAt` keeps the current date.
+ */
+export type UpdateWorkoutRequest = CreateWorkoutRequest;
+
 /** Derived progress metrics for a given exercise over time. */
 export interface ExerciseProgressPoint {
   performedAt: string;

@@ -1,20 +1,34 @@
-import { useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
-import type { CreateWorkoutRequest } from '@fitness/contracts';
-import { createWorkout, exercisesQuery } from '../api/queries';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+  type UseMutationResult,
+} from '@tanstack/react-query';
+import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
+import type { CreateWorkoutRequest, Workout } from '@fitness/contracts';
+import { createWorkout, exercisesQuery, updateWorkout, workoutQuery } from '../api/queries';
 import { ErrorMessage } from '../components/ui';
 
-// Inputs hold strings while editing; they are converted once on submit.
+// Inputs hold strings while editing; they are converted once on submit. RPE and rest are
+// not editable in this form, but are carried through so editing a workout keeps them.
 interface SetDraft {
   reps: string;
   weightKg: string;
+  rpe?: number;
+  restSeconds?: number;
 }
 
 interface ExerciseDraft {
   key: number;
   exerciseId: string;
   sets: SetDraft[];
+}
+
+interface WorkoutDraft {
+  performedAt: string;
+  notes: string;
+  entries: ExerciseDraft[];
 }
 
 let nextKey = 0;
@@ -25,30 +39,118 @@ const emptyExercise = (): ExerciseDraft => ({
   sets: [emptySet()],
 });
 
-/** Current local time in the `YYYY-MM-DDTHH:mm` shape `datetime-local` expects. */
-function nowForInput(): string {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  return now.toISOString().slice(0, 16);
+/** Local time of `date` in the `YYYY-MM-DDTHH:mm` shape `datetime-local` expects. */
+function toInputDate(date: Date): string {
+  const local = new Date(date);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+  return local.toISOString().slice(0, 16);
 }
 
-export function NewWorkoutPage() {
-  const { data: catalog } = useSuspenseQuery(exercisesQuery);
+function draftFromWorkout(workout: Workout): WorkoutDraft {
+  return {
+    performedAt: toInputDate(new Date(workout.performedAt)),
+    notes: workout.notes ?? '',
+    entries: workout.exercises.map((entry) => ({
+      key: nextKey++,
+      exerciseId: entry.exerciseId,
+      sets: entry.sets.map((set) => ({
+        reps: String(set.reps),
+        weightKg: String(set.weightKg),
+        rpe: set.rpe,
+        restSeconds: set.restSeconds,
+      })),
+    })),
+  };
+}
+
+function useSaveWorkout(mutationFn: (input: CreateWorkoutRequest) => Promise<Workout>) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-
-  const [performedAt, setPerformedAt] = useState(nowForInput);
-  const [notes, setNotes] = useState('');
-  const [entries, setEntries] = useState<ExerciseDraft[]>(() => [emptyExercise()]);
-
-  const save = useMutation({
-    mutationFn: createWorkout,
+  return useMutation({
+    mutationFn,
     onSuccess: async (workout) => {
+      queryClient.setQueryData(workoutQuery(workout.id).queryKey, workout);
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       await queryClient.invalidateQueries({ queryKey: ['progress'] });
       await navigate({ to: '/workouts/$workoutId', params: { workoutId: workout.id } });
     },
   });
+}
+
+export function NewWorkoutPage() {
+  const save = useSaveWorkout(createWorkout);
+  const back = (
+    <Link to="/workouts" className="muted">
+      ← Workouts
+    </Link>
+  );
+  const cancel = (
+    <Link to="/workouts" className="button secondary">
+      Cancel
+    </Link>
+  );
+
+  return (
+    <WorkoutForm
+      title="Log workout"
+      submitLabel="Save workout"
+      initial={() => ({
+        performedAt: toInputDate(new Date()),
+        notes: '',
+        entries: [emptyExercise()],
+      })}
+      save={save}
+      back={back}
+      cancel={cancel}
+    />
+  );
+}
+
+const editRoute = getRouteApi('/_app/workouts/$workoutId/edit');
+
+export function EditWorkoutPage() {
+  const { workoutId } = editRoute.useParams();
+  const { data: workout } = useSuspenseQuery(workoutQuery(workoutId));
+  const save = useSaveWorkout((input) => updateWorkout(workoutId, input));
+  const back = (
+    <Link to="/workouts/$workoutId" params={{ workoutId }} className="muted">
+      ← Workout
+    </Link>
+  );
+  const cancel = (
+    <Link to="/workouts/$workoutId" params={{ workoutId }} className="button secondary">
+      Cancel
+    </Link>
+  );
+
+  return (
+    <WorkoutForm
+      title="Edit workout"
+      submitLabel="Save changes"
+      initial={() => draftFromWorkout(workout)}
+      save={save}
+      back={back}
+      cancel={cancel}
+    />
+  );
+}
+
+interface WorkoutFormProps {
+  title: string;
+  submitLabel: string;
+  /** Lazy initial state: read once, when the form mounts. */
+  initial: () => WorkoutDraft;
+  save: UseMutationResult<Workout, Error, CreateWorkoutRequest>;
+  back: ReactNode;
+  cancel: ReactNode;
+}
+
+function WorkoutForm({ title, submitLabel, initial, save, back, cancel }: WorkoutFormProps) {
+  const { data: catalog } = useSuspenseQuery(exercisesQuery);
+  const [draft] = useState(initial);
+  const [performedAt, setPerformedAt] = useState(draft.performedAt);
+  const [notes, setNotes] = useState(draft.notes);
+  const [entries, setEntries] = useState<ExerciseDraft[]>(draft.entries);
 
   const updateEntry = (key: number, change: (entry: ExerciseDraft) => ExerciseDraft) =>
     setEntries((all) => all.map((e) => (e.key === key ? change(e) : e)));
@@ -66,7 +168,12 @@ export function NewWorkoutPage() {
       notes: notes.trim() || undefined,
       exercises: entries.map((e) => ({
         exerciseId: e.exerciseId,
-        sets: e.sets.map((s) => ({ reps: Number(s.reps), weightKg: Number(s.weightKg) })),
+        sets: e.sets.map((s) => ({
+          reps: Number(s.reps),
+          weightKg: Number(s.weightKg),
+          ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
+          ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
+        })),
       })),
     };
     save.mutate(request);
@@ -85,10 +192,8 @@ export function NewWorkoutPage() {
     <form className="stack" onSubmit={onSubmit}>
       <div className="page-header">
         <div>
-          <Link to="/workouts" className="muted">
-            ← Workouts
-          </Link>
-          <h1>Log workout</h1>
+          {back}
+          <h1>{title}</h1>
         </div>
       </div>
 
@@ -222,11 +327,9 @@ export function NewWorkoutPage() {
       <ErrorMessage error={save.error} />
       <div className="row">
         <button className="button" disabled={save.isPending}>
-          {save.isPending ? 'Saving…' : 'Save workout'}
+          {save.isPending ? 'Saving…' : submitLabel}
         </button>
-        <Link to="/workouts" className="button secondary">
-          Cancel
-        </Link>
+        {cancel}
       </div>
     </form>
   );
