@@ -40,3 +40,6 @@ coverage/
 
 # Docker
 docker/data/
+
+# Deploy (host and path of the Pi)
+.deploy.env

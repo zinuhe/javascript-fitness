@@ -1,0 +1,19 @@
+# Rutas que deploy-pi NO sube a la Pi y que tampoco borra allá.
+# Ojo: rsync no entiende "!" como .gitignore (en rsync vacía la lista); no lo uses.
+# La base de datos vive en el volumen de Docker `pgdata`, fuera de esta carpeta.
+
+# Viven solo en cada máquina: secretos de producción y cuentas de prueba
+.env
+.env.*
+
+# Builds y cachés: Docker los regenera dentro de la imagen
+dist/
+.turbo/
+coverage/
+generated/
+*.tsbuildinfo
+*.log
+
+# Solo para el Mac: Claude Code y los hooks de git que genera husky
+.claude/
+.husky/_/
