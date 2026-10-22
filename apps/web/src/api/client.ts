@@ -64,10 +64,14 @@ interface RequestOptions {
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { auth = true } = options;
+  const sentWith = tokenStore.get()?.accessToken;
   let response = await send(path, options);
 
   if (response.status === 401 && auth && tokenStore.get()) {
-    const refreshed = await refreshTokens();
+    // If another request already rotated the tokens while this one was in flight, just
+    // retry with the new access token instead of burning another refresh.
+    const rotatedMeanwhile = tokenStore.get()?.accessToken !== sentWith;
+    const refreshed = rotatedMeanwhile || (await refreshTokens());
     if (refreshed) {
       response = await send(path, options);
     }

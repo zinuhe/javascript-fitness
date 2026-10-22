@@ -241,9 +241,7 @@ select:focus {
 fieldset {
   margin: 0;
 }
-legend {
-  float: left;
-  padding: 0;
+.legend {
   font-weight: 600;
 }
 .set-row {

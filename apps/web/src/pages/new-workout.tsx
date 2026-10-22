@@ -114,13 +114,22 @@ export function NewWorkoutPage() {
       </div>
 
       {entries.map((entry, entryIndex) => (
-        <fieldset key={entry.key} className="card stack">
+        // Named via aria-labelledby: a <legend> only names its fieldset as the first child,
+        // and here the title shares a row with the remove button.
+        <fieldset
+          key={entry.key}
+          className="card stack"
+          aria-labelledby={`exercise-${entry.key}-title`}
+        >
           <div className="row between">
-            <legend>Exercise {entryIndex + 1}</legend>
+            <span id={`exercise-${entry.key}-title`} className="legend">
+              Exercise {entryIndex + 1}
+            </span>
             {entries.length > 1 && (
               <button
                 type="button"
                 className="button secondary small"
+                aria-label={`Remove exercise ${entryIndex + 1}`}
                 onClick={() => setEntries((all) => all.filter((e) => e.key !== entry.key))}
               >
                 Remove
@@ -128,7 +137,7 @@ export function NewWorkoutPage() {
             )}
           </div>
           <select
-            aria-label={`Exercise ${entryIndex + 1}`}
+            aria-label="Exercise"
             value={entry.exerciseId}
             onChange={(e) => updateEntry(entry.key, (d) => ({ ...d, exerciseId: e.target.value }))}
             required
