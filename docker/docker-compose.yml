@@ -20,8 +20,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+    # No published port: only the services reach the database, over the compose network.
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-fitness}']
       interval: 5s
@@ -77,8 +76,7 @@ services:
       CORE_SERVICE_URL: http://core-service:3002
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in the repo-root .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
-    ports:
-      - '${GATEWAY_PORT:-3000}:3000'
+    # No published port: the browser reaches the API through the web container's /api proxy.
     depends_on:
       - auth-service
       - core-service

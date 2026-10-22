@@ -62,8 +62,10 @@ seed the exercise catalog: `pnpm --filter @fitness/core-service prisma:seed`.
 ### Prod-like stack
 
 `pnpm docker:up` builds and starts everything (Postgres, the three services and the
-frontend). Open http://localhost:8080; only the frontend (:8080) and gateway (:3000) are
-published. The database starts empty — seed the catalog once from inside the container:
+frontend). Open http://localhost:8080; only the frontend (:8080) is published — the API is
+served under `/api` through it, and the gateway and Postgres are reachable only inside the
+compose network (use `docker compose exec` to get at them). The database starts empty —
+seed the catalog once from inside the container:
 
 ```bash
 docker compose --env-file .env -f docker/docker-compose.yml exec core-service node prisma/seed.cjs
