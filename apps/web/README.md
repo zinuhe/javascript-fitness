@@ -41,5 +41,23 @@ served by **Nginx** in its own container.
 Override the proxy target with `VITE_API_PROXY_TARGET` (dev) or `GATEWAY_URL` (Nginx
 image), and the published port with `WEB_PORT`.
 
+## Tests
+
+**Vitest** + **Testing Library** + **MSW**, in jsdom:
+
+| Command                                    | What                        |
+| ------------------------------------------ | --------------------------- |
+| `pnpm --filter @fitness/web test`          | Run once (also `pnpm test`) |
+| `pnpm --filter @fitness/web test:watch`    | Watch mode                  |
+| `pnpm --filter @fitness/web test:coverage` | With v8 coverage report     |
+
+- `src/test/api.ts` is an in-memory fake of the gateway served by MSW at the network
+  level (rotating refresh tokens, RFC 7807 errors, 409/422 rules). Tests seed it with
+  `seedUser` / `seedExercise` / `seedWorkout` and read it back via `apiState`.
+- `renderApp(path)` (`src/test/render.tsx`) mounts the real router + Query client on a
+  memory history, so page tests go through loaders, guards and the API client exactly
+  like the browser. `signedInAs()` starts a test with a valid session.
+- Unhandled requests fail the test (`onUnhandledFrame: 'error'`).
+
 The catalog is loaded in a single page of 100 (the API maximum); add search/paging to the
 exercise picker if the catalog grows past that.

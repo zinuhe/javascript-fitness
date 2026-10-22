@@ -140,14 +140,14 @@ TOKEN=... ; curl -s localhost:3000/api/auth/me -H "authorization: Bearer $TOKEN"
 
 ## Scripts
 
-| Command           | Action                              |
-| ----------------- | ----------------------------------- |
-| `pnpm build`      | Build every package/app (Turborepo) |
-| `pnpm dev`        | Development mode (watch)            |
-| `pnpm lint`       | ESLint across the workspace         |
-| `pnpm typecheck`  | Type-check                          |
-| `pnpm test`       | Unit tests (Jest)                   |
-| `pnpm docker:dev` | Dockerized development environment  |
+| Command           | Action                                    |
+| ----------------- | ----------------------------------------- |
+| `pnpm build`      | Build every package/app (Turborepo)       |
+| `pnpm dev`        | Development mode (watch)                  |
+| `pnpm lint`       | ESLint across the workspace               |
+| `pnpm typecheck`  | Type-check                                |
+| `pnpm test`       | Tests (Jest for services, Vitest for web) |
+| `pnpm docker:dev` | Dockerized development environment        |
 
 > End-to-end tests (Testcontainers + supertest) are planned as the next step; the
 > `test:e2e` script is reserved in each service but not implemented yet.

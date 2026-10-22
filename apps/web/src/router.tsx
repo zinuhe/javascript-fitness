@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouter,
   redirect,
+  type RouterHistory,
 } from '@tanstack/react-router';
 import { ApiError, tokenStore } from './api/client';
 import {
@@ -153,9 +154,11 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-export function createAppRouter(queryClient: QueryClient) {
+/** `history` defaults to the browser's; tests pass a memory history to start anywhere. */
+export function createAppRouter(queryClient: QueryClient, history?: RouterHistory) {
   return createRouter({
     routeTree,
+    history,
     context: { queryClient },
     // Hover/focus on a link prefetches its loader; Query owns caching, so the router
     // should always call the loader and let `ensureQueryData` decide.
