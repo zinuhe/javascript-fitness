@@ -69,6 +69,11 @@ published. The database starts empty — seed the catalog once from inside the c
 docker compose --env-file .env -f docker/docker-compose.yml exec core-service node prisma/seed.cjs
 ```
 
+The images install dependencies from the lockfile and the `package.json` files only, so a
+code-only change reuses the cached install and just recompiles. When you add a workspace
+package, add its `package.json` to the `manifests` stage of `docker/Dockerfile` (and to
+`apps/web/Dockerfile` if the frontend depends on it).
+
 ### Development without Docker (hybrid)
 
 If you prefer to run only Postgres in Docker and the services on the host:
