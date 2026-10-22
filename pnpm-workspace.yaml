@@ -12,3 +12,7 @@ allowBuilds:
   '@scarf/scarf': true
   # Its postinstall is only a version check; not needed.
   protobufjs: false
+  # Optional native addons pulled in by Testcontainers (Docker over SSH); the JS
+  # fallbacks are enough for the e2e tests.
+  cpu-features: false
+  ssh2: false

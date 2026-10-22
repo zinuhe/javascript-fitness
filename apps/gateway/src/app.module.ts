@@ -20,7 +20,7 @@ import { HealthModule } from './health/health.module';
         buildLoggerConfig({
           serviceName: 'gateway',
           level: config.get('LOG_LEVEL', { infer: true }),
-          pretty: config.get('NODE_ENV', { infer: true }) !== 'production',
+          pretty: config.get('NODE_ENV', { infer: true }) === 'development',
         }),
     }),
     HealthModule,

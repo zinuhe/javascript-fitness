@@ -24,7 +24,7 @@ import { WorkoutsModule } from './modules/workouts/workouts.module';
         buildLoggerConfig({
           serviceName: 'core-service',
           level: config.get('LOG_LEVEL', { infer: true }),
-          pretty: config.get('NODE_ENV', { infer: true }) !== 'production',
+          pretty: config.get('NODE_ENV', { infer: true }) === 'development',
         }),
     }),
     PrismaModule,

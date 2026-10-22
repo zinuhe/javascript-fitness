@@ -24,7 +24,7 @@ import { AuthModule } from './modules/auth/auth.module';
         buildLoggerConfig({
           serviceName: 'auth-service',
           level: config.get('LOG_LEVEL', { infer: true }),
-          pretty: config.get('NODE_ENV', { infer: true }) !== 'production',
+          pretty: config.get('NODE_ENV', { infer: true }) === 'development',
         }),
     }),
     PrismaModule,

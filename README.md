@@ -148,17 +148,23 @@ TOKEN=... ; curl -s localhost:3000/api/auth/me -H "authorization: Bearer $TOKEN"
 
 ## Scripts
 
-| Command           | Action                                    |
-| ----------------- | ----------------------------------------- |
-| `pnpm build`      | Build every package/app (Turborepo)       |
-| `pnpm dev`        | Development mode (watch)                  |
-| `pnpm lint`       | ESLint across the workspace               |
-| `pnpm typecheck`  | Type-check                                |
-| `pnpm test`       | Tests (Jest for services, Vitest for web) |
-| `pnpm docker:dev` | Dockerized development environment        |
+| Command           | Action                                            |
+| ----------------- | ------------------------------------------------- |
+| `pnpm build`      | Build every package/app (Turborepo)               |
+| `pnpm dev`        | Development mode (watch)                          |
+| `pnpm lint`       | ESLint across the workspace                       |
+| `pnpm typecheck`  | Type-check                                        |
+| `pnpm test`       | Tests (Jest for services, Vitest for web)         |
+| `pnpm test:e2e`   | End-to-end tests for auth and core (needs Docker) |
+| `pnpm docker:dev` | Dockerized development environment                |
 
-> End-to-end tests (Testcontainers + supertest) are planned as the next step; the
-> `test:e2e` script is reserved in each service but not implemented yet.
+### End-to-end tests
+
+`pnpm test:e2e` runs `apps/auth-service/test` and `apps/core-service/test`. Each run starts a
+throwaway Postgres 17 with Testcontainers, applies the real Prisma migrations and drives the
+whole Nest app over HTTP with supertest (same validation and error handling as `main.ts`,
+via `src/app.setup.ts`). Only Docker is required; nothing touches your dev database. CI runs
+them on every push.
 
 ## Conventions
 
