@@ -131,6 +131,7 @@ healthcheck.
 | POST           | `/api/auth/login`                       | —    | Login                                        |
 | POST           | `/api/auth/refresh`                     | —    | Rotate refresh token                         |
 | GET            | `/api/auth/me`                          | JWT  | User profile                                 |
+| PATCH          | `/api/auth/me`                          | JWT  | Update name / weight unit (kg or lb)         |
 | GET/POST       | `/api/exercises`                        | JWT  | Exercise catalog (CRUD)                      |
 | GET/POST       | `/api/workouts`                         | JWT  | User workouts                                |
 | GET/PUT/DELETE | `/api/workouts/:id`                     | JWT  | One workout (PUT replaces it)                |

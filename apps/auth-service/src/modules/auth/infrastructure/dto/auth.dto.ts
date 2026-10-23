@@ -1,6 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
-import type { LoginRequest, RefreshRequest, RegisterRequest } from '@fitness/contracts';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import type {
+  LoginRequest,
+  RefreshRequest,
+  RegisterRequest,
+  UpdateProfileRequest,
+  WeightUnit,
+} from '@fitness/contracts';
 
 export class RegisterDto implements RegisterRequest {
   @ApiProperty({ example: 'alex@example.com', format: 'email' })
@@ -37,4 +43,18 @@ export class RefreshDto implements RefreshRequest {
   @IsString()
   @MinLength(1)
   refreshToken!: string;
+}
+
+export class UpdateProfileDto implements UpdateProfileRequest {
+  @ApiPropertyOptional({ example: 'Alex Doe', minLength: 1, maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  displayName?: string;
+
+  @ApiPropertyOptional({ enum: ['kg', 'lb'], description: 'Unit weights are shown and typed in' })
+  @IsOptional()
+  @IsIn(['kg', 'lb'])
+  weightUnit?: WeightUnit;
 }

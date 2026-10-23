@@ -22,11 +22,21 @@ export interface AuthTokens {
   expiresIn: number;
 }
 
+/** Unit weights are shown and typed in; the API always stores and returns kilograms. */
+export type WeightUnit = 'kg' | 'lb';
+
 export interface UserProfile {
   id: string;
   email: string;
   displayName: string;
+  weightUnit: WeightUnit;
   createdAt: string;
+}
+
+/** `PATCH /auth/me`: only the given fields change. */
+export interface UpdateProfileRequest {
+  displayName?: string;
+  weightUnit?: WeightUnit;
 }
 
 export interface AuthResponse {

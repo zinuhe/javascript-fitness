@@ -410,6 +410,47 @@ a {
   margin-right: -10px;
 }
 
+/* Two-option toggle built from radio buttons (keyboard and screen-reader friendly). */
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+.segmented label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: var(--tap);
+  border-radius: 9px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.segmented label:has(input:checked) {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+.segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+}
+fieldset.card > legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+}
+
 .details {
   display: flex;
   flex-direction: column;

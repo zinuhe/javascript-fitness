@@ -4,6 +4,7 @@ import type {
   CreateExerciseRequest,
   CreateRoutineRequest,
   CreateWorkoutRequest,
+  UpdateProfileRequest,
   UpdateRoutineRequest,
   UpdateWorkoutRequest,
   Exercise,
@@ -98,6 +99,9 @@ export const login = (input: LoginRequest) =>
 
 export const register = (input: RegisterRequest) =>
   storeSession(api<AuthResponse>('/auth/register', { method: 'POST', body: input, auth: false }));
+
+export const updateProfile = (input: UpdateProfileRequest) =>
+  api<UserProfile>('/auth/me', { method: 'PATCH', body: input });
 
 export async function logout(): Promise<void> {
   const tokens = tokenStore.get();

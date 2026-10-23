@@ -405,3 +405,42 @@ describe('editing a workout', () => {
     expect(await screen.findByRole('heading', { name: 'Not found' })).toBeInTheDocument();
   });
 });
+
+describe('in pounds', () => {
+  it('logs and shows weights in lb while storing kg', async () => {
+    signedInAs({ weightUnit: 'lb' });
+    const { squat } = seedCatalog();
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), squat.name);
+    await user.type(screen.getByLabelText('Reps'), '5');
+    const weight = screen.getByLabelText('Weight (lb)');
+    await user.type(weight, '135');
+    await user.click(screen.getByRole('button', { name: 'Weight (lb): increase' }));
+    expect(weight).toHaveValue('140'); // 5 lb steps
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    await screen.findByRole('heading', { name: squat.name });
+    expect(apiState.workouts[0].exercises[0].sets[0]).toMatchObject({ reps: 5, weightKg: 63.5 });
+    expect(screen.getAllByText('140 lb').length).toBeGreaterThan(0); // the set
+    expect(screen.getAllByText(/700 lb/).length).toBeGreaterThan(0); // the volume
+  });
+
+  it('edits in lb without drifting the stored kg', async () => {
+    const me = signedInAs({ weightUnit: 'lb' });
+    const { squat } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      notes: 'Before',
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 20.41 }] }],
+    });
+    const { user } = renderApp(`/workouts/${workout.id}/edit`);
+
+    expect(await screen.findByLabelText('Weight (lb)')).toHaveValue('45');
+    await user.clear(screen.getByLabelText('Notes'));
+    await user.type(screen.getByLabelText('Notes'), 'After');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await screen.findByText('After');
+    expect(apiState.workouts[0].exercises[0].sets[0].weightKg).toBe(20.41);
+  });
+});

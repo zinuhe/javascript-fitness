@@ -43,9 +43,6 @@ export function formatDay(iso: string, now = new Date()): string {
 /** Parses a typed number, accepting a decimal comma (iOS keypads in many locales). */
 export const parseDecimal = (value: string) => Number(value.trim().replace(',', '.'));
 
-const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
-export const formatKg = (value: number) => `${numberFormat.format(value)} kg`;
-
 export const setsVolume = (sets: WorkoutSet[]) =>
   sets.reduce((sum, set) => sum + set.reps * set.weightKg, 0);
 

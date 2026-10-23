@@ -12,10 +12,10 @@ import {
   dayLabel,
   exerciseNames,
   formatDay,
-  formatKg,
   formatTime,
   setsVolume,
 } from '../components/ui';
+import { formatWeight, useWeightUnit } from '../components/units';
 import { NextUpCard } from './start';
 
 const listRoute = getRouteApi('/_app/workouts');
@@ -25,6 +25,7 @@ export function WorkoutsPage() {
   const { data } = useSuspenseQuery(workoutsQuery(page));
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const { data: next } = useSuspenseQuery(nextRoutineQuery);
+  const unit = useWeightUnit();
   const names = exerciseNames(catalog.items);
 
   return (
@@ -64,7 +65,7 @@ export function WorkoutsPage() {
                     {workout.routineDay && (
                       <span className="day-chip">{dayLabel(workout.routineDay)}</span>
                     )}
-                    {totalSets} sets · {formatKg(volume)}
+                    {totalSets} sets · {formatWeight(volume, unit)}
                   </p>
                   <p className="muted">
                     {workout.exercises
@@ -113,6 +114,7 @@ export function WorkoutDetailPage() {
   const { data: workout } = useSuspenseQuery(workoutQuery(workoutId));
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const names = exerciseNames(catalog.items);
+  const unit = useWeightUnit();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -138,7 +140,7 @@ export function WorkoutDetailPage() {
           </Link>
           <h1>{formatDay(workout.performedAt)}</h1>
           <p className="muted">
-            {formatTime(workout.performedAt)} · {totalSets} sets · {formatKg(volume)}
+            {formatTime(workout.performedAt)} · {totalSets} sets · {formatWeight(volume, unit)}
           </p>
           {workout.routineDay && (
             <p>
@@ -183,7 +185,7 @@ export function WorkoutDetailPage() {
                   {names.get(entry.exerciseId) ?? 'Unknown exercise'}
                 </Link>
               </h2>
-              <span className="muted">{formatKg(setsVolume(entry.sets))}</span>
+              <span className="muted">{formatWeight(setsVolume(entry.sets), unit)}</span>
             </div>
             <table>
               <thead>
@@ -200,7 +202,7 @@ export function WorkoutDetailPage() {
                   <tr key={set.id}>
                     <td>{index + 1}</td>
                     <td>{set.reps}</td>
-                    <td>{formatKg(set.weightKg)}</td>
+                    <td>{formatWeight(set.weightKg, unit)}</td>
                     {showRpe && <td>{set.rpe ?? '—'}</td>}
                     {showRest && (
                       <td>{set.restSeconds !== undefined ? `${set.restSeconds}s` : '—'}</td>

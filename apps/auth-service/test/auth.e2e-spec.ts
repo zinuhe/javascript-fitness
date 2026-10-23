@@ -138,6 +138,35 @@ describe('auth-service (e2e)', () => {
     });
   });
 
+  describe('profile', () => {
+    it('defaults to kg and switches the weight unit with PATCH /auth/me', async () => {
+      const { tokens, user } = (await register().expect(201)).body as AuthResponse;
+      expect(user.weightUnit).toBe('kg');
+      const auth = `Bearer ${tokens.accessToken}`;
+
+      const patched = await request(http)
+        .patch('/auth/me')
+        .set('authorization', auth)
+        .send({ weightUnit: 'lb' })
+        .expect(200);
+      expect(patched.body).toMatchObject({ weightUnit: 'lb', displayName: 'Alex' });
+
+      const me = await request(http).get('/auth/me').set('authorization', auth).expect(200);
+      expect(me.body.weightUnit).toBe('lb');
+    });
+
+    it('validates the unit and requires a token', async () => {
+      const { tokens } = (await register().expect(201)).body as AuthResponse;
+
+      await request(http)
+        .patch('/auth/me')
+        .set('authorization', `Bearer ${tokens.accessToken}`)
+        .send({ weightUnit: 'stone' })
+        .expect(400);
+      await request(http).patch('/auth/me').send({ weightUnit: 'lb' }).expect(401);
+    });
+  });
+
   it('reports the database as ready', async () => {
     const res = await request(http).get('/ready').expect(200);
     expect(res.body.info.database.status).toBe('up');

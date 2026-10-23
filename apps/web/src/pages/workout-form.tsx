@@ -21,9 +21,10 @@ import {
   workoutQuery,
 } from '../api/queries';
 import { ErrorMessage, dayLabel, parseDecimal } from '../components/ui';
+import { WEIGHT_STEP, toKg, useWeightUnit, weightInputValue } from '../components/units';
+import type { WeightUnit } from '@fitness/contracts';
 
 const REPS_STEP = 1;
-const WEIGHT_STEP = 2.5;
 
 /** Next value for a −/+ tap: starts from 0 when empty, never goes below `min`. */
 function stepValue(current: string, delta: number, min: number): string {
@@ -88,7 +89,8 @@ function Stepper({ label, value, onChange, step, min, decimal = false }: Stepper
 // not editable in this form, but are carried through so editing a workout keeps them.
 interface SetDraft {
   reps: string;
-  weightKg: string;
+  /** In the user's unit (kg or lb), as typed. */
+  weight: string;
   rpe?: number;
   restSeconds?: number;
 }
@@ -106,7 +108,7 @@ interface WorkoutDraft {
 }
 
 let nextKey = 0;
-const emptySet = (): SetDraft => ({ reps: '', weightKg: '' });
+const emptySet = (): SetDraft => ({ reps: '', weight: '' });
 const emptyExercise = (): ExerciseDraft => ({
   key: nextKey++,
   exerciseId: '',
@@ -120,7 +122,7 @@ function toInputDate(date: Date): string {
   return local.toISOString().slice(0, 16);
 }
 
-function draftFromWorkout(workout: Workout): WorkoutDraft {
+function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
   return {
     performedAt: toInputDate(new Date(workout.performedAt)),
     notes: workout.notes ?? '',
@@ -129,7 +131,7 @@ function draftFromWorkout(workout: Workout): WorkoutDraft {
       exerciseId: entry.exerciseId,
       sets: entry.sets.map((set) => ({
         reps: String(set.reps),
-        weightKg: String(set.weightKg),
+        weight: weightInputValue(set.weightKg, unit),
         rpe: set.rpe,
         restSeconds: set.restSeconds,
       })),
@@ -141,7 +143,11 @@ function draftFromWorkout(workout: Workout): WorkoutDraft {
  * A routine day as a ready-to-log draft: its exercises in order, each starting from the sets
  * of the last time the user did it (or one empty set the first time).
  */
-function draftFromRoutineDay(day: RoutineDay, lastSets: LastExerciseSets[]): WorkoutDraft {
+function draftFromRoutineDay(
+  day: RoutineDay,
+  lastSets: LastExerciseSets[],
+  unit: WeightUnit,
+): WorkoutDraft {
   const byExercise = new Map(lastSets.map((entry) => [entry.exerciseId, entry.sets]));
   return {
     performedAt: toInputDate(new Date()),
@@ -154,7 +160,7 @@ function draftFromRoutineDay(day: RoutineDay, lastSets: LastExerciseSets[]): Wor
         sets: previous?.length
           ? previous.map((set) => ({
               reps: String(set.reps),
-              weightKg: String(set.weightKg),
+              weight: weightInputValue(set.weightKg, unit),
               rpe: set.rpe,
               restSeconds: set.restSeconds,
             }))
@@ -198,6 +204,7 @@ export function NewWorkoutPage() {
   const found = useRoutineDay(routineDayId);
   const { data: lastSets } = useSuspenseQuery(lastSetsQuery(found?.day.exerciseIds ?? []));
   const save = useSaveWorkout(createWorkout);
+  const unit = useWeightUnit();
   const back = (
     <Link to="/workouts" className="muted">
       ← Workouts
@@ -217,7 +224,7 @@ export function NewWorkoutPage() {
         title={dayLabel(found.day)}
         subtitle={found.routine.name}
         submitLabel="Save workout"
-        initial={() => draftFromRoutineDay(found.day, lastSets)}
+        initial={() => draftFromRoutineDay(found.day, lastSets, unit)}
         routineDayId={found.day.id}
         save={save}
         back={back}
@@ -249,6 +256,7 @@ export function EditWorkoutPage() {
   const { workoutId } = editRoute.useParams();
   const { data: workout } = useSuspenseQuery(workoutQuery(workoutId));
   const save = useSaveWorkout((input) => updateWorkout(workoutId, input));
+  const unit = useWeightUnit();
   const back = (
     <Link to="/workouts/$workoutId" params={{ workoutId }} className="muted">
       ← Workout
@@ -264,7 +272,7 @@ export function EditWorkoutPage() {
     <WorkoutForm
       title="Edit workout"
       submitLabel="Save changes"
-      initial={() => draftFromWorkout(workout)}
+      initial={() => draftFromWorkout(workout, unit)}
       save={save}
       back={back}
       cancel={cancel}
@@ -297,6 +305,7 @@ function WorkoutForm({
   cancel,
 }: WorkoutFormProps) {
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
+  const unit = useWeightUnit();
   const [draft] = useState(initial);
   const [performedAt, setPerformedAt] = useState(draft.performedAt);
   const [notes, setNotes] = useState(draft.notes);
@@ -321,7 +330,7 @@ function WorkoutForm({
         exerciseId: e.exerciseId,
         sets: e.sets.map((s) => ({
           reps: parseDecimal(s.reps),
-          weightKg: parseDecimal(s.weightKg),
+          weightKg: toKg(parseDecimal(s.weight), unit),
           ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
           ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
         })),
@@ -435,12 +444,12 @@ function WorkoutForm({
                   onChange={(reps) => updateSet(entry.key, setIndex, { reps })}
                 />
                 <Stepper
-                  label="Weight (kg)"
-                  value={set.weightKg}
-                  step={WEIGHT_STEP}
+                  label={`Weight (${unit})`}
+                  value={set.weight}
+                  step={WEIGHT_STEP[unit]}
                   min={0}
                   decimal
-                  onChange={(weightKg) => updateSet(entry.key, setIndex, { weightKg })}
+                  onChange={(weight) => updateSet(entry.key, setIndex, { weight })}
                 />
               </div>
             </div>

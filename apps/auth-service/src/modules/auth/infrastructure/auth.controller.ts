@@ -1,8 +1,17 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AuthResponse, JwtAccessPayload, UserProfile } from '@fitness/contracts';
 import { AuthService } from '../application/auth.service';
-import { LoginDto, RefreshDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RefreshDto, RegisterDto, UpdateProfileDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 
@@ -44,5 +53,16 @@ export class AuthController {
   @ApiOperation({ summary: 'Get the authenticated user profile' })
   me(@CurrentUser() user: JwtAccessPayload): Promise<UserProfile> {
     return this.auth.getProfile(user.sub);
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update the profile (display name, weight unit)' })
+  updateMe(
+    @CurrentUser() user: JwtAccessPayload,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<UserProfile> {
+    return this.auth.updateProfile(user.sub, dto);
   }
 }

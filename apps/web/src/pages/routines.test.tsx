@@ -219,6 +219,20 @@ describe('starting a routine day', () => {
     expect(screen.getAllByText('Day 1 · Push')[0]).toBeInTheDocument();
   });
 
+  it('pre-fills the last sets in pounds when that is the unit', async () => {
+    const me = signedInAs({ weightUnit: 'lb' });
+    const { bench } = seedCatalog();
+    seedRoutine(me.id, { name: 'Push', days: [{ name: 'Push', exerciseIds: [bench.id] }] });
+    seedWorkout(me.id, {
+      exercises: [{ exerciseId: bench.id, sets: [{ reps: 8, weightKg: 22.68 }] }],
+    });
+    const { user } = renderApp('/workouts/start');
+
+    await user.click(await screen.findByRole('link', { name: 'Start Day 1 · Push of Push' }));
+
+    expect(await screen.findByLabelText('Weight (lb)')).toHaveValue('50');
+  });
+
   it('lets you pick another day or an empty workout', async () => {
     const me = signedInAs();
     const { bench, row } = seedCatalog();
@@ -251,6 +265,26 @@ describe('starting a routine day', () => {
 });
 
 describe('account', () => {
+  it('switches the weight unit for the whole app', async () => {
+    const me = signedInAs();
+    const { bench } = seedCatalog();
+    seedWorkout(me.id, {
+      exercises: [{ exerciseId: bench.id, sets: [{ reps: 5, weightKg: 100 }] }],
+    });
+    const { user, router } = renderApp('/account');
+
+    const kg = await screen.findByRole('radio', { name: 'Kilograms (kg)' });
+    expect(kg).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'Pounds (lb)' }));
+
+    expect(await screen.findByRole('radio', { name: 'Pounds (lb)' })).toBeChecked();
+    expect(apiState.users[0].weightUnit).toBe('lb');
+
+    await router.navigate({ to: '/exercises/$exerciseId', params: { exerciseId: bench.id } });
+    const best = (await screen.findByText('Heaviest set')).closest('div');
+    expect(best).toHaveTextContent('220.5 lb');
+  });
+
   it('shows the profile and signs out', async () => {
     signedInAs({ displayName: 'Alex', email: 'alex@example.com' });
     const { user, router } = renderApp('/account');

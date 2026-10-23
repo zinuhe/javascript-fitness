@@ -1,8 +1,11 @@
+import type { WeightUnit } from '@fitness/contracts';
+
 /** Domain entity — plain, persistence-agnostic representation of a user. */
 export interface UserEntity {
   id: string;
   email: string;
   displayName: string;
+  weightUnit: WeightUnit;
   passwordHash: string;
   createdAt: Date;
 }

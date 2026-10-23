@@ -1,3 +1,4 @@
+import type { UpdateProfileRequest } from '@fitness/contracts';
 import type { UserEntity } from './user.entity';
 
 export interface CreateUserData {
@@ -14,6 +15,8 @@ export interface UserRepository {
   create(data: CreateUserData): Promise<UserEntity>;
   findById(id: string): Promise<UserEntity | null>;
   findByEmail(email: string): Promise<UserEntity | null>;
+  /** Updates the given profile fields; null when the user does not exist. */
+  updateProfile(id: string, data: UpdateProfileRequest): Promise<UserEntity | null>;
 }
 
 /** DI token — interfaces don't exist at runtime, so we bind by symbol. */

@@ -3,7 +3,8 @@ import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-q
 import { Link, getRouteApi } from '@tanstack/react-router';
 import { Equipment, MuscleGroup, type ExerciseProgressPoint } from '@fitness/contracts';
 import { createExercise, exerciseQuery, exercisesQuery, progressQuery } from '../api/queries';
-import { ErrorMessage, formatKg, formatShortDate, labelize } from '../components/ui';
+import { ErrorMessage, formatShortDate, labelize } from '../components/ui';
+import { formatWeight, useWeightUnit } from '../components/units';
 
 export function ExercisesPage() {
   const { data } = useSuspenseQuery(exercisesQuery);
@@ -133,6 +134,7 @@ export function ExercisesPage() {
  * fits a phone as well as a desktop card; values are also listed in the table below it.
  */
 function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
+  const unit = useWeightUnit();
   const width = 320;
   const height = 120;
   const pad = 12;
@@ -149,7 +151,7 @@ function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
       <svg
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`Estimated 1RM from ${formatKg(values[0])} to ${formatKg(values[values.length - 1])}`}
+        aria-label={`Estimated 1RM from ${formatWeight(values[0], unit)} to ${formatWeight(values[values.length - 1], unit)}`}
       >
         <polyline points={path} className="chart-line" />
         {points.map((p, i) => (
@@ -171,6 +173,7 @@ export function ExerciseDetailPage() {
   const { exerciseId } = detailRoute.useParams();
   const { data: exercise } = useSuspenseQuery(exerciseQuery(exerciseId));
   const { data: progress } = useSuspenseQuery(progressQuery(exerciseId));
+  const unit = useWeightUnit();
   const points = [...progress.points].reverse(); // newest first
   const best = Math.max(0, ...progress.points.map((p) => p.estimatedOneRepMaxKg));
   const heaviest = Math.max(0, ...progress.points.map((p) => p.bestSetWeightKg));
@@ -200,11 +203,11 @@ export function ExerciseDetailPage() {
             <dl className="stats">
               <div>
                 <dt>Best est. 1RM</dt>
-                <dd>{formatKg(best)}</dd>
+                <dd>{formatWeight(best, unit)}</dd>
               </div>
               <div>
                 <dt>Heaviest set</dt>
-                <dd>{formatKg(heaviest)}</dd>
+                <dd>{formatWeight(heaviest, unit)}</dd>
               </div>
               <div>
                 <dt>Sessions</dt>
@@ -225,9 +228,9 @@ export function ExerciseDetailPage() {
                 {points.map((point) => (
                   <tr key={point.performedAt}>
                     <td>{formatShortDate(point.performedAt)}</td>
-                    <td>{formatKg(point.totalVolumeKg)}</td>
-                    <td>{formatKg(point.bestSetWeightKg)}</td>
-                    <td>{formatKg(point.estimatedOneRepMaxKg)}</td>
+                    <td>{formatWeight(point.totalVolumeKg, unit)}</td>
+                    <td>{formatWeight(point.bestSetWeightKg, unit)}</td>
+                    <td>{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
                   </tr>
                 ))}
               </tbody>

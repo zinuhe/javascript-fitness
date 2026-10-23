@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConflictError, UnauthorizedError } from '@fitness/common';
-import type { AuthResponse, UserProfile } from '@fitness/contracts';
+import type { AuthResponse, UpdateProfileRequest, UserProfile } from '@fitness/contracts';
 import { USER_REPOSITORY, type UserRepository } from '../domain/user.repository';
 import {
   REFRESH_TOKEN_REPOSITORY,
@@ -91,6 +91,17 @@ export class AuthService {
     return this.toProfile(user);
   }
 
+  async updateProfile(userId: string, input: UpdateProfileRequest): Promise<UserProfile> {
+    const user = await this.users.updateProfile(userId, {
+      ...(input.displayName !== undefined ? { displayName: input.displayName.trim() } : {}),
+      ...(input.weightUnit !== undefined ? { weightUnit: input.weightUnit } : {}),
+    });
+    if (!user) {
+      throw new UnauthorizedError('User not found', 'auth.user_not_found');
+    }
+    return this.toProfile(user);
+  }
+
   private async buildAuthResponse(user: UserEntity): Promise<AuthResponse> {
     const { tokens, refreshExpiresAt } = await this.tokens.issueTokens({
       sub: user.id,
@@ -111,6 +122,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
+      weightUnit: user.weightUnit,
       createdAt: user.createdAt.toISOString(),
     };
   }

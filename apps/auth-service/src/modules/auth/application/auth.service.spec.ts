@@ -10,6 +10,7 @@ const buildUser = (over: Partial<UserEntity> = {}): UserEntity => ({
   id: 'user-1',
   email: 'alex@example.com',
   displayName: 'Alex',
+  weightUnit: 'kg',
   passwordHash: 'hashed',
   createdAt: new Date('2026-01-01T00:00:00Z'),
   ...over,
@@ -27,6 +28,7 @@ describe('AuthService', () => {
       create: jest.fn(),
       findById: jest.fn(),
       findByEmail: jest.fn(),
+      updateProfile: jest.fn(),
     };
     refreshTokens = {
       create: jest.fn().mockResolvedValue({} as RefreshTokenEntity),
@@ -135,6 +137,33 @@ describe('AuthService', () => {
 
       expect(refreshTokens.revoke).toHaveBeenCalledWith('rt-1');
       expect(refreshTokens.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('updates only the given fields and returns the profile', async () => {
+      users.updateProfile.mockResolvedValue(buildUser({ weightUnit: 'lb' }));
+
+      const profile = await service.updateProfile('user-1', { weightUnit: 'lb' });
+
+      expect(users.updateProfile).toHaveBeenCalledWith('user-1', { weightUnit: 'lb' });
+      expect(profile).toMatchObject({ id: 'user-1', weightUnit: 'lb' });
+    });
+
+    it('trims the display name', async () => {
+      users.updateProfile.mockResolvedValue(buildUser({ displayName: 'Alex D' }));
+
+      await service.updateProfile('user-1', { displayName: '  Alex D  ' });
+
+      expect(users.updateProfile).toHaveBeenCalledWith('user-1', { displayName: 'Alex D' });
+    });
+
+    it('rejects an unknown user', async () => {
+      users.updateProfile.mockResolvedValue(null);
+
+      await expect(service.updateProfile('ghost', { weightUnit: 'kg' })).rejects.toBeInstanceOf(
+        UnauthorizedError,
+      );
     });
   });
 });

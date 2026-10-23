@@ -8,6 +8,7 @@ import type {
   ExerciseProgressPoint,
   LastExerciseSets,
   ProblemDetails,
+  UpdateProfileRequest,
   Routine,
   UpdateWorkoutRequest,
   UserProfile,
@@ -67,6 +68,7 @@ export function seedUser(over: Partial<UserRecord> = {}): UserRecord {
     id: nextId('user'),
     email: 'alex@example.com',
     displayName: 'Alex',
+    weightUnit: 'kg',
     password: DEFAULT_PASSWORD,
     createdAt: now(),
     ...over,
@@ -129,6 +131,9 @@ export function expireAccessTokens(): void {
 }
 
 export const apiState = {
+  get users() {
+    return state.users;
+  },
   get workouts() {
     return state.workouts;
   },
@@ -284,6 +289,13 @@ export const handlers = [
     const { refreshToken } = (await request.json()) as { refreshToken: string };
     state.refreshTokens.delete(refreshToken);
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.patch('/api/auth/me', async ({ request }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    Object.assign(user, (await request.json()) as UpdateProfileRequest);
+    return HttpResponse.json(toProfile(user));
   }),
 
   http.get('/api/auth/me', ({ request }) => {
