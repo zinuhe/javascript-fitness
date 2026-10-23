@@ -1,7 +1,14 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import { deleteWorkout, exercisesQuery, workoutQuery, workoutsQuery } from '../api/queries';
-import { ErrorMessage, exerciseNames, formatDate, formatKg, setsVolume } from '../components/ui';
+import {
+  ErrorMessage,
+  exerciseNames,
+  formatDay,
+  formatKg,
+  formatTime,
+  setsVolume,
+} from '../components/ui';
 
 const listRoute = getRouteApi('/_app/workouts');
 
@@ -15,7 +22,8 @@ export function WorkoutsPage() {
     <section className="stack">
       <div className="page-header">
         <h1>Workouts</h1>
-        <Link to="/workouts/new" className="button">
+        {/* On phones the tab bar's + does this. */}
+        <Link to="/workouts/new" className="button hide-on-phone">
           Log workout
         </Link>
       </div>
@@ -38,11 +46,12 @@ export function WorkoutsPage() {
                   className="card link-card"
                 >
                   <div className="row between">
-                    <strong>{formatDate(workout.performedAt)}</strong>
-                    <span className="muted">
-                      {totalSets} sets · {formatKg(volume)}
-                    </span>
+                    <strong>{formatDay(workout.performedAt)}</strong>
+                    <span className="muted">{formatTime(workout.performedAt)}</span>
                   </div>
+                  <p className="card-meta">
+                    {totalSets} sets · {formatKg(volume)}
+                  </p>
                   <p className="muted">
                     {workout.exercises
                       .map((e) => names.get(e.exerciseId) ?? 'Unknown exercise')
@@ -103,16 +112,22 @@ export function WorkoutDetailPage() {
     },
   });
 
+  const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0);
+  const volume = workout.exercises.reduce((v, e) => v + setsVolume(e.sets), 0);
+
   return (
     <section className="stack">
-      <div className="page-header">
+      <div className="detail-header">
         <div>
-          <Link to="/workouts" className="muted">
+          <Link to="/workouts" className="muted back-link">
             ← Workouts
           </Link>
-          <h1>{formatDate(workout.performedAt)}</h1>
+          <h1>{formatDay(workout.performedAt)}</h1>
+          <p className="muted">
+            {formatTime(workout.performedAt)} · {totalSets} sets · {formatKg(volume)}
+          </p>
         </div>
-        <div className="row">
+        <div className="detail-actions">
           <Link to="/workouts/$workoutId/edit" params={{ workoutId }} className="button secondary">
             Edit
           </Link>
@@ -131,40 +146,47 @@ export function WorkoutDetailPage() {
       <ErrorMessage error={remove.error} />
       {workout.notes && <p className="notes">{workout.notes}</p>}
 
-      {workout.exercises.map((entry) => (
-        <article key={entry.id} className="card">
-          <div className="row between">
-            <h2>
-              <Link to="/exercises/$exerciseId" params={{ exerciseId: entry.exerciseId }}>
-                {names.get(entry.exerciseId) ?? 'Unknown exercise'}
-              </Link>
-            </h2>
-            <span className="muted">{formatKg(setsVolume(entry.sets))}</span>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Set</th>
-                <th>Reps</th>
-                <th>Weight</th>
-                <th>RPE</th>
-                <th>Rest</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entry.sets.map((set, index) => (
-                <tr key={set.id}>
-                  <td>{index + 1}</td>
-                  <td>{set.reps}</td>
-                  <td>{formatKg(set.weightKg)}</td>
-                  <td>{set.rpe ?? '—'}</td>
-                  <td>{set.restSeconds !== undefined ? `${set.restSeconds}s` : '—'}</td>
+      {workout.exercises.map((entry) => {
+        // Optional columns only when this exercise has data for them.
+        const showRpe = entry.sets.some((set) => set.rpe !== undefined);
+        const showRest = entry.sets.some((set) => set.restSeconds !== undefined);
+        return (
+          <article key={entry.id} className="card">
+            <div className="row between">
+              <h2>
+                <Link to="/exercises/$exerciseId" params={{ exerciseId: entry.exerciseId }}>
+                  {names.get(entry.exerciseId) ?? 'Unknown exercise'}
+                </Link>
+              </h2>
+              <span className="muted">{formatKg(setsVolume(entry.sets))}</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Set</th>
+                  <th>Reps</th>
+                  <th>Weight</th>
+                  {showRpe && <th>RPE</th>}
+                  {showRest && <th>Rest</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </article>
-      ))}
+              </thead>
+              <tbody>
+                {entry.sets.map((set, index) => (
+                  <tr key={set.id}>
+                    <td>{index + 1}</td>
+                    <td>{set.reps}</td>
+                    <td>{formatKg(set.weightKg)}</td>
+                    {showRpe && <td>{set.rpe ?? '—'}</td>}
+                    {showRest && (
+                      <td>{set.restSeconds !== undefined ? `${set.restSeconds}s` : '—'}</td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </article>
+        );
+      })}
     </section>
   );
 }

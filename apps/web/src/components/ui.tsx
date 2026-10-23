@@ -11,6 +11,38 @@ export function labelize(value: string): string {
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 export const formatDate = (iso: string) => dateFormat.format(new Date(iso));
 
+const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** Short calendar date: "Oct 20", with the year only when it isn't the current one. */
+export function formatShortDate(iso: string, now = new Date()): string {
+  const date = new Date(iso);
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  });
+}
+
+/** Human day label for lists and titles: "Today", "Yesterday", or "Mon, Oct 20". */
+export function formatDay(iso: string, now = new Date()): string {
+  const date = new Date(iso);
+  const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  });
+}
+
+/** Parses a typed number, accepting a decimal comma (iOS keypads in many locales). */
+export const parseDecimal = (value: string) => Number(value.trim().replace(',', '.'));
+
 const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 export const formatKg = (value: number) => `${numberFormat.format(value)} kg`;
 

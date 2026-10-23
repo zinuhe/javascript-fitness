@@ -1,11 +1,17 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Link, Outlet, useNavigate } from '@tanstack/react-router';
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { logout, meQuery } from '../api/queries';
+import { DumbbellIcon, ListIcon, PlusIcon } from '../components/icons';
+
+/** Workout form pages get the full screen: their own sticky Save bar replaces the tab bar. */
+const isFormPath = (pathname: string) => /^\/workouts\/(new|[^/]+\/edit)\/?$/.test(pathname);
 
 export function AppLayout() {
   const { data: user } = useSuspenseQuery(meQuery);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const showTabBar = !isFormPath(pathname);
 
   const signOut = async () => {
     await logout();
@@ -14,12 +20,13 @@ export function AppLayout() {
   };
 
   return (
-    <>
+    <div className={showTabBar ? 'shell with-tabbar' : 'shell'}>
       <header className="topbar">
         <Link to="/workouts" className="brand">
           Fitness
         </Link>
-        <nav>
+        {/* Desktop navigation; on phones the bottom tab bar takes over. */}
+        <nav className="topnav" aria-label="Main">
           <Link to="/workouts" activeProps={{ className: 'active' }}>
             Workouts
           </Link>
@@ -28,7 +35,7 @@ export function AppLayout() {
           </Link>
         </nav>
         <div className="user">
-          <span className="muted">{user.displayName}</span>
+          <span className="muted user-name">{user.displayName}</span>
           <button type="button" className="button secondary small" onClick={signOut}>
             Sign out
           </button>
@@ -37,6 +44,21 @@ export function AppLayout() {
       <main className="page">
         <Outlet />
       </main>
-    </>
+      {showTabBar && (
+        <nav className="tabbar" aria-label="Tabs">
+          <Link to="/workouts" activeProps={{ className: 'active' }}>
+            <ListIcon />
+            <span>Workouts</span>
+          </Link>
+          <Link to="/workouts/new" className="tab-primary" aria-label="Log workout">
+            <PlusIcon />
+          </Link>
+          <Link to="/exercises" activeProps={{ className: 'active' }}>
+            <DumbbellIcon />
+            <span>Exercises</span>
+          </Link>
+        </nav>
+      )}
+    </div>
   );
 }

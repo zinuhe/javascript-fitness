@@ -30,6 +30,14 @@ server {
         try_files $uri =404;
     }
 
+    # PWA manifest: explicit type (not every mime.types knows .webmanifest), always fresh.
+    location = /manifest.webmanifest {
+        types { }
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
     # SPA fallback: client-side routes all serve index.html, which must not be cached.
     location / {
         add_header Cache-Control "no-cache";

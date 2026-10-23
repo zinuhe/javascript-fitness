@@ -111,7 +111,7 @@ describe('logging a workout', () => {
     // A new set starts as a copy of the previous one; bump its weight.
     await user.click(screen.getByRole('button', { name: '+ Add set' }));
     const weights = screen.getAllByLabelText('Weight (kg)');
-    expect(weights[1]).toHaveValue(100);
+    expect(weights[1]).toHaveValue('100');
     await user.clear(weights[1]);
     await user.type(weights[1], '110');
 
@@ -139,6 +139,53 @@ describe('logging a workout', () => {
       [bench.id, [expect.objectContaining({ reps: 8, weightKg: 60 })]],
     ]);
     expect(screen.getByText('1,050 kg')).toBeInTheDocument();
+  });
+
+  it('steps reps and weight with the −/+ buttons and accepts a decimal comma', async () => {
+    signedInAs();
+    const { squat } = seedCatalog();
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), squat.name);
+    const reps = screen.getByLabelText('Reps');
+    const weight = screen.getByLabelText('Weight (kg)');
+    for (let i = 0; i < 3; i++)
+      await user.click(screen.getByRole('button', { name: 'Reps: increase' }));
+    expect(reps).toHaveValue('3');
+    await user.click(screen.getByRole('button', { name: 'Weight (kg): increase' }));
+    expect(weight).toHaveValue('2.5');
+    // Typed with the decimal comma of a Spanish iOS keypad, then bumped by one step.
+    await user.clear(weight);
+    await user.type(weight, '62,5');
+    await user.click(screen.getByRole('button', { name: 'Weight (kg): increase' }));
+    expect(weight).toHaveValue('65');
+    await user.click(screen.getByRole('button', { name: 'Weight (kg): decrease' }));
+    expect(weight).toHaveValue('62.5');
+    // Reps never go below 1.
+    for (let i = 0; i < 5; i++)
+      await user.click(screen.getByRole('button', { name: 'Reps: decrease' }));
+    expect(reps).toHaveValue('1');
+
+    await user.clear(weight);
+    await user.type(weight, '97,5');
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    await screen.findByRole('heading', { name: squat.name });
+    expect(apiState.workouts[0].exercises[0].sets).toEqual([
+      expect.objectContaining({ reps: 1, weightKg: 97.5 }),
+    ]);
+  });
+
+  it('hides the tab bar while the form is open', async () => {
+    signedInAs();
+    seedCatalog();
+    const { user } = renderApp('/workouts');
+
+    const tabs = await screen.findByRole('navigation', { name: 'Tabs' });
+    await user.click(within(tabs).getByRole('link', { name: 'Log workout' }));
+
+    expect(await screen.findByRole('heading', { name: 'Log workout' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Tabs' })).not.toBeInTheDocument();
   });
 
   it('can remove an extra set and an extra exercise before saving', async () => {
@@ -306,7 +353,7 @@ describe('editing a workout', () => {
 
     // Prefilled with the saved values.
     expect(await exerciseSelect(1)).toHaveValue(squat.id);
-    expect(screen.getByLabelText('Reps')).toHaveValue(5);
+    expect(screen.getByLabelText('Reps')).toHaveValue('5');
     expect(screen.getByLabelText('Notes')).toHaveValue('Leg day');
 
     const weight = screen.getByLabelText('Weight (kg)');

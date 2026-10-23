@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/client';
-import { ErrorMessage, labelize, setsVolume } from './ui';
+import { ErrorMessage, formatDay, formatShortDate, labelize, parseDecimal, setsVolume } from './ui';
 
 describe('labelize', () => {
   it.each([
@@ -48,5 +48,30 @@ describe('ErrorMessage', () => {
   it('explains network failures in plain language', () => {
     render(<ErrorMessage error={new TypeError('Failed to fetch')} />);
     expect(screen.getByRole('alert')).toHaveTextContent(/could not reach the server/i);
+  });
+});
+
+describe('formatDay', () => {
+  const now = new Date(2026, 9, 22, 20, 0); // Thu Oct 22, 2026, local time
+
+  it('says Today and Yesterday for the last two calendar days', () => {
+    expect(formatDay(new Date(2026, 9, 22, 7, 30).toISOString(), now)).toBe('Today');
+    expect(formatDay(new Date(2026, 9, 21, 23, 59).toISOString(), now)).toBe('Yesterday');
+  });
+
+  it('uses weekday and date otherwise, adding the year only for other years', () => {
+    expect(formatDay(new Date(2026, 9, 20, 18, 0).toISOString(), now)).toMatch(/Tue.*Oct.*20/);
+    expect(formatDay(new Date(2025, 11, 31, 9, 0).toISOString(), now)).toMatch(/2025/);
+    expect(formatShortDate(new Date(2026, 9, 3).toISOString(), now)).not.toMatch(/2026/);
+  });
+});
+
+describe('parseDecimal', () => {
+  it.each([
+    ['62,5', 62.5],
+    ['62.5', 62.5],
+    [' 100 ', 100],
+  ])('%j → %d', (input, expected) => {
+    expect(parseDecimal(input)).toBe(expected);
   });
 });

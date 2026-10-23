@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import {
   useMutation,
   useQueryClient,
@@ -8,7 +8,69 @@ import {
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import type { CreateWorkoutRequest, Workout } from '@fitness/contracts';
 import { createWorkout, exercisesQuery, updateWorkout, workoutQuery } from '../api/queries';
-import { ErrorMessage } from '../components/ui';
+import { ErrorMessage, parseDecimal } from '../components/ui';
+
+const REPS_STEP = 1;
+const WEIGHT_STEP = 2.5;
+
+/** Next value for a −/+ tap: starts from 0 when empty, never goes below `min`. */
+function stepValue(current: string, delta: number, min: number): string {
+  const base = current.trim() === '' ? 0 : parseDecimal(current);
+  const next = Math.max(min, (Number.isFinite(base) ? base : 0) + delta);
+  return String(Math.round(next * 100) / 100);
+}
+
+interface StepperProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  step: number;
+  min: number;
+  /** Mobile keypad: whole numbers for reps, decimals (with "," or ".") for weight. */
+  decimal?: boolean;
+}
+
+/**
+ * Number field with large −/+ buttons, built for thumbs at the gym. A text input (not
+ * type=number) so iOS shows the right keypad and a decimal comma is accepted.
+ */
+function Stepper({ label, value, onChange, step, min, decimal = false }: StepperProps) {
+  const id = useId();
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <div className="stepper">
+        <button
+          type="button"
+          className="step"
+          aria-label={`${label}: decrease`}
+          onClick={() => onChange(stepValue(value, -step, min))}
+        >
+          −
+        </button>
+        <input
+          id={id}
+          type="text"
+          inputMode={decimal ? 'decimal' : 'numeric'}
+          pattern={decimal ? '[0-9]+([.,][0-9]{1,2})?' : '[0-9]+'}
+          autoComplete="off"
+          enterKeyHint="next"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required
+        />
+        <button
+          type="button"
+          className="step"
+          aria-label={`${label}: increase`}
+          onClick={() => onChange(stepValue(value, step, min))}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // Inputs hold strings while editing; they are converted once on submit. RPE and rest are
 // not editable in this form, but are carried through so editing a workout keeps them.
@@ -169,8 +231,8 @@ function WorkoutForm({ title, submitLabel, initial, save, back, cancel }: Workou
       exercises: entries.map((e) => ({
         exerciseId: e.exerciseId,
         sets: e.sets.map((s) => ({
-          reps: Number(s.reps),
-          weightKg: Number(s.weightKg),
+          reps: parseDecimal(s.reps),
+          weightKg: parseDecimal(s.weightKg),
           ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
           ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
         })),
@@ -256,48 +318,41 @@ function WorkoutForm({ title, submitLabel, initial, save, back, cancel }: Workou
           </select>
 
           {entry.sets.map((set, setIndex) => (
-            <div key={setIndex} className="set-row">
-              <span className="muted">Set {setIndex + 1}</span>
-              <label>
-                Reps
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={1000}
-                  step={1}
+            <div key={setIndex} className="set">
+              <div className="set-head">
+                <span className="muted">Set {setIndex + 1}</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Remove set ${setIndex + 1}`}
+                  disabled={entry.sets.length === 1}
+                  onClick={() =>
+                    updateEntry(entry.key, (d) => ({
+                      ...d,
+                      sets: d.sets.filter((_, i) => i !== setIndex),
+                    }))
+                  }
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="set-fields">
+                <Stepper
+                  label="Reps"
                   value={set.reps}
-                  onChange={(e) => updateSet(entry.key, setIndex, { reps: e.target.value })}
-                  required
+                  step={REPS_STEP}
+                  min={1}
+                  onChange={(reps) => updateSet(entry.key, setIndex, { reps })}
                 />
-              </label>
-              <label>
-                Weight (kg)
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={9999.99}
-                  step={0.25}
+                <Stepper
+                  label="Weight (kg)"
                   value={set.weightKg}
-                  onChange={(e) => updateSet(entry.key, setIndex, { weightKg: e.target.value })}
-                  required
+                  step={WEIGHT_STEP}
+                  min={0}
+                  decimal
+                  onChange={(weightKg) => updateSet(entry.key, setIndex, { weightKg })}
                 />
-              </label>
-              <button
-                type="button"
-                className="button secondary small"
-                aria-label={`Remove set ${setIndex + 1}`}
-                disabled={entry.sets.length === 1}
-                onClick={() =>
-                  updateEntry(entry.key, (d) => ({
-                    ...d,
-                    sets: d.sets.filter((_, i) => i !== setIndex),
-                  }))
-                }
-              >
-                ✕
-              </button>
+              </div>
             </div>
           ))}
           <button
@@ -325,7 +380,8 @@ function WorkoutForm({ title, submitLabel, initial, save, back, cancel }: Workou
       </button>
 
       <ErrorMessage error={save.error} />
-      <div className="row">
+      {/* Sticky on phones: Save stays under the thumb however long the session gets. */}
+      <div className="form-actions">
         <button className="button" disabled={save.isPending}>
           {save.isPending ? 'Saving…' : submitLabel}
         </button>

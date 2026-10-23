@@ -20,20 +20,48 @@ describe('exercise catalog', () => {
 
     renderApp('/exercises');
 
-    const rows = (await screen.findAllByRole('row')).slice(1);
-    expect(
-      rows.map((r) =>
-        within(r)
-          .getAllByRole('cell')
-          .map((c) => c.textContent),
-      ),
-    ).toEqual([
-      ['Burpee', 'Full body', 'Bodyweight'],
-      ['Pull-up', 'Back', 'Bodyweight'],
+    const list = await screen.findByRole('list', { name: 'Exercise catalog' });
+    const rows = within(list)
+      .getAllByRole('link')
+      .map((link) => [...link.children].map((part) => part.textContent));
+    expect(rows).toEqual([
+      ['Burpee', 'Full body · Bodyweight'],
+      ['Pull-up', 'Back · Bodyweight'],
     ]);
   });
 
-  it('adds an exercise, refreshes the table and resets the form', async () => {
+  it('filters the catalog by name, muscle group or equipment', async () => {
+    signedInAs();
+    seedExercise({
+      name: 'Pull-up',
+      muscleGroup: MuscleGroup.Back,
+      equipment: Equipment.Bodyweight,
+    });
+    seedExercise({
+      name: 'Leg Press',
+      muscleGroup: MuscleGroup.Legs,
+      equipment: Equipment.Machine,
+    });
+    const { user } = renderApp('/exercises');
+    const search = await screen.findByRole('searchbox', { name: 'Search exercises' });
+    const names = () =>
+      within(screen.getByRole('list', { name: 'Exercise catalog' }))
+        .getAllByRole('link')
+        .map((link) => link.firstChild?.textContent);
+
+    await user.type(search, 'PRESS');
+    expect(names()).toEqual(['Leg Press']);
+
+    await user.clear(search);
+    await user.type(search, 'bodyweight');
+    expect(names()).toEqual(['Pull-up']);
+
+    await user.clear(search);
+    await user.type(search, 'zzz');
+    expect(screen.getByText('No exercises match “zzz”.')).toBeInTheDocument();
+  });
+
+  it('adds an exercise, refreshes the list and resets the form', async () => {
     signedInAs();
     const { user } = renderApp('/exercises');
 
@@ -43,7 +71,7 @@ describe('exercise catalog', () => {
     await user.type(screen.getByLabelText('Description'), '  Hold the bell at chest height  ');
     await user.click(screen.getByRole('button', { name: 'Add exercise' }));
 
-    expect(await screen.findByRole('link', { name: 'Goblet Squat' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Goblet Squat/ })).toBeInTheDocument();
     expect(apiState.exercises[0]).toMatchObject({
       name: 'Goblet Squat',
       muscleGroup: MuscleGroup.Legs,
@@ -117,6 +145,12 @@ describe('exercise progress', () => {
       ['1,050 kg', '110 kg', '128.33 kg'], // 110 × (1 + 5/30)
       ['500 kg', '100 kg', '116.67 kg'],
     ]);
-    expect(screen.getByText('Best est. 1RM: 128.33 kg')).toBeInTheDocument();
+    const stat = (label: string) => screen.getByText(label).closest('div');
+    expect(stat('Best est. 1RM')).toHaveTextContent('128.33 kg');
+    expect(stat('Heaviest set')).toHaveTextContent('110 kg');
+    expect(stat('Sessions')).toHaveTextContent('2');
+    expect(
+      screen.getByRole('img', { name: 'Estimated 1RM from 116.67 kg to 128.33 kg' }),
+    ).toBeInTheDocument();
   });
 });
