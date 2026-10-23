@@ -6,9 +6,21 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
-import type { CreateWorkoutRequest, Workout } from '@fitness/contracts';
-import { createWorkout, exercisesQuery, updateWorkout, workoutQuery } from '../api/queries';
-import { ErrorMessage, parseDecimal } from '../components/ui';
+import type {
+  CreateWorkoutRequest,
+  LastExerciseSets,
+  RoutineDay,
+  Workout,
+} from '@fitness/contracts';
+import {
+  createWorkout,
+  exercisesQuery,
+  lastSetsQuery,
+  routinesQuery,
+  updateWorkout,
+  workoutQuery,
+} from '../api/queries';
+import { ErrorMessage, dayLabel, parseDecimal } from '../components/ui';
 
 const REPS_STEP = 1;
 const WEIGHT_STEP = 2.5;
@@ -125,6 +137,33 @@ function draftFromWorkout(workout: Workout): WorkoutDraft {
   };
 }
 
+/**
+ * A routine day as a ready-to-log draft: its exercises in order, each starting from the sets
+ * of the last time the user did it (or one empty set the first time).
+ */
+function draftFromRoutineDay(day: RoutineDay, lastSets: LastExerciseSets[]): WorkoutDraft {
+  const byExercise = new Map(lastSets.map((entry) => [entry.exerciseId, entry.sets]));
+  return {
+    performedAt: toInputDate(new Date()),
+    notes: '',
+    entries: day.exerciseIds.map((exerciseId) => {
+      const previous = byExercise.get(exerciseId);
+      return {
+        key: nextKey++,
+        exerciseId,
+        sets: previous?.length
+          ? previous.map((set) => ({
+              reps: String(set.reps),
+              weightKg: String(set.weightKg),
+              rpe: set.rpe,
+              restSeconds: set.restSeconds,
+            }))
+          : [emptySet()],
+      };
+    }),
+  };
+}
+
 function useSaveWorkout(mutationFn: (input: CreateWorkoutRequest) => Promise<Workout>) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -134,12 +173,30 @@ function useSaveWorkout(mutationFn: (input: CreateWorkoutRequest) => Promise<Wor
       queryClient.setQueryData(workoutQuery(workout.id).queryKey, workout);
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       await queryClient.invalidateQueries({ queryKey: ['progress'] });
+      // The routine rotation and the "last time" pre-fill both moved on.
+      await queryClient.invalidateQueries({ queryKey: ['routines'] });
+      await queryClient.invalidateQueries({ queryKey: ['last-sets'] });
       await navigate({ to: '/workouts/$workoutId', params: { workoutId: workout.id } });
     },
   });
 }
 
+const newRoute = getRouteApi('/_app/workouts/new');
+
+/** The routine day `routineDayId` points to, with its routine; null when it is gone. */
+function useRoutineDay(routineDayId: string | undefined) {
+  const { data: routines } = useSuspenseQuery(routinesQuery);
+  for (const routine of routines) {
+    const day = routine.days.find((d) => d.id === routineDayId);
+    if (day) return { routine, day };
+  }
+  return null;
+}
+
 export function NewWorkoutPage() {
+  const { routineDayId } = newRoute.useSearch();
+  const found = useRoutineDay(routineDayId);
+  const { data: lastSets } = useSuspenseQuery(lastSetsQuery(found?.day.exerciseIds ?? []));
   const save = useSaveWorkout(createWorkout);
   const back = (
     <Link to="/workouts" className="muted">
@@ -152,8 +209,26 @@ export function NewWorkoutPage() {
     </Link>
   );
 
+  if (found) {
+    return (
+      <WorkoutForm
+        // A different day (same route) must start from its own draft.
+        key={found.day.id}
+        title={dayLabel(found.day)}
+        subtitle={found.routine.name}
+        submitLabel="Save workout"
+        initial={() => draftFromRoutineDay(found.day, lastSets)}
+        routineDayId={found.day.id}
+        save={save}
+        back={back}
+        cancel={cancel}
+      />
+    );
+  }
+
   return (
     <WorkoutForm
+      key="empty"
       title="Log workout"
       submitLabel="Save workout"
       initial={() => ({
@@ -199,7 +274,11 @@ export function EditWorkoutPage() {
 
 interface WorkoutFormProps {
   title: string;
+  /** Shown under the title, e.g. the routine name. */
+  subtitle?: string;
   submitLabel: string;
+  /** Routine day the session follows; sent with the workout so the rotation advances. */
+  routineDayId?: string;
   /** Lazy initial state: read once, when the form mounts. */
   initial: () => WorkoutDraft;
   save: UseMutationResult<Workout, Error, CreateWorkoutRequest>;
@@ -207,7 +286,16 @@ interface WorkoutFormProps {
   cancel: ReactNode;
 }
 
-function WorkoutForm({ title, submitLabel, initial, save, back, cancel }: WorkoutFormProps) {
+function WorkoutForm({
+  title,
+  subtitle,
+  submitLabel,
+  routineDayId,
+  initial,
+  save,
+  back,
+  cancel,
+}: WorkoutFormProps) {
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const [draft] = useState(initial);
   const [performedAt, setPerformedAt] = useState(draft.performedAt);
@@ -228,6 +316,7 @@ function WorkoutForm({ title, submitLabel, initial, save, back, cancel }: Workou
     const request: CreateWorkoutRequest = {
       performedAt: new Date(performedAt).toISOString(),
       notes: notes.trim() || undefined,
+      ...(routineDayId ? { routineDayId } : {}),
       exercises: entries.map((e) => ({
         exerciseId: e.exerciseId,
         sets: e.sets.map((s) => ({
@@ -256,6 +345,7 @@ function WorkoutForm({ title, submitLabel, initial, save, back, cancel }: Workou
         <div>
           {back}
           <h1>{title}</h1>
+          {subtitle && <p className="muted">{subtitle}</p>}
         </div>
       </div>
 

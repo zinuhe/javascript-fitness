@@ -65,7 +65,7 @@ export class ExercisesService {
     await this.getById(id);
     if (await this.exercises.isInUse(id)) {
       throw new ConflictError(
-        'The exercise is referenced by logged workouts and cannot be deleted',
+        'The exercise is used by logged workouts or routines and cannot be deleted',
         'exercise.in_use',
       );
     }

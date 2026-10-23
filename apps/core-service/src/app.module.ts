@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { ExercisesModule } from './modules/exercises/exercises.module';
 import { WorkoutsModule } from './modules/workouts/workouts.module';
+import { RoutinesModule } from './modules/routines/routines.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { WorkoutsModule } from './modules/workouts/workouts.module';
     AuthModule,
     ExercisesModule,
     WorkoutsModule,
+    RoutinesModule,
   ],
 })
 export class AppModule implements NestModule {

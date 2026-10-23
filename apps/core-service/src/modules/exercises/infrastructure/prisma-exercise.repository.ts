@@ -72,11 +72,11 @@ export class PrismaExerciseRepository implements ExerciseRepository {
   }
 
   async isInUse(id: string): Promise<boolean> {
-    const found = await this.prisma.workoutExercise.findFirst({
-      where: { exerciseId: id },
-      select: { id: true },
-    });
-    return found !== null;
+    const [inWorkout, inRoutine] = await Promise.all([
+      this.prisma.workoutExercise.findFirst({ where: { exerciseId: id }, select: { id: true } }),
+      this.prisma.routineDayExercise.findFirst({ where: { exerciseId: id }, select: { id: true } }),
+    ]);
+    return inWorkout !== null || inRoutine !== null;
   }
 
   private toContract(row: ExerciseRow): Exercise {

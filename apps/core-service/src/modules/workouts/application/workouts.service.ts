@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError } from '@fitness/common';
 import type {
   CreateWorkoutRequest,
   ExerciseProgress,
+  LastExerciseSets,
   Paginated,
   UpdateWorkoutRequest,
   Workout,
@@ -15,12 +16,12 @@ export class WorkoutsService {
   constructor(@Inject(WORKOUT_REPOSITORY) private readonly workouts: WorkoutRepository) {}
 
   async create(userId: string, input: CreateWorkoutRequest): Promise<Workout> {
-    await this.assertExercisesExist(input);
+    await this.assertReferencesExist(userId, input);
     return this.workouts.create({ ...input, userId });
   }
 
   async update(userId: string, id: string, input: UpdateWorkoutRequest): Promise<Workout> {
-    await this.assertExercisesExist(input);
+    await this.assertReferencesExist(userId, input);
     const workout = await this.workouts.replaceForUser(id, userId, input);
     if (!workout) {
       throw new NotFoundError('Workout not found', 'workout.not_found');
@@ -57,9 +58,29 @@ export class WorkoutsService {
     }
   }
 
+  lastSets(userId: string, exerciseIds: string[]): Promise<LastExerciseSets[]> {
+    return this.workouts.findLastSets(userId, exerciseIds);
+  }
+
   async getExerciseProgress(userId: string, exerciseId: string): Promise<ExerciseProgress> {
     const history = await this.workouts.findSetHistory(userId, exerciseId);
     return { exerciseId, points: buildProgressPoints(history) };
+  }
+
+  private async assertReferencesExist(userId: string, input: CreateWorkoutRequest): Promise<void> {
+    await this.assertExercisesExist(input);
+    if (
+      input.routineDayId &&
+      !(await this.workouts.routineDayBelongsToUser(input.routineDayId, userId))
+    ) {
+      throw new ValidationError(
+        'Workout references an unknown routine day',
+        'workout.unknown_routine_day',
+        {
+          routineDayId: [input.routineDayId],
+        },
+      );
+    }
   }
 
   private async assertExercisesExist(input: CreateWorkoutRequest): Promise<void> {

@@ -21,7 +21,7 @@ export interface ExerciseRepository {
     equipment: Equipment,
     excludeId?: string,
   ): Promise<boolean>;
-  /** Whether any logged workout references this exercise (blocks deletion). */
+  /** Whether any logged workout or routine references this exercise (blocks deletion). */
   isInUse(id: string): Promise<boolean>;
 }
 

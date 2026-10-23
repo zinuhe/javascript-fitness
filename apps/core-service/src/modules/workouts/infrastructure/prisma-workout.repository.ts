@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma';
 import type {
+  LastExerciseSets,
   UpdateWorkoutRequest,
   Workout,
   WorkoutExercise,
@@ -13,10 +14,15 @@ import type {
   WorkoutRepository,
 } from '../domain/workout.repository';
 
+const setsOrdered = { orderBy: { order: 'asc' } } satisfies Prisma.WorkoutExercise$setsArgs;
+
 const workoutInclude = {
   exercises: {
     orderBy: { order: 'asc' },
-    include: { sets: { orderBy: { order: 'asc' } } },
+    include: { sets: setsOrdered },
+  },
+  routineDay: {
+    select: { id: true, position: true, name: true, routine: { select: { id: true, name: true } } },
   },
 } satisfies Prisma.WorkoutInclude;
 
@@ -54,6 +60,7 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         userId: data.userId,
         performedAt: data.performedAt ? new Date(data.performedAt) : new Date(),
         notes: data.notes,
+        routineDayId: data.routineDayId,
         exercises: exercisesCreate(data.exercises),
       },
       include: workoutInclude,
@@ -71,6 +78,7 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         where: { id },
         data: {
           ...(data.performedAt ? { performedAt: new Date(data.performedAt) } : {}),
+          ...(data.routineDayId ? { routineDayId: data.routineDayId } : {}),
           notes: data.notes ?? null,
           exercises: exercisesCreate(data.exercises),
         },
@@ -120,6 +128,42 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
     return unique.filter((id) => !existing.has(id));
   }
 
+  async routineDayBelongsToUser(routineDayId: string, userId: string): Promise<boolean> {
+    const day = await this.prisma.routineDay.findFirst({
+      where: { id: routineDayId, routine: { userId } },
+      select: { id: true },
+    });
+    return day !== null;
+  }
+
+  async findLastSets(userId: string, exerciseIds: string[]): Promise<LastExerciseSets[]> {
+    const latest = await Promise.all(
+      [...new Set(exerciseIds)].map((exerciseId) =>
+        this.prisma.workoutExercise.findFirst({
+          where: { exerciseId, workout: { userId } },
+          orderBy: [{ workout: { performedAt: 'desc' } }, { workout: { createdAt: 'desc' } }],
+          include: { sets: setsOrdered, workout: { select: { performedAt: true } } },
+        }),
+      ),
+    );
+    return latest.flatMap((entry) =>
+      entry
+        ? [
+            {
+              exerciseId: entry.exerciseId,
+              performedAt: entry.workout.performedAt.toISOString(),
+              sets: entry.sets.map((s) => ({
+                reps: s.reps,
+                weightKg: s.weightKg.toNumber(),
+                ...(s.rpe !== null ? { rpe: s.rpe.toNumber() } : {}),
+                ...(s.restSeconds !== null ? { restSeconds: s.restSeconds } : {}),
+              })),
+            },
+          ]
+        : [],
+    );
+  }
+
   async findSetHistory(userId: string, exerciseId: string): Promise<SetHistoryRow[]> {
     const sets = await this.prisma.workoutSet.findMany({
       where: {
@@ -144,6 +188,15 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
       userId: row.userId,
       performedAt: row.performedAt.toISOString(),
       notes: row.notes ?? undefined,
+      routineDay: row.routineDay
+        ? {
+            id: row.routineDay.id,
+            routineId: row.routineDay.routine.id,
+            routineName: row.routineDay.routine.name,
+            position: row.routineDay.position,
+            name: row.routineDay.name ?? undefined,
+          }
+        : undefined,
       createdAt: row.createdAt.toISOString(),
       exercises: row.exercises.map((we): WorkoutExercise => ({
         id: we.id,

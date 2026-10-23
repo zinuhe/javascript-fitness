@@ -1,14 +1,22 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
-import { deleteWorkout, exercisesQuery, workoutQuery, workoutsQuery } from '../api/queries';
+import {
+  deleteWorkout,
+  exercisesQuery,
+  nextRoutineQuery,
+  workoutQuery,
+  workoutsQuery,
+} from '../api/queries';
 import {
   ErrorMessage,
+  dayLabel,
   exerciseNames,
   formatDay,
   formatKg,
   formatTime,
   setsVolume,
 } from '../components/ui';
+import { NextUpCard } from './start';
 
 const listRoute = getRouteApi('/_app/workouts');
 
@@ -16,6 +24,7 @@ export function WorkoutsPage() {
   const { page = 1 } = listRoute.useSearch();
   const { data } = useSuspenseQuery(workoutsQuery(page));
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
+  const { data: next } = useSuspenseQuery(nextRoutineQuery);
   const names = exerciseNames(catalog.items);
 
   return (
@@ -27,6 +36,8 @@ export function WorkoutsPage() {
           Log workout
         </Link>
       </div>
+
+      {next && page === 1 && <NextUpCard next={next} />}
 
       {data.items.length === 0 ? (
         <div className="card empty">
@@ -50,6 +61,9 @@ export function WorkoutsPage() {
                     <span className="muted">{formatTime(workout.performedAt)}</span>
                   </div>
                   <p className="card-meta">
+                    {workout.routineDay && (
+                      <span className="day-chip">{dayLabel(workout.routineDay)}</span>
+                    )}
                     {totalSets} sets · {formatKg(volume)}
                   </p>
                   <p className="muted">
@@ -126,6 +140,17 @@ export function WorkoutDetailPage() {
           <p className="muted">
             {formatTime(workout.performedAt)} · {totalSets} sets · {formatKg(volume)}
           </p>
+          {workout.routineDay && (
+            <p>
+              <Link
+                to="/routines/$routineId"
+                params={{ routineId: workout.routineDay.routineId }}
+                className="day-chip"
+              >
+                {dayLabel(workout.routineDay)} · {workout.routineDay.routineName}
+              </Link>
+            </p>
+          )}
         </div>
         <div className="detail-actions">
           <Link to="/workouts/$workoutId/edit" params={{ workoutId }} className="button secondary">

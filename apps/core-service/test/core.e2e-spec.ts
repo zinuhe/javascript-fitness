@@ -2,7 +2,15 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
-import { Equipment, MuscleGroup, type Exercise, type Workout } from '@fitness/contracts';
+import {
+  Equipment,
+  MuscleGroup,
+  type Exercise,
+  type LastExerciseSets,
+  type NextRoutineDay,
+  type Routine,
+  type Workout,
+} from '@fitness/contracts';
 import { createApp } from './app';
 
 /** Access token as auth-service would issue it (same shared secret, payload and expiry). */
@@ -295,6 +303,230 @@ describe('core-service (e2e)', () => {
       await as(token).delete(`/workouts/${workout.id}`).expect(204);
       await as(token).get(`/workouts/${workout.id}`).expect(404);
       await as(token).delete(`/exercises/${squat.id}`).expect(204);
+    });
+  });
+  describe('routines', () => {
+    /** A 3-day split (Push / Pull / Legs), one exercise per day, for a fresh user. */
+    async function threeDaySplit(token: string) {
+      const [bench, row, squat] = await Promise.all([
+        createExercise(token, { muscleGroup: MuscleGroup.Chest }),
+        createExercise(token, { muscleGroup: MuscleGroup.Back }),
+        createExercise(token),
+      ]);
+      const routine = (
+        await as(token)
+          .post('/routines', {
+            name: 'Push / Pull / Legs',
+            days: [
+              { name: 'Push', exerciseIds: [bench.id] },
+              { name: 'Pull', exerciseIds: [row.id] },
+              { name: 'Legs', exerciseIds: [squat.id] },
+            ],
+          })
+          .expect(201)
+      ).body as Routine;
+      return { routine, bench, row, squat };
+    }
+
+    const logDay = (token: string, dayId: string, exerciseId: string, performedAt: string) =>
+      as(token)
+        .post('/workouts', {
+          performedAt,
+          routineDayId: dayId,
+          exercises: [{ exerciseId, sets: [{ reps: 5, weightKg: 100 }] }],
+        })
+        .expect(201);
+
+    const nextDayName = async (token: string) =>
+      ((await as(token).get('/routines/next').expect(200)).body as NextRoutineDay).day.name;
+
+    it('creates a routine with ordered days; the first one is active', async () => {
+      const token = tokenFor();
+      const { routine, bench, row, squat } = await threeDaySplit(token);
+
+      expect(routine.isActive).toBe(true);
+      expect(routine.days.map((d) => [d.position, d.name, d.exerciseIds])).toEqual([
+        [0, 'Push', [bench.id]],
+        [1, 'Pull', [row.id]],
+        [2, 'Legs', [squat.id]],
+      ]);
+      const list = await as(token).get('/routines').expect(200);
+      expect(list.body.map((r: Routine) => r.id)).toEqual([routine.id]);
+    });
+
+    it('rotates through the days and wraps back to day one', async () => {
+      const token = tokenFor();
+      const { routine, bench, row, squat } = await threeDaySplit(token);
+      const [push, pull, legs] = routine.days;
+
+      expect(await nextDayName(token)).toBe('Push'); // nothing logged yet
+      await logDay(token, push.id, bench.id, '2026-10-01T09:00:00.000Z');
+      expect(await nextDayName(token)).toBe('Pull');
+      await logDay(token, pull.id, row.id, '2026-10-03T09:00:00.000Z');
+      expect(await nextDayName(token)).toBe('Legs');
+      await logDay(token, legs.id, squat.id, '2026-10-05T09:00:00.000Z');
+      expect(await nextDayName(token)).toBe('Push'); // wrap-around
+
+      // Workouts carry a label for their routine day.
+      const list = await as(token).get('/workouts').expect(200);
+      expect((list.body.items as Workout[])[0].routineDay).toMatchObject({
+        id: legs.id,
+        routineId: routine.id,
+        routineName: 'Push / Pull / Legs',
+        name: 'Legs',
+        position: 2,
+      });
+    });
+
+    it('editing days keeps their ids, so the rotation keeps its place', async () => {
+      const token = tokenFor();
+      const { routine, bench, row, squat } = await threeDaySplit(token);
+      const [push, pull, legs] = routine.days;
+      await logDay(token, push.id, bench.id, '2026-10-01T09:00:00.000Z');
+
+      // Rename Pull, swap its exercise, drop Legs and add Arms.
+      const res = await as(token)
+        .put(`/routines/${routine.id}`, {
+          name: 'Upper / Lower',
+          days: [
+            { id: push.id, name: 'Push', exerciseIds: [bench.id] },
+            { id: pull.id, name: 'Back', exerciseIds: [row.id, squat.id] },
+            { name: 'Arms', exerciseIds: [bench.id] },
+          ],
+        })
+        .expect(200);
+
+      const updated = res.body as Routine;
+      expect(updated.days.map((d) => [d.id === push.id, d.id === pull.id, d.name])).toEqual([
+        [true, false, 'Push'],
+        [false, true, 'Back'],
+        [false, false, 'Arms'],
+      ]);
+      expect(updated.days.some((d) => d.id === legs.id)).toBe(false);
+      expect(await nextDayName(token)).toBe('Back');
+
+      await as(token)
+        .put(`/routines/${routine.id}`, {
+          name: 'x',
+          days: [{ id: randomUUID(), exerciseIds: [bench.id] }],
+        })
+        .expect(422);
+    });
+
+    it('only one routine is active; next follows the active one', async () => {
+      const token = tokenFor();
+      const { routine: first } = await threeDaySplit(token);
+      const exercise = await createExercise(token);
+      const second = (
+        await as(token)
+          .post('/routines', {
+            name: 'Full body',
+            days: [{ name: 'FB', exerciseIds: [exercise.id] }],
+          })
+          .expect(201)
+      ).body as Routine;
+      expect(second.isActive).toBe(false);
+
+      await as(token).post(`/routines/${second.id}/activate`, {}).expect(200);
+
+      const list = (await as(token).get('/routines').expect(200)).body as Routine[];
+      expect(list.map((r) => [r.id, r.isActive])).toEqual([
+        [second.id, true],
+        [first.id, false],
+      ]);
+      expect(await nextDayName(token)).toBe('FB');
+    });
+
+    it('next is 204 without an active routine; deleting a routine keeps its workouts', async () => {
+      const token = tokenFor();
+      await as(token).get('/routines/next').expect(204);
+
+      const { routine, bench } = await threeDaySplit(token);
+      const workout = (
+        await logDay(token, routine.days[0].id, bench.id, '2026-10-01T09:00:00.000Z')
+      ).body as Workout;
+
+      await as(token).delete(`/routines/${routine.id}`).expect(204);
+
+      const reread = (await as(token).get(`/workouts/${workout.id}`).expect(200)).body as Workout;
+      expect(reread.routineDay).toBeUndefined();
+      await as(token).get('/routines/next').expect(204);
+    });
+
+    it('keeps routines private and validates references', async () => {
+      const owner = tokenFor();
+      const intruder = tokenFor();
+      const { routine, bench } = await threeDaySplit(owner);
+
+      await as(intruder).get(`/routines/${routine.id}`).expect(404);
+      await as(intruder).post(`/routines/${routine.id}/activate`, {}).expect(404);
+      await as(intruder).delete(`/routines/${routine.id}`).expect(404);
+      const borrowed = await as(intruder)
+        .post('/workouts', {
+          routineDayId: routine.days[0].id,
+          exercises: [{ exerciseId: bench.id, sets: [{ reps: 1, weightKg: 1 }] }],
+        })
+        .expect(422);
+      expect(borrowed.body.title).toBe('workout.unknown_routine_day');
+
+      await as(owner).post('/routines', { name: 'Empty', days: [] }).expect(400);
+      await as(owner)
+        .post('/routines', { name: 'Ghost', days: [{ exerciseIds: [randomUUID()] }] })
+        .expect(422);
+    });
+
+    it('an exercise used by a routine cannot be deleted', async () => {
+      const token = tokenFor();
+      const { bench } = await threeDaySplit(token);
+
+      const res = await as(token).delete(`/exercises/${bench.id}`).expect(409);
+      expect(res.body.title).toBe('exercise.in_use');
+    });
+
+    it('returns the last sets of each exercise for pre-filling a day', async () => {
+      const token = tokenFor();
+      const { bench, squat } = await threeDaySplit(token);
+      const never = await createExercise(token);
+      for (const [performedAt, weightKg] of [
+        ['2026-10-01T09:00:00.000Z', 60],
+        ['2026-10-08T09:00:00.000Z', 65],
+      ] as const) {
+        await as(token)
+          .post('/workouts', {
+            performedAt,
+            exercises: [
+              {
+                exerciseId: bench.id,
+                sets: [
+                  { reps: 8, weightKg },
+                  { reps: 6, weightKg: weightKg + 5, rpe: 9 },
+                ],
+              },
+            ],
+          })
+          .expect(201);
+      }
+      await as(tokenFor())
+        .post('/workouts', {
+          exercises: [{ exerciseId: squat.id, sets: [{ reps: 1, weightKg: 300 }] }],
+        })
+        .expect(201); // another user's squat must not leak
+
+      const res = await as(token)
+        .get(`/workouts/last-sets?exerciseIds=${bench.id},${squat.id},${never.id}`)
+        .expect(200);
+
+      expect(res.body as LastExerciseSets[]).toEqual([
+        {
+          exerciseId: bench.id,
+          performedAt: '2026-10-08T09:00:00.000Z',
+          sets: [
+            { reps: 8, weightKg: 65 },
+            { reps: 6, weightKg: 70, rpe: 9 },
+          ],
+        },
+      ]);
+      await as(token).get('/workouts/last-sets?exerciseIds=not-a-uuid').expect(400);
     });
   });
 });

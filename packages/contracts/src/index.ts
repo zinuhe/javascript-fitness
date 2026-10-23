@@ -8,3 +8,4 @@ export * from './auth/auth.contract';
 // Core
 export * from './core/exercise.contract';
 export * from './core/workout.contract';
+export * from './core/routine.contract';

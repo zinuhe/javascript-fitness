@@ -2,13 +2,17 @@ import { HttpResponse, http } from 'msw';
 import type {
   AuthResponse,
   CreateExerciseRequest,
+  CreateRoutineRequest,
   CreateWorkoutRequest,
   Exercise,
   ExerciseProgressPoint,
+  LastExerciseSets,
   ProblemDetails,
+  Routine,
   UpdateWorkoutRequest,
   UserProfile,
   Workout,
+  WorkoutRoutineDay,
 } from '@fitness/contracts';
 import { Equipment, MuscleGroup } from '@fitness/contracts';
 
@@ -21,10 +25,15 @@ interface UserRecord extends UserProfile {
   password: string;
 }
 
+interface RoutineRecord extends Routine {
+  userId: string;
+}
+
 interface State {
   users: UserRecord[];
   exercises: Exercise[];
   workouts: Workout[];
+  routines: RoutineRecord[];
   accessTokens: Map<string, string>; // token → userId
   refreshTokens: Map<string, string>; // token → userId
   refreshCalls: number;
@@ -38,6 +47,7 @@ export function resetApi(): void {
     users: [],
     exercises: [],
     workouts: [],
+    routines: [],
     accessTokens: new Map(),
     refreshTokens: new Map(),
     refreshCalls: 0,
@@ -84,6 +94,26 @@ export function seedWorkout(userId: string, input: CreateWorkoutRequest): Workou
   return workout;
 }
 
+/** A routine for `userId`; the user's first routine is active, like the real API. */
+export function seedRoutine(userId: string, input: CreateRoutineRequest): Routine {
+  const routine: RoutineRecord = {
+    id: nextId('routine'),
+    userId,
+    name: input.name,
+    isActive: !state.routines.some((r) => r.userId === userId),
+    createdAt: now(),
+    updatedAt: now(),
+    days: input.days.map((day, position) => ({
+      id: nextId('day'),
+      position,
+      name: day.name,
+      exerciseIds: [...day.exerciseIds],
+    })),
+  };
+  state.routines.push(routine);
+  return withoutOwner(routine);
+}
+
 /** Issues a token pair for `user`, as if they had signed in. */
 export function issueTokens(user: UserRecord): AuthResponse['tokens'] {
   const accessToken = nextId('access');
@@ -104,6 +134,9 @@ export const apiState = {
   },
   get exercises() {
     return state.exercises;
+  },
+  get routines() {
+    return state.routines;
   },
   get refreshCalls() {
     return state.refreshCalls;
@@ -153,12 +186,38 @@ function paginate<T>(items: T[], url: URL) {
   };
 }
 
+const withoutOwner = ({ userId: _userId, ...routine }: RoutineRecord): Routine => routine;
+
+/** Label of a routine day as workouts carry it, or undefined when it doesn't exist. */
+function routineDayLabel(dayId: string | undefined): WorkoutRoutineDay | undefined {
+  for (const routine of state.routines) {
+    const day = routine.days.find((d) => d.id === dayId);
+    if (day) {
+      return {
+        id: day.id,
+        routineId: routine.id,
+        routineName: routine.name,
+        position: day.position,
+        name: day.name,
+      };
+    }
+  }
+  return undefined;
+}
+
+const ownsRoutineDay = (userId: string, dayId: string) =>
+  state.routines.some((r) => r.userId === userId && r.days.some((d) => d.id === dayId));
+
+const missingExercises = (ids: string[]) =>
+  [...new Set(ids)].filter((id) => !state.exercises.some((e) => e.id === id));
+
 function buildWorkout(userId: string, input: CreateWorkoutRequest): Workout {
   return {
     id: nextId('workout'),
     userId,
     performedAt: input.performedAt ?? now(),
     notes: input.notes,
+    routineDay: routineDayLabel(input.routineDayId),
     createdAt: now(),
     exercises: input.exercises.map((entry, order) => ({
       id: nextId('we'),
@@ -272,6 +331,9 @@ export const handlers = [
     if (missing.length > 0) {
       return problem(422, 'Workout references unknown exercises', { exerciseId: missing });
     }
+    if (body.routineDayId && !ownsRoutineDay(user.id, body.routineDayId)) {
+      return problem(422, 'Workout references an unknown routine day');
+    }
     return HttpResponse.json(seedWorkout(user.id, body), { status: 201 });
   }),
 
@@ -280,6 +342,31 @@ export const handlers = [
     if (!user) return problem(401, 'Unauthorized');
     const exerciseId = String(params.exerciseId);
     return HttpResponse.json({ exerciseId, points: progressFor(user.id, exerciseId) });
+  }),
+
+  http.get('/api/workouts/last-sets', ({ request }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const ids = (new URL(request.url).searchParams.get('exerciseIds') ?? '').split(',');
+    const newestFirst = state.workouts
+      .filter((w) => w.userId === user.id)
+      .sort((a, b) => b.performedAt.localeCompare(a.performedAt));
+    const result: LastExerciseSets[] = ids.flatMap((exerciseId) => {
+      for (const workout of newestFirst) {
+        const entry = workout.exercises.find((e) => e.exerciseId === exerciseId);
+        if (entry) {
+          const sets = entry.sets.map(({ reps, weightKg, rpe, restSeconds }) => ({
+            reps,
+            weightKg,
+            ...(rpe !== undefined ? { rpe } : {}),
+            ...(restSeconds !== undefined ? { restSeconds } : {}),
+          }));
+          return [{ exerciseId, performedAt: workout.performedAt, sets }];
+        }
+      }
+      return [];
+    });
+    return HttpResponse.json(result);
   }),
 
   http.get('/api/workouts/:id', ({ request, params }) => {
@@ -306,6 +393,7 @@ export const handlers = [
     const rebuilt = buildWorkout(user.id, {
       ...body,
       performedAt: body.performedAt ?? current.performedAt,
+      routineDayId: body.routineDayId ?? current.routineDay?.id,
     });
     const updated: Workout = { ...rebuilt, id: current.id, createdAt: current.createdAt };
     state.workouts[index] = updated;
@@ -320,5 +408,88 @@ export const handlers = [
     return state.workouts.length < before
       ? new HttpResponse(null, { status: 204 })
       : problem(404, 'Workout not found');
+  }),
+
+  // ── Routines ──────────────────────────────────────────────────────────────────
+  http.get('/api/routines', ({ request }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const mine = state.routines
+      .filter((r) => r.userId === user.id)
+      .sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.name.localeCompare(b.name));
+    return HttpResponse.json(mine.map(withoutOwner));
+  }),
+
+  // Before '/api/routines/:id', which would otherwise match "next".
+  http.get('/api/routines/next', ({ request }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const routine = state.routines.find((r) => r.userId === user.id && r.isActive);
+    if (!routine) return new HttpResponse(null, { status: 204 });
+    const last = state.workouts
+      .filter((w) => w.userId === user.id && w.routineDay?.routineId === routine.id)
+      .sort((a, b) => b.performedAt.localeCompare(a.performedAt))[0];
+    const lastIndex = routine.days.findIndex((d) => d.id === last?.routineDay?.id);
+    const day = routine.days[(lastIndex + 1) % routine.days.length];
+    return HttpResponse.json({ routine: withoutOwner(routine), day });
+  }),
+
+  http.post('/api/routines', async ({ request }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const body = (await request.json()) as CreateRoutineRequest;
+    const missing = missingExercises(body.days.flatMap((d) => d.exerciseIds));
+    if (missing.length > 0) {
+      return problem(422, 'Routine references unknown exercises', { exerciseId: missing });
+    }
+    return HttpResponse.json(seedRoutine(user.id, body), { status: 201 });
+  }),
+
+  http.get('/api/routines/:id', ({ request, params }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const routine = state.routines.find((r) => r.id === params.id && r.userId === user.id);
+    return routine ? HttpResponse.json(withoutOwner(routine)) : problem(404, 'Routine not found');
+  }),
+
+  http.put('/api/routines/:id', async ({ request, params }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const routine = state.routines.find((r) => r.id === params.id && r.userId === user.id);
+    if (!routine) return problem(404, 'Routine not found');
+    const body = (await request.json()) as CreateRoutineRequest;
+    const unknown = body.days.flatMap((d) =>
+      d.id && !routine.days.some((existing) => existing.id === d.id) ? [d.id] : [],
+    );
+    if (unknown.length > 0) return problem(422, 'Routine references days it does not have');
+    routine.name = body.name;
+    routine.days = body.days.map((day, position) => ({
+      id: day.id ?? nextId('day'),
+      position,
+      name: day.name,
+      exerciseIds: [...day.exerciseIds],
+    }));
+    return HttpResponse.json(withoutOwner(routine));
+  }),
+
+  http.post('/api/routines/:id/activate', ({ request, params }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const routine = state.routines.find((r) => r.id === params.id && r.userId === user.id);
+    if (!routine) return problem(404, 'Routine not found');
+    for (const r of state.routines) if (r.userId === user.id) r.isActive = r.id === routine.id;
+    return HttpResponse.json(withoutOwner(routine));
+  }),
+
+  http.delete('/api/routines/:id', ({ request, params }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const routine = state.routines.find((r) => r.id === params.id && r.userId === user.id);
+    if (!routine) return problem(404, 'Routine not found');
+    state.routines = state.routines.filter((r) => r !== routine);
+    for (const w of state.workouts) {
+      if (w.routineDay?.routineId === routine.id) w.routineDay = undefined;
+    }
+    return new HttpResponse(null, { status: 204 });
   }),
 ];

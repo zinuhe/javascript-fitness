@@ -13,11 +13,17 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { ExerciseProgress, JwtAccessPayload, Paginated, Workout } from '@fitness/contracts';
+import type {
+  ExerciseProgress,
+  JwtAccessPayload,
+  LastExerciseSets,
+  Paginated,
+  Workout,
+} from '@fitness/contracts';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/current-user.decorator';
 import { WorkoutsService } from '../application/workouts.service';
-import { CreateWorkoutDto, ListWorkoutsQueryDto } from './dto/workout.dto';
+import { CreateWorkoutDto, LastSetsQueryDto, ListWorkoutsQueryDto } from './dto/workout.dto';
 
 @ApiTags('workouts')
 @ApiBearerAuth()
@@ -39,6 +45,16 @@ export class WorkoutsController {
     @Query() query: ListWorkoutsQueryDto,
   ): Promise<Paginated<Workout>> {
     return this.workouts.list(user.sub, query.page, query.pageSize);
+  }
+
+  // Declared before ':id' so "last-sets" is not parsed as a workout id.
+  @Get('last-sets')
+  @ApiOperation({ summary: 'Sets from the most recent workout of each given exercise' })
+  lastSets(
+    @CurrentUser() user: JwtAccessPayload,
+    @Query() query: LastSetsQueryDto,
+  ): Promise<LastExerciseSets[]> {
+    return this.workouts.lastSets(user.sub, query.exerciseIds);
   }
 
   @Get('progress/:exerciseId')

@@ -108,3 +108,8 @@ export function NotFound() {
 export function Pending() {
   return <p className="muted pending">Loading…</p>;
 }
+
+/** "Day 2 · Pull" (or just "Day 2" for an unnamed day); positions are zero-based. */
+export function dayLabel(day: { position: number; name?: string }): string {
+  return day.name ? `Day ${day.position + 1} · ${day.name}` : `Day ${day.position + 1}`;
+}

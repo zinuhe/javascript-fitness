@@ -2,13 +2,18 @@ import { queryOptions } from '@tanstack/react-query';
 import type {
   AuthResponse,
   CreateExerciseRequest,
+  CreateRoutineRequest,
   CreateWorkoutRequest,
+  UpdateRoutineRequest,
   UpdateWorkoutRequest,
   Exercise,
   ExerciseProgress,
+  LastExerciseSets,
   LoginRequest,
+  NextRoutineDay,
   Paginated,
   RegisterRequest,
+  Routine,
   UserProfile,
   Workout,
 } from '@fitness/contracts';
@@ -54,6 +59,33 @@ export const progressQuery = (exerciseId: string) =>
     queryFn: () => api<ExerciseProgress>(`/workouts/progress/${exerciseId}`),
   });
 
+export const routinesQuery = queryOptions({
+  queryKey: ['routines'],
+  queryFn: () => api<Routine[]>('/routines'),
+});
+
+export const routineQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['routines', id],
+    queryFn: () => api<Routine>(`/routines/${id}`),
+  });
+
+/** The day to do next in the active routine; null when no routine is active (204). */
+export const nextRoutineQuery = queryOptions({
+  queryKey: ['routines', 'next'],
+  queryFn: async () => (await api<NextRoutineDay | undefined>('/routines/next')) ?? null,
+});
+
+/** Sets from the latest workout of each exercise, to pre-fill a routine day. */
+export const lastSetsQuery = (exerciseIds: string[]) =>
+  queryOptions({
+    queryKey: ['last-sets', [...exerciseIds].sort()],
+    queryFn: () =>
+      exerciseIds.length === 0
+        ? Promise.resolve<LastExerciseSets[]>([])
+        : api<LastExerciseSets[]>(`/workouts/last-sets?exerciseIds=${exerciseIds.join(',')}`),
+  });
+
 // ── Commands ────────────────────────────────────────────────────────────────────
 async function storeSession(result: Promise<AuthResponse>): Promise<UserProfile> {
   const { tokens, user } = await result;
@@ -90,3 +122,14 @@ export const updateWorkout = (id: string, input: UpdateWorkoutRequest) =>
   api<Workout>(`/workouts/${id}`, { method: 'PUT', body: input });
 
 export const deleteWorkout = (id: string) => api<void>(`/workouts/${id}`, { method: 'DELETE' });
+
+export const createRoutine = (input: CreateRoutineRequest) =>
+  api<Routine>('/routines', { method: 'POST', body: input });
+
+export const updateRoutine = (id: string, input: UpdateRoutineRequest) =>
+  api<Routine>(`/routines/${id}`, { method: 'PUT', body: input });
+
+export const activateRoutine = (id: string) =>
+  api<Routine>(`/routines/${id}/activate`, { method: 'POST' });
+
+export const deleteRoutine = (id: string) => api<void>(`/routines/${id}`, { method: 'DELETE' });

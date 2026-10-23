@@ -21,6 +21,8 @@ beforeEach(() => {
     replaceForUser: jest.fn().mockResolvedValue({ id: 'w-1' } as Workout),
     deleteForUser: jest.fn(),
     findMissingExerciseIds: jest.fn().mockResolvedValue([]),
+    routineDayBelongsToUser: jest.fn().mockResolvedValue(true),
+    findLastSets: jest.fn().mockResolvedValue([]),
     findSetHistory: jest.fn(),
   };
   service = new WorkoutsService(repo);
@@ -75,5 +77,23 @@ describe('WorkoutsService.update', () => {
 
     expect(error).toBeInstanceOf(NotFoundError);
     expect(error).toMatchObject({ code: 'workout.not_found' });
+  });
+});
+
+describe('WorkoutsService routine days', () => {
+  it('accepts a routine day of the user', async () => {
+    await service.create('user-1', { ...input, routineDayId: 'day-1' });
+
+    expect(repo.routineDayBelongsToUser).toHaveBeenCalledWith('day-1', 'user-1');
+    expect(repo.create).toHaveBeenCalledWith({ ...input, routineDayId: 'day-1', userId: 'user-1' });
+  });
+
+  it('rejects a routine day that is not the user’s (422)', async () => {
+    repo.routineDayBelongsToUser.mockResolvedValue(false);
+
+    await expect(
+      service.create('user-1', { ...input, routineDayId: 'day-x' }),
+    ).rejects.toMatchObject({ httpStatus: 422, code: 'workout.unknown_routine_day' });
+    expect(repo.create).not.toHaveBeenCalled();
   });
 });

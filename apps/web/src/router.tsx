@@ -11,8 +11,12 @@ import { ApiError, tokenStore } from './api/client';
 import {
   exerciseQuery,
   exercisesQuery,
+  lastSetsQuery,
   meQuery,
+  nextRoutineQuery,
   progressQuery,
+  routineQuery,
+  routinesQuery,
   workoutQuery,
   workoutsQuery,
 } from './api/queries';
@@ -22,6 +26,9 @@ import { AppLayout } from './pages/layout';
 import { WorkoutDetailPage, WorkoutsPage } from './pages/workouts';
 import { EditWorkoutPage, NewWorkoutPage } from './pages/workout-form';
 import { ExerciseDetailPage, ExercisesPage } from './pages/exercises';
+import { EditRoutinePage, NewRoutinePage, RoutineDetailPage, RoutinesPage } from './pages/routines';
+import { StartWorkoutPage } from './pages/start';
+import { AccountPage } from './pages/account';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -101,14 +108,41 @@ const workoutsRoute = createRoute({
     Promise.all([
       context.queryClient.ensureQueryData(workoutsQuery(deps.page)),
       context.queryClient.ensureQueryData(exercisesQuery),
+      context.queryClient.ensureQueryData(nextRoutineQuery),
     ]),
   component: WorkoutsPage,
+});
+
+// What the tab bar's + opens: the routine's next day, or the empty form without a routine.
+const startWorkoutRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'workouts/start',
+  loader: async ({ context }) => {
+    const [next] = await Promise.all([
+      context.queryClient.ensureQueryData(nextRoutineQuery),
+      context.queryClient.ensureQueryData(exercisesQuery),
+    ]);
+    if (!next) throw redirect({ to: '/workouts/new', replace: true });
+  },
+  component: StartWorkoutPage,
 });
 
 const newWorkoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'workouts/new',
-  loader: ({ context }) => context.queryClient.ensureQueryData(exercisesQuery),
+  // routineDayId pre-fills the form with that routine day and the weights used last time.
+  validateSearch: (search: Record<string, unknown>): { routineDayId?: string } => ({
+    routineDayId: typeof search.routineDayId === 'string' ? search.routineDayId : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ routineDayId: search.routineDayId }),
+  loader: async ({ context, deps }) => {
+    const [, routines] = await Promise.all([
+      context.queryClient.ensureQueryData(exercisesQuery),
+      context.queryClient.ensureQueryData(routinesQuery),
+    ]);
+    const day = routines.flatMap((routine) => routine.days).find((d) => d.id === deps.routineDayId);
+    await context.queryClient.ensureQueryData(lastSetsQuery(day?.exerciseIds ?? []));
+  },
   component: NewWorkoutPage,
 });
 
@@ -152,17 +186,65 @@ const exerciseRoute = createRoute({
   component: ExerciseDetailPage,
 });
 
+const routinesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'routines',
+  loader: ({ context }) => context.queryClient.ensureQueryData(routinesQuery),
+  component: RoutinesPage,
+});
+
+const newRoutineRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'routines/new',
+  loader: ({ context }) => context.queryClient.ensureQueryData(exercisesQuery),
+  component: NewRoutinePage,
+});
+
+const routineRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'routines/$routineId',
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(routineQuery(params.routineId)),
+      context.queryClient.ensureQueryData(exercisesQuery),
+    ]),
+  component: RoutineDetailPage,
+});
+
+const editRoutineRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'routines/$routineId/edit',
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(routineQuery(params.routineId)),
+      context.queryClient.ensureQueryData(exercisesQuery),
+    ]),
+  component: EditRoutinePage,
+});
+
+const accountRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'account',
+  component: AccountPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   registerRoute,
   appRoute.addChildren([
     indexRoute,
     workoutsRoute,
+    startWorkoutRoute,
     newWorkoutRoute,
     workoutRoute,
     editWorkoutRoute,
+    routinesRoute,
+    newRoutineRoute,
+    routineRoute,
+    editRoutineRoute,
     exercisesRoute,
     exerciseRoute,
+    accountRoute,
   ]),
 ]);
 

@@ -1,10 +1,11 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { logout, meQuery } from '../api/queries';
-import { DumbbellIcon, ListIcon, PlusIcon } from '../components/icons';
+import { DumbbellIcon, ListIcon, PlusIcon, RepeatIcon, UserIcon } from '../components/icons';
 
-/** Workout form pages get the full screen: their own sticky Save bar replaces the tab bar. */
-const isFormPath = (pathname: string) => /^\/workouts\/(new|[^/]+\/edit)\/?$/.test(pathname);
+/** Form pages get the full screen: their own sticky Save bar replaces the tab bar. */
+const isFormPath = (pathname: string) =>
+  /^\/(workouts|routines)\/(new|[^/]+\/edit)\/?$/.test(pathname);
 
 export function AppLayout() {
   const { data: user } = useSuspenseQuery(meQuery);
@@ -30,10 +31,14 @@ export function AppLayout() {
           <Link to="/workouts" activeProps={{ className: 'active' }}>
             Workouts
           </Link>
+          <Link to="/routines" activeProps={{ className: 'active' }}>
+            Routines
+          </Link>
           <Link to="/exercises" activeProps={{ className: 'active' }}>
             Exercises
           </Link>
         </nav>
+        {/* Wide screens only; on phones this lives in the Account tab. */}
         <div className="user">
           <span className="muted user-name">{user.displayName}</span>
           <button type="button" className="button secondary small" onClick={signOut}>
@@ -50,12 +55,20 @@ export function AppLayout() {
             <ListIcon />
             <span>Workouts</span>
           </Link>
-          <Link to="/workouts/new" className="tab-primary" aria-label="Log workout">
+          <Link to="/routines" activeProps={{ className: 'active' }}>
+            <RepeatIcon />
+            <span>Routines</span>
+          </Link>
+          <Link to="/workouts/start" className="tab-primary" aria-label="Log workout">
             <PlusIcon />
           </Link>
           <Link to="/exercises" activeProps={{ className: 'active' }}>
             <DumbbellIcon />
             <span>Exercises</span>
+          </Link>
+          <Link to="/account" activeProps={{ className: 'active' }}>
+            <UserIcon />
+            <span>Account</span>
           </Link>
         </nav>
       )}

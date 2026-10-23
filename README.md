@@ -125,16 +125,21 @@ healthcheck.
 
 ## Main endpoints (through the gateway, `/api` prefix)
 
-| Method         | Path                         | Auth | Description                   |
-| -------------- | ---------------------------- | ---- | ----------------------------- |
-| POST           | `/api/auth/register`         | —    | Register + tokens             |
-| POST           | `/api/auth/login`            | —    | Login                         |
-| POST           | `/api/auth/refresh`          | —    | Rotate refresh token          |
-| GET            | `/api/auth/me`               | JWT  | User profile                  |
-| GET/POST       | `/api/exercises`             | JWT  | Exercise catalog (CRUD)       |
-| GET/POST       | `/api/workouts`              | JWT  | User workouts                 |
-| GET/PUT/DELETE | `/api/workouts/:id`          | JWT  | One workout (PUT replaces it) |
-| GET            | `/api/workouts/progress/:id` | JWT  | Per-exercise progress         |
+| Method         | Path                                    | Auth | Description                                  |
+| -------------- | --------------------------------------- | ---- | -------------------------------------------- |
+| POST           | `/api/auth/register`                    | —    | Register + tokens                            |
+| POST           | `/api/auth/login`                       | —    | Login                                        |
+| POST           | `/api/auth/refresh`                     | —    | Rotate refresh token                         |
+| GET            | `/api/auth/me`                          | JWT  | User profile                                 |
+| GET/POST       | `/api/exercises`                        | JWT  | Exercise catalog (CRUD)                      |
+| GET/POST       | `/api/workouts`                         | JWT  | User workouts                                |
+| GET/PUT/DELETE | `/api/workouts/:id`                     | JWT  | One workout (PUT replaces it)                |
+| GET            | `/api/workouts/progress/:id`            | JWT  | Per-exercise progress                        |
+| GET            | `/api/workouts/last-sets?exerciseIds=…` | JWT  | Last sets per exercise (pre-fill)            |
+| GET/POST       | `/api/routines`                         | JWT  | Routines (rotating day splits)               |
+| GET/PUT/DELETE | `/api/routines/:id`                     | JWT  | One routine (PUT keeps day ids)              |
+| POST           | `/api/routines/:id/activate`            | JWT  | Make it the active routine                   |
+| GET            | `/api/routines/next`                    | JWT  | Next day of the active routine (204 if none) |
 
 ### Quick smoke test
 

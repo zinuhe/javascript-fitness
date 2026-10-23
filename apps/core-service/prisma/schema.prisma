@@ -43,24 +43,29 @@ model Exercise {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  workoutExercises WorkoutExercise[]
+  workoutExercises    WorkoutExercise[]
+  routineDayExercises RoutineDayExercise[]
 
   @@unique([name, equipment])
   @@map("exercises")
 }
 
 model Workout {
-  id          String   @id @default(uuid()) @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
   // Logical reference to the auth-service user (no cross-DB FK).
-  userId      String   @db.Uuid
-  performedAt DateTime @default(now())
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  userId       String   @db.Uuid
+  performedAt  DateTime @default(now())
+  notes        String?
+  // Routine day this session was started from; drives "what's next" in the rotation.
+  routineDayId String?  @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  exercises WorkoutExercise[]
+  exercises  WorkoutExercise[]
+  routineDay RoutineDay?       @relation(fields: [routineDayId], references: [id], onDelete: SetNull)
 
   @@index([userId, performedAt])
+  @@index([routineDayId])
   @@map("workouts")
 }
 
@@ -70,8 +75,8 @@ model WorkoutExercise {
   exerciseId String @db.Uuid
   order      Int
 
-  workout  Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  workout  Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
   sets     WorkoutSet[]
 
   @@index([workoutId])
@@ -80,11 +85,11 @@ model WorkoutExercise {
 }
 
 model WorkoutSet {
-  id                String  @id @default(uuid()) @db.Uuid
-  workoutExerciseId String  @db.Uuid
+  id                String   @id @default(uuid()) @db.Uuid
+  workoutExerciseId String   @db.Uuid
   order             Int
   reps              Int
-  weightKg          Decimal @db.Decimal(6, 2)
+  weightKg          Decimal  @db.Decimal(6, 2)
   rpe               Decimal? @db.Decimal(3, 1)
   restSeconds       Int?
 
@@ -92,4 +97,49 @@ model WorkoutSet {
 
   @@index([workoutExerciseId])
   @@map("workout_sets")
+}
+
+// A routine (split): N days, each a fixed list of exercises, repeated in order forever.
+model Routine {
+  id        String   @id @default(uuid()) @db.Uuid
+  // Logical reference to the auth-service user (no cross-DB FK).
+  userId    String   @db.Uuid
+  name      String
+  // The routine the user follows now; at most one per user (enforced by the service).
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  days RoutineDay[]
+
+  @@index([userId])
+  @@map("routines")
+}
+
+model RoutineDay {
+  id        String  @id @default(uuid()) @db.Uuid
+  routineId String  @db.Uuid
+  position  Int
+  name      String?
+
+  routine   Routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercises RoutineDayExercise[]
+  workouts  Workout[]
+
+  @@index([routineId])
+  @@map("routine_days")
+}
+
+model RoutineDayExercise {
+  id         String @id @default(uuid()) @db.Uuid
+  dayId      String @db.Uuid
+  exerciseId String @db.Uuid
+  position   Int
+
+  day      RoutineDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  exercise Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@index([dayId])
+  @@index([exerciseId])
+  @@map("routine_day_exercises")
 }

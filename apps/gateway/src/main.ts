@@ -59,8 +59,9 @@ async function bootstrap(): Promise<void> {
 
   // Protected core routes: JWT verified at the edge, then /api/{resource}/* → /{resource}/*
   const jwtGuard = createJwtMiddleware(jwtSecret);
+  const CORE_PREFIXES = ['/api/exercises', '/api/workouts', '/api/routines'];
   const isCorePath = (path: string): boolean =>
-    path.startsWith('/api/exercises') || path.startsWith('/api/workouts');
+    CORE_PREFIXES.some((prefix) => path.startsWith(prefix));
   app.use((req: Request, res: Response, next: NextFunction) =>
     isCorePath(req.url) ? jwtGuard(req, res, next) : next(),
   );
@@ -78,7 +79,7 @@ async function bootstrap(): Promise<void> {
     .setTitle('Fitness — API Gateway')
     .setDescription(
       'Single entry point. Proxies `/api/auth/*` → auth-service and ' +
-        '`/api/exercises/*`, `/api/workouts/*` → core-service. ' +
+        '`/api/exercises/*`, `/api/workouts/*`, `/api/routines/*` → core-service. ' +
         'Per-service Swagger: auth-service `/docs`, core-service `/docs`.',
     )
     .setVersion('0.1.0')

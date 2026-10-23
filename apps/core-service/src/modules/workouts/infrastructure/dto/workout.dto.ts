@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsInt,
@@ -75,6 +76,11 @@ export class CreateWorkoutDto implements CreateWorkoutRequest {
   @MaxLength(1000)
   notes?: string;
 
+  @ApiPropertyOptional({ format: 'uuid', description: 'Routine day this session follows' })
+  @IsOptional()
+  @IsUUID()
+  routineDayId?: string;
+
   @ApiProperty({ type: [CreateWorkoutExerciseDto] })
   @IsArray()
   @ArrayMinSize(1)
@@ -98,4 +104,19 @@ export class ListWorkoutsQueryDto {
   @IsPositive()
   @Max(100)
   pageSize = 20;
+}
+
+export class LastSetsQueryDto {
+  @ApiProperty({ description: 'Comma-separated exercise ids', example: 'uuid-1,uuid-2' })
+  @Transform(({ value }: { value: unknown }) =>
+    String(value ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean),
+  )
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @IsUUID('all', { each: true })
+  exerciseIds!: string[];
 }
