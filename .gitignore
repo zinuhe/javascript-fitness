@@ -43,3 +43,6 @@ docker/data/
 
 # Deploy (host and path of the Pi)
 .deploy.env
+
+# Claude Code per-machine settings
+.claude/settings.local.json

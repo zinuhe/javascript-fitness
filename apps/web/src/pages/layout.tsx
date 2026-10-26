@@ -26,6 +26,7 @@ export function AppLayout() {
         <Link to="/workouts" className="brand">
           Fitness
         </Link>
+        <span className="muted version">v{import.meta.env.VITE_APP_VERSION}</span>
         {/* Desktop navigation; on phones the bottom tab bar takes over. */}
         <nav className="topnav" aria-label="Main">
           <Link to="/workouts" activeProps={{ className: 'active' }}>

@@ -1,6 +1,13 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+
+// Deploy version from the repo-root VERSION file (bumped by `scripts/deploy.sh`).
+const versionFile = fileURLToPath(new URL('../../VERSION', import.meta.url));
+process.env.VITE_APP_VERSION ??= existsSync(versionFile)
+  ? readFileSync(versionFile, 'utf8').trim()
+  : 'dev';
 
 export default defineConfig({
   plugins: [react()],
