@@ -5,14 +5,23 @@ served by **Nginx** in its own container.
 
 ## What it does
 
-| Route                    | Page                                                      |
-| ------------------------ | --------------------------------------------------------- |
-| `/login`, `/register`    | Sign in / create an account                               |
-| `/workouts`              | Your logged sessions (paginated), newest first            |
-| `/workouts/new`          | Log a session: pick exercises, add sets (reps + kg)       |
-| `/workouts/$workoutId`   | Session detail with every set; delete                     |
-| `/exercises`             | Exercise catalog + add a new exercise                     |
-| `/exercises/$exerciseId` | Exercise detail and your progress (volume, heaviest, 1RM) |
+| Route                              | Page                                                       |
+| ---------------------------------- | ---------------------------------------------------------- |
+| `/login`, `/register`              | Sign in / create an account                                |
+| `/workouts`                        | Sessions (paginated, newest first) and the "Next up" card  |
+| `/workouts/start`                  | What + opens: the routine's next day, other days, or empty |
+| `/workouts/new`                    | Log a session; `?routineDayId=` pre-fills that day's sets  |
+| `/workouts/$workoutId` (`/edit`)   | Session detail with every set; edit or delete              |
+| `/routines`, `/routines/new`       | Routines (rotating day splits) and the routine editor      |
+| `/routines/$routineId` (`/edit`)   | Days and exercises; follow, edit or delete                 |
+| `/exercises`                       | Searchable catalog and "Add exercise"                      |
+| `/exercises/$exerciseId` (`/edit`) | Progress (stats, est. 1RM chart, sessions); edit or delete |
+| `/account`                         | Profile, kg/lb unit, sign out                              |
+
+Phones get a bottom tab bar (Workouts · Routines · + · Exercises · Account); form pages
+hide it behind their own sticky Save bar. The app is installable from Safari ("Add to Home
+Screen": manifest, icons and Apple meta tags in `index.html` and `public/`). The top bar
+shows the deploy version from the repo-root `VERSION` file.
 
 ## How it is built
 
@@ -24,6 +33,8 @@ served by **Nginx** in its own container.
 - **API client** — `src/api/client.ts`. Always calls the same-origin `/api/*`, attaches the
   access token, and on a 401 refreshes it once (concurrent 401s share a single refresh,
   since the API rotates refresh tokens). Errors surface as `ApiError` with the RFC 7807 body.
+- **Units** — weights are stored in kg; `src/components/units.ts` converts to and from the
+  user's kg/lb preference (inputs, labels, −/+ steps of 2.5 kg or 5 lb).
 - **Contracts** — request/response types and enums come from `@fitness/contracts`, which
   Vite and TypeScript resolve from its TS source (see `vite.config.ts` / `tsconfig.json`).
 - **Tokens** are kept in `localStorage` so a reload stays signed in. That is simple but

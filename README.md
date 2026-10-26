@@ -3,7 +3,8 @@
 Microservices backend for logging and tracking gym workouts.
 **Node.js + TypeScript · NestJS · Prisma · PostgreSQL · Docker.**
 
-> Status: work in progress. The frontend is a basic React SPA (`apps/web`).
+> Status: in use. Workouts, exercise catalog, rotating routines with pre-filled sets, kg/lb,
+> and an iPhone-first web app (`apps/web`, installable from Safari) served from a Raspberry Pi.
 
 **Frontend: React 19 · TanStack Router · TanStack Query · Vite · Nginx.**
 
@@ -171,6 +172,42 @@ throwaway Postgres 17 with Testcontainers, applies the real Prisma migrations an
 whole Nest app over HTTP with supertest (same validation and error handling as `main.ts`,
 via `src/app.setup.ts`). Only Docker is required; nothing touches your dev database. CI runs
 them on every push.
+
+## Deploying to the Raspberry Pi
+
+The app runs on a Raspberry Pi 5 with the prod-like compose file. **There is one way to
+deploy: `deploy-pi` from the Mac**, at the repo root. Nothing is built on the Pi (its
+microSD is far too slow for it); images are built on the Mac (same arm64 architecture) and
+only the ones that changed are sent over SSH.
+
+```bash
+deploy-pi --dry-run   # what would change on the Pi, without touching it
+deploy-pi             # deploy
+deploy-pi --status    # how the last deploy is going / how it ended, on the Pi
+```
+
+What one `deploy-pi` run does, configured in the git-ignored `.deploy.env`:
+
+1. `PRE_DEPLOY` on the Mac: `scripts/bump-version.sh` bumps `VERSION` (shown in the app's
+   top bar; each part 0–99, carrying over). Commit the new `VERSION` with your change.
+2. rsync of the working tree to the Pi (uncommitted changes included). Paths in
+   `.deployignore` (the Pi's `.env`, build output, local settings) are never uploaded nor
+   deleted there.
+3. `docker compose build` on the Mac (`BUILD_ON="mac"`), then `docker save | ssh docker load`
+   for the images whose content differs from the Pi's.
+4. `docker compose up -d --no-build` on the Pi: only changed containers are recreated;
+   Prisma migrations run in each service's entrypoint.
+5. `POST_DEPLOY` on the Pi: `scripts/wait-healthy.sh` waits until the web app and every
+   backend `/health` answer, and fails with their logs otherwise.
+
+Steps 4–5 run on the Pi as their own process (`~/.deploy-pi/fitness.log` there): the Mac
+only follows the log. Once the images are sent you can close the Mac; the Pi finishes on
+its own and `deploy-pi --status` shows the result later. A new deploy refuses to start while
+the previous one is still finishing.
+
+Requirements: Docker Desktop running on the Mac, SSH key access to the Pi, and the Mac on
+the same network (or Tailscale) until the images are sent. Do not edit files on the Pi: the next deploy overwrites
+them. Back up the database before deploys that add migrations.
 
 ## Conventions
 
