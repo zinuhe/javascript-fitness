@@ -1,10 +1,89 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { Link, getRouteApi } from '@tanstack/react-router';
-import { Equipment, MuscleGroup, type ExerciseProgressPoint } from '@fitness/contracts';
-import { createExercise, exerciseQuery, exercisesQuery, progressQuery } from '../api/queries';
+import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
+import {
+  Equipment,
+  MuscleGroup,
+  type CreateExerciseRequest,
+  type Exercise,
+  type ExerciseProgressPoint,
+} from '@fitness/contracts';
+import {
+  createExercise,
+  deleteExercise,
+  exerciseQuery,
+  exercisesQuery,
+  progressQuery,
+  updateExercise,
+} from '../api/queries';
 import { ErrorMessage, formatShortDate, labelize } from '../components/ui';
 import { formatWeight, useWeightUnit } from '../components/units';
+
+/** Name, muscle group, equipment and description; shared by the add and edit forms. */
+function ExerciseFields({ initial }: { initial?: Exercise }) {
+  return (
+    <>
+      <div className="grid-3">
+        <label>
+          Name
+          <input
+            name="name"
+            maxLength={120}
+            autoCapitalize="words"
+            defaultValue={initial?.name}
+            required
+          />
+        </label>
+        <label>
+          Muscle group
+          <select name="muscleGroup" required defaultValue={initial?.muscleGroup ?? ''}>
+            <option value="" disabled>
+              Choose…
+            </option>
+            {Object.values(MuscleGroup).map((value) => (
+              <option key={value} value={value}>
+                {labelize(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Equipment
+          <select name="equipment" required defaultValue={initial?.equipment ?? ''}>
+            <option value="" disabled>
+              Choose…
+            </option>
+            {Object.values(Equipment).map((value) => (
+              <option key={value} value={value}>
+                {labelize(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label>
+        Description
+        <input
+          name="description"
+          maxLength={500}
+          placeholder="Optional"
+          defaultValue={initial?.description}
+        />
+      </label>
+    </>
+  );
+}
+
+/** Reads {@link ExerciseFields} back; an empty description is sent as "" to clear it. */
+function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
+  const data = new FormData(form);
+  return {
+    name: String(data.get('name')).trim(),
+    muscleGroup: data.get('muscleGroup') as MuscleGroup,
+    equipment: data.get('equipment') as Equipment,
+    description: String(data.get('description')).trim(),
+  };
+}
 
 export function ExercisesPage() {
   const { data } = useSuspenseQuery(exercisesQuery);
@@ -28,15 +107,9 @@ export function ExercisesPage() {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const description = String(form.get('description')).trim();
+    const { description, ...fields } = readExerciseFields(formElement);
     create.mutate(
-      {
-        name: String(form.get('name')).trim(),
-        muscleGroup: form.get('muscleGroup') as MuscleGroup,
-        equipment: form.get('equipment') as Equipment,
-        description: description || undefined,
-      },
+      { ...fields, description: description || undefined },
       { onSuccess: () => formElement.reset() },
     );
   };
@@ -82,42 +155,7 @@ export function ExercisesPage() {
 
       <form className="card stack" onSubmit={onSubmit}>
         <h2>Add exercise</h2>
-        <div className="grid-3">
-          <label>
-            Name
-            <input name="name" maxLength={120} autoCapitalize="words" required />
-          </label>
-          <label>
-            Muscle group
-            <select name="muscleGroup" required defaultValue="">
-              <option value="" disabled>
-                Choose…
-              </option>
-              {Object.values(MuscleGroup).map((value) => (
-                <option key={value} value={value}>
-                  {labelize(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Equipment
-            <select name="equipment" required defaultValue="">
-              <option value="" disabled>
-                Choose…
-              </option>
-              {Object.values(Equipment).map((value) => (
-                <option key={value} value={value}>
-                  {labelize(value)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <label>
-          Description
-          <input name="description" maxLength={500} placeholder="Optional" />
-        </label>
+        <ExerciseFields />
         <ErrorMessage error={create.error} />
         <div className="row">
           <button className="button" disabled={create.isPending}>
@@ -177,20 +215,54 @@ export function ExerciseDetailPage() {
   const points = [...progress.points].reverse(); // newest first
   const best = Math.max(0, ...progress.points.map((p) => p.estimatedOneRepMaxKg));
   const heaviest = Math.max(0, ...progress.points.map((p) => p.bestSetWeightKg));
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const remove = useMutation({
+    mutationFn: () => deleteExercise(exerciseId),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: exerciseQuery(exerciseId).queryKey });
+      await queryClient.invalidateQueries({ queryKey: exercisesQuery.queryKey });
+      await navigate({ to: '/exercises' });
+    },
+  });
 
   return (
     <section className="stack">
-      <div>
-        <Link to="/exercises" className="muted back-link">
-          ← Exercises
-        </Link>
-        <h1>{exercise.name}</h1>
-        <p className="row">
-          <span className="tag">{labelize(exercise.muscleGroup)}</span>
-          <span className="tag">{labelize(exercise.equipment)}</span>
-        </p>
-        {exercise.description && <p>{exercise.description}</p>}
+      <div className="detail-header">
+        <div>
+          <Link to="/exercises" className="muted back-link">
+            ← Exercises
+          </Link>
+          <h1>{exercise.name}</h1>
+          <p className="row">
+            <span className="tag">{labelize(exercise.muscleGroup)}</span>
+            <span className="tag">{labelize(exercise.equipment)}</span>
+          </p>
+          {exercise.description && <p>{exercise.description}</p>}
+        </div>
+        <div className="detail-actions">
+          <Link
+            to="/exercises/$exerciseId/edit"
+            params={{ exerciseId }}
+            className="button secondary"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            className="button danger"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (confirm(`Delete "${exercise.name}" from the catalog?`)) remove.mutate();
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
+      {/* 409 when workouts or routines use it: the API explains why. */}
+      <ErrorMessage error={remove.error} />
 
       <div className="card stack">
         <h2>Your progress</h2>
@@ -239,5 +311,54 @@ export function ExerciseDetailPage() {
         )}
       </div>
     </section>
+  );
+}
+
+const editRoute = getRouteApi('/_app/exercises/$exerciseId/edit');
+
+export function EditExercisePage() {
+  const { exerciseId } = editRoute.useParams();
+  const { data: exercise } = useSuspenseQuery(exerciseQuery(exerciseId));
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const save = useMutation({
+    mutationFn: (input: CreateExerciseRequest) => updateExercise(exerciseId, input),
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(exerciseQuery(exerciseId).queryKey, updated);
+      await queryClient.invalidateQueries({ queryKey: exercisesQuery.queryKey });
+      await navigate({ to: '/exercises/$exerciseId', params: { exerciseId } });
+    },
+  });
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    save.mutate(readExerciseFields(event.currentTarget));
+  };
+
+  return (
+    <form className="stack" onSubmit={onSubmit}>
+      <div>
+        <Link to="/exercises/$exerciseId" params={{ exerciseId }} className="muted back-link">
+          ← {exercise.name}
+        </Link>
+        <h1>Edit exercise</h1>
+      </div>
+      <div className="card stack">
+        <ExerciseFields initial={exercise} />
+      </div>
+      <p className="muted">
+        Changes apply everywhere the exercise is used: past workouts, routines and progress.
+      </p>
+      <ErrorMessage error={save.error} />
+      <div className="form-actions">
+        <button className="button" disabled={save.isPending}>
+          {save.isPending ? 'Saving…' : 'Save changes'}
+        </button>
+        <Link to="/exercises/$exerciseId" params={{ exerciseId }} className="button secondary">
+          Cancel
+        </Link>
+      </div>
+    </form>
   );
 }

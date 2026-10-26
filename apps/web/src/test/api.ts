@@ -324,6 +324,39 @@ export const handlers = [
     return exercise ? HttpResponse.json(exercise) : problem(404, 'Exercise not found');
   }),
 
+  http.patch('/api/exercises/:id', async ({ request, params }) => {
+    if (!currentUser(request)) return problem(401, 'Unauthorized');
+    const exercise = state.exercises.find((e) => e.id === params.id);
+    if (!exercise) return problem(404, 'Exercise not found');
+    const body = (await request.json()) as Partial<CreateExerciseRequest>;
+    const name = body.name ?? exercise.name;
+    const equipment = body.equipment ?? exercise.equipment;
+    if (
+      state.exercises.some((e) => e !== exercise && e.name === name && e.equipment === equipment)
+    ) {
+      return problem(409, 'An exercise with this name and equipment already exists');
+    }
+    Object.assign(exercise, body, { description: body.description || undefined });
+    return HttpResponse.json(exercise);
+  }),
+
+  http.delete('/api/exercises/:id', ({ request, params }) => {
+    if (!currentUser(request)) return problem(401, 'Unauthorized');
+    const id = String(params.id);
+    if (!state.exercises.some((e) => e.id === id)) return problem(404, 'Exercise not found');
+    const used =
+      state.workouts.some((w) => w.exercises.some((e) => e.exerciseId === id)) ||
+      state.routines.some((r) => r.days.some((d) => d.exerciseIds.includes(id)));
+    if (used) {
+      return problem(
+        409,
+        'The exercise is used by logged workouts or routines and cannot be deleted',
+      );
+    }
+    state.exercises = state.exercises.filter((e) => e.id !== id);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
   http.get('/api/workouts', ({ request }) => {
     const user = currentUser(request);
     if (!user) return problem(401, 'Unauthorized');

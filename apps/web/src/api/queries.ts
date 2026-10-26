@@ -4,6 +4,7 @@ import type {
   CreateExerciseRequest,
   CreateRoutineRequest,
   CreateWorkoutRequest,
+  UpdateExerciseRequest,
   UpdateProfileRequest,
   UpdateRoutineRequest,
   UpdateWorkoutRequest,
@@ -118,6 +119,11 @@ export async function logout(): Promise<void> {
 
 export const createExercise = (input: CreateExerciseRequest) =>
   api<Exercise>('/exercises', { method: 'POST', body: input });
+
+export const updateExercise = (id: string, input: UpdateExerciseRequest) =>
+  api<Exercise>(`/exercises/${id}`, { method: 'PATCH', body: input });
+
+export const deleteExercise = (id: string) => api<void>(`/exercises/${id}`, { method: 'DELETE' });
 
 export const createWorkout = (input: CreateWorkoutRequest) =>
   api<Workout>('/workouts', { method: 'POST', body: input });

@@ -5,7 +5,7 @@ import { DumbbellIcon, ListIcon, PlusIcon, RepeatIcon, UserIcon } from '../compo
 
 /** Form pages get the full screen: their own sticky Save bar replaces the tab bar. */
 const isFormPath = (pathname: string) =>
-  /^\/(workouts|routines)\/(new|[^/]+\/edit)\/?$/.test(pathname);
+  /^\/(workouts|routines|exercises)\/(new|[^/]+\/edit)\/?$/.test(pathname);
 
 export function AppLayout() {
   const { data: user } = useSuspenseQuery(meQuery);

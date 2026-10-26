@@ -1,8 +1,8 @@
 import { screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Equipment, MuscleGroup } from '@fitness/contracts';
-import { apiState, seedExercise, seedWorkout } from '../test/api';
-import { renderApp, signedInAs } from '../test/render';
+import { apiState, seedExercise, seedRoutine, seedWorkout } from '../test/api';
+import { currentUrl, renderApp, signedInAs } from '../test/render';
 
 describe('exercise catalog', () => {
   it('lists exercises alphabetically with readable labels', async () => {
@@ -152,5 +152,87 @@ describe('exercise progress', () => {
     expect(
       screen.getByRole('img', { name: 'Estimated 1RM from 116.67 kg to 128.33 kg' }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('editing and deleting exercises', () => {
+  it('edits an exercise from its page', async () => {
+    signedInAs();
+    const curl = seedExercise({ name: 'Curl', muscleGroup: MuscleGroup.Biceps });
+    const { user, router } = renderApp(`/exercises/${curl.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Edit' }));
+    const name = await screen.findByLabelText('Name');
+    expect(name).toHaveValue('Curl');
+    expect(screen.getByLabelText('Muscle group')).toHaveValue('biceps');
+    await user.clear(name);
+    await user.type(name, 'Lying Dumbbell Biceps Curl');
+    await user.selectOptions(screen.getByLabelText('Equipment'), 'Dumbbell');
+    await user.type(screen.getByLabelText('Description'), 'Curl tumbado');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Lying Dumbbell Biceps Curl' }),
+    ).toBeInTheDocument();
+    expect(currentUrl(router)).toBe(`/exercises/${curl.id}`);
+    expect(screen.getByText('Curl tumbado')).toBeInTheDocument();
+    expect(apiState.exercises[0]).toMatchObject({
+      name: 'Lying Dumbbell Biceps Curl',
+      equipment: Equipment.Dumbbell,
+      description: 'Curl tumbado',
+    });
+  });
+
+  it('shows the conflict when the new name + equipment already exists', async () => {
+    signedInAs();
+    seedExercise({ name: 'Bench', equipment: Equipment.Barbell });
+    const other = seedExercise({ name: 'Bench', equipment: Equipment.Dumbbell });
+    const { user } = renderApp(`/exercises/${other.id}/edit`);
+
+    await user.selectOptions(await screen.findByLabelText('Equipment'), 'Barbell');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('already exists');
+    expect(apiState.exercises[1].equipment).toBe(Equipment.Dumbbell);
+  });
+
+  it('deletes an unused exercise after confirmation', async () => {
+    signedInAs();
+    const unused = seedExercise({ name: 'Old Exercise' });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { user, router } = renderApp(`/exercises/${unused.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    await screen.findByRole('heading', { name: 'Exercises' });
+    expect(currentUrl(router)).toBe('/exercises');
+    expect(apiState.exercises).toHaveLength(0);
+  });
+
+  it('explains why an exercise used by a routine cannot be deleted', async () => {
+    const me = signedInAs();
+    const squat = seedExercise({ name: 'Squat' });
+    seedRoutine(me.id, { name: 'Legs', days: [{ exerciseIds: [squat.id] }] });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { user } = renderApp(`/exercises/${squat.id}`);
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'used by logged workouts or routines',
+    );
+    expect(apiState.exercises).toHaveLength(1);
+  });
+
+  it('keeps the edit unsaved when cancelled', async () => {
+    signedInAs();
+    const curl = seedExercise({ name: 'Curl' });
+    const { user, router } = renderApp(`/exercises/${curl.id}/edit`);
+
+    await user.type(await screen.findByLabelText('Name'), ' changed');
+    await user.click(screen.getByRole('link', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('heading', { name: 'Curl' })).toBeInTheDocument();
+    expect(currentUrl(router)).toBe(`/exercises/${curl.id}`);
   });
 });

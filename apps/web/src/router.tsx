@@ -25,7 +25,7 @@ import { LoginPage, RegisterPage } from './pages/auth';
 import { AppLayout } from './pages/layout';
 import { WorkoutDetailPage, WorkoutsPage } from './pages/workouts';
 import { EditWorkoutPage, NewWorkoutPage } from './pages/workout-form';
-import { ExerciseDetailPage, ExercisesPage } from './pages/exercises';
+import { EditExercisePage, ExerciseDetailPage, ExercisesPage } from './pages/exercises';
 import { EditRoutinePage, NewRoutinePage, RoutineDetailPage, RoutinesPage } from './pages/routines';
 import { StartWorkoutPage } from './pages/start';
 import { AccountPage } from './pages/account';
@@ -186,6 +186,14 @@ const exerciseRoute = createRoute({
   component: ExerciseDetailPage,
 });
 
+const editExerciseRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'exercises/$exerciseId/edit',
+  loader: ({ context, params }) =>
+    context.queryClient.ensureQueryData(exerciseQuery(params.exerciseId)),
+  component: EditExercisePage,
+});
+
 const routinesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'routines',
@@ -244,6 +252,7 @@ const routeTree = rootRoute.addChildren([
     editRoutineRoute,
     exercisesRoute,
     exerciseRoute,
+    editExerciseRoute,
     accountRoute,
   ]),
 ]);
