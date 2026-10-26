@@ -23,7 +23,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
 
 # ── source ──────────────────────────────────────────────────────────────────────
 FROM deps AS source
-COPY . .
+# Only what the bundle reads, so backend changes do not invalidate it. VERSION is the
+# deploy version shown in the top bar (see vite.config.ts); the wildcard keeps the build
+# working without it (the bar then shows "dev").
+COPY VERSIO[N] tsconfig.base.json ./
+COPY packages/contracts packages/contracts
+COPY apps/web apps/web
 
 # ── dev ─────────────────────────────────────────────────────────────────────────
 FROM source AS dev

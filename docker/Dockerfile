@@ -3,7 +3,8 @@
 #   docker build -f docker/Dockerfile --build-arg SERVICE=auth-service -t fitness-auth .
 #
 # Layer caching: dependency installs only depend on the lockfile and the package.json
-# files, so a source-only change skips them and just recompiles (see `manifests`).
+# files, so a source-only change skips them and just recompiles (see `manifests`), and
+# the compile only reruns when this service or a shared package changes (see `build`).
 ARG NODE_VERSION=24-slim
 
 # ── base ────────────────────────────────────────────────────────────────────────
@@ -54,7 +55,11 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
 # ── build: compile, then stage only the build output for the runtime image ──────
 FROM deps AS build
 ARG SERVICE
-COPY . .
+# Only this service's sources and the shared packages, so a change elsewhere in the repo
+# (another service, the web app) does not invalidate this compile.
+COPY tsconfig.base.json ./
+COPY packages packages
+COPY apps/${SERVICE} apps/${SERVICE}
 # Generate the Prisma client if this service has one (gateway does not).
 RUN pnpm --filter "@fitness/${SERVICE}" run prisma:generate || echo "no prisma for ${SERVICE}"
 # Build the service and its workspace dependencies (the trailing '...').
