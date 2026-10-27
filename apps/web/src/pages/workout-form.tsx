@@ -43,13 +43,22 @@ interface StepperProps {
   min: number;
   /** Mobile keypad: whole numbers for reps, decimals (with "," or ".") for weight. */
   decimal?: boolean;
+  required?: boolean;
 }
 
 /**
  * Number field with large −/+ buttons, built for thumbs at the gym. A text input (not
  * type=number) so iOS shows the right keypad and a decimal comma is accepted.
  */
-function Stepper({ label, value, onChange, step, min, decimal = false }: StepperProps) {
+function Stepper({
+  label,
+  value,
+  onChange,
+  step,
+  min,
+  decimal = false,
+  required = false,
+}: StepperProps) {
   const id = useId();
   return (
     <div className="field">
@@ -72,7 +81,7 @@ function Stepper({ label, value, onChange, step, min, decimal = false }: Stepper
           enterKeyHint="next"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          required
+          required={required}
         />
         <button
           type="button"
@@ -115,6 +124,11 @@ interface WorkoutDraft {
   notes: string;
   entries: ExerciseDraft[];
 }
+
+// A set with neither reps nor weight was not done; an exercise with only such sets was
+// skipped (a tired day), and neither is saved.
+const isBlankSet = (set: SetDraft) => set.reps.trim() === '' && set.weight.trim() === '';
+const isSkipped = (entry: ExerciseDraft) => entry.sets.every(isBlankSet);
 
 let nextKey = 0;
 const emptySet = (): SetDraft => ({ reps: '', weight: '' });
@@ -370,22 +384,29 @@ function WorkoutForm({
   const equipmentOf = (exerciseId: string): Equipment[] =>
     catalog.items.find((e) => e.id === exerciseId)?.equipment ?? [];
 
+  const [nothingDone, setNothingDone] = useState(false);
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    const done = entries.filter((e) => e.exerciseId !== '' && !isSkipped(e));
+    setNothingDone(done.length === 0);
+    if (done.length === 0) return;
     const request: UpdateWorkoutRequest = {
       performedAt: new Date(performedAt).toISOString(),
       notes: notes.trim() || undefined,
       // null takes an edited workout out of its routine day.
       routineDayId: routineDayId || null,
-      exercises: entries.map((e) => ({
+      exercises: done.map((e) => ({
         exerciseId: e.exerciseId,
         ...(e.equipment ? { equipment: e.equipment } : {}),
-        sets: e.sets.map((s) => ({
-          reps: parseDecimal(s.reps),
-          weightKg: toKg(parseDecimal(s.weight), unit),
-          ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
-          ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
-        })),
+        sets: e.sets
+          .filter((s) => !isBlankSet(s))
+          .map((s) => ({
+            reps: parseDecimal(s.reps),
+            weightKg: toKg(parseDecimal(s.weight), unit),
+            ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
+            ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
+          })),
       })),
     };
     save.mutate(request);
@@ -487,7 +508,8 @@ function WorkoutForm({
                 equipment: equipmentOf(e.target.value)[0] ?? '',
               }))
             }
-            required
+            // Only an exercise with sets needs choosing; an empty one is just skipped.
+            required={!isSkipped(entry)}
           >
             <option value="">Choose an exercise…</option>
             {catalog.items.map((exercise) => (
@@ -525,6 +547,9 @@ function WorkoutForm({
             </div>
           )}
 
+          {entry.exerciseId !== '' && isSkipped(entry) && (
+            <p className="hint">Left empty: skipped, not saved.</p>
+          )}
           {entry.sets.map((set, setIndex) => (
             <div key={setIndex} className="set">
               <div className="set-head">
@@ -551,6 +576,7 @@ function WorkoutForm({
                   value={set.reps}
                   step={REPS_STEP}
                   min={1}
+                  required={!isBlankSet(set)}
                   onChange={(reps) => updateSet(entry.key, setIndex, { reps })}
                 />
                 <Stepper
@@ -558,6 +584,7 @@ function WorkoutForm({
                   value={set.weight}
                   step={WEIGHT_STEP[unit]}
                   min={0}
+                  required={!isBlankSet(set)}
                   decimal
                   onChange={(weight) => updateSet(entry.key, setIndex, { weight })}
                 />
@@ -592,6 +619,11 @@ function WorkoutForm({
         + Add exercise
       </button>
 
+      {nothingDone && (
+        <div className="alert" role="alert">
+          <p>Fill in at least one set to save the workout.</p>
+        </div>
+      )}
       <ErrorMessage error={save.error} />
       {/* Sticky on phones: Save stays under the thumb however long the session gets. */}
       <div className="form-actions">

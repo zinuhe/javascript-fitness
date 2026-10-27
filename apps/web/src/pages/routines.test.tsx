@@ -340,6 +340,46 @@ describe('starting a routine day', () => {
     expect(saved.performedAt).toBe(new Date('2026-09-02T18:30').toISOString());
   });
 
+  it('saves a day with some exercises left empty, skipping them', async () => {
+    const me = signedInAs();
+    const { bench, press, row } = seedCatalog();
+    seedRoutine(me.id, {
+      name: 'Push',
+      days: [{ name: 'Push', exerciseIds: [bench.id, press.id, row.id] }],
+    });
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await screen.findByLabelText('Routine day'), 'Day 1 · Push');
+    const exercise1 = await screen.findByRole('group', { name: 'Exercise 1' });
+    await user.type(within(exercise1).getByLabelText('Reps'), '8');
+    // Weight is then needed too: a half-typed set is not "empty".
+    expect(within(exercise1).getByLabelText('Weight (kg)')).toBeRequired();
+    await user.type(within(exercise1).getByLabelText('Weight (kg)'), '60');
+    const exercise2 = screen.getByRole('group', { name: 'Exercise 2' });
+    expect(within(exercise2).getByText('Left empty: skipped, not saved.')).toBeInTheDocument();
+    expect(within(exercise2).getByLabelText('Reps')).not.toBeRequired();
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    await screen.findByRole('heading', { name: bench.name });
+    const saved = apiState.workouts.at(-1)!;
+    expect(saved.exercises.map((e) => e.exerciseId)).toEqual([bench.id]);
+    expect(saved.routineDay).toMatchObject({ name: 'Push' });
+  });
+
+  it('needs at least one set to save', async () => {
+    signedInAs();
+    const { bench } = seedCatalog();
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), bench.name);
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Fill in at least one set to save the workout.',
+    );
+    expect(apiState.workouts).toHaveLength(0);
+  });
+
   it('asks before a routine day replaces sets already typed', async () => {
     const me = signedInAs();
     const { bench, row } = seedCatalog();
