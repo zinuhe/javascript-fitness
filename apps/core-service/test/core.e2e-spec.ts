@@ -5,6 +5,7 @@ import request from 'supertest';
 import {
   Equipment,
   MuscleGroup,
+  type ActivityEntry,
   type Exercise,
   type LastExerciseSets,
   type NextRoutineDay,
@@ -695,6 +696,77 @@ describe('core-service (e2e)', () => {
         },
       ]);
       await as(token).get('/workouts/last-sets?exerciseIds=not-a-uuid').expect(400);
+    });
+  });
+
+  describe('activity', () => {
+    const IPHONE =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148';
+    const MAC =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36';
+    const from = (token: string, userAgent: string) => ({
+      post: (url: string, body: object) =>
+        request(http)
+          .post(url)
+          .set('authorization', `Bearer ${token}`)
+          .set('user-agent', userAgent)
+          .send(body),
+      put: (url: string, body: object) =>
+        request(http)
+          .put(url)
+          .set('authorization', `Bearer ${token}`)
+          .set('user-agent', userAgent)
+          .send(body),
+      delete: (url: string) =>
+        request(http)
+          .delete(url)
+          .set('authorization', `Bearer ${token}`)
+          .set('user-agent', userAgent),
+    });
+
+    it('logs each change with what it was and where it came from, newest first', async () => {
+      const token = tokenFor();
+      const squat = await createExercise(token);
+      const routine = (
+        await from(token, MAC)
+          .post('/routines', { name: 'Legs', days: [{ name: 'Legs', exerciseIds: [squat.id] }] })
+          .expect(201)
+      ).body as Routine;
+      const body = {
+        performedAt: '2026-07-16T16:00:00.000Z',
+        routineDayId: routine.days[0].id,
+        exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+      };
+      const workout = (await from(token, IPHONE).post('/workouts', body).expect(201))
+        .body as Workout;
+      await from(token, IPHONE).put(`/workouts/${workout.id}`, body).expect(200);
+      await from(token, MAC).delete(`/workouts/${workout.id}`).expect(204);
+
+      const res = await as(token).get('/activity').expect(200);
+      expect(
+        (res.body as ActivityEntry[]).map((e) => [e.action, e.summary, e.device, e.subjectAt]),
+      ).toEqual([
+        ['workout.delete', 'Deleted workout · Day 1 · Legs', 'Web · Mac', body.performedAt],
+        ['workout.update', 'Edited workout · Day 1 · Legs', 'iPhone', body.performedAt],
+        ['workout.create', 'Added workout · Day 1 · Legs', 'iPhone', body.performedAt],
+        ['routine.create', 'Created routine Legs', 'Web · Mac', undefined],
+        ['exercise.create', `Added exercise ${squat.name}`, 'Web', undefined],
+      ]);
+
+      // Only the user's own lines, and at most `limit` of them.
+      expect((await as(tokenFor()).get('/activity').expect(200)).body).toEqual([]);
+      expect((await as(token).get('/activity?limit=2').expect(200)).body).toHaveLength(2);
+      await as(token).get('/activity?limit=101').expect(400);
+    });
+
+    it('does not log rejected changes', async () => {
+      const token = tokenFor();
+      await as(token)
+        .post('/workouts', {
+          exercises: [{ exerciseId: randomUUID(), sets: [{ reps: 5, weightKg: 1 }] }],
+        })
+        .expect(422);
+      expect((await as(token).get('/activity').expect(200)).body).toEqual([]);
     });
   });
 });

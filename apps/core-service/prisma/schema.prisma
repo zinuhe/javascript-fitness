@@ -151,3 +151,23 @@ model RoutineDayExercise {
   @@index([exerciseId])
   @@map("routine_day_exercises")
 }
+
+// What the user changed and from where, shown in Account. No FKs: entries outlive what
+// they describe (a deleted workout keeps its line).
+model ActivityEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  // Logical reference to the auth-service user (no cross-DB FK).
+  userId    String   @db.Uuid
+  // Machine name, e.g. "workout.create".
+  action    String
+  // Readable line, e.g. "Added workout · Day 2 · Legs".
+  summary   String
+  // Day the change is about (a workout's date), formatted by the client in its time zone.
+  subjectAt DateTime?
+  // Where it came from, e.g. "iPhone" or "Web · Mac".
+  device    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("activity_log")
+}

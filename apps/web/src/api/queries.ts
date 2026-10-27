@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import type {
+  ActivityEntry,
   AuthResponse,
   CreateExerciseRequest,
   CreateRoutineRequest,
@@ -81,6 +82,13 @@ export const routineQuery = (id: string) =>
 export const nextRoutineQuery = queryOptions({
   queryKey: ['routines', 'next'],
   queryFn: async () => (await api<NextRoutineDay | undefined>('/routines/next')) ?? null,
+});
+
+/** The user's latest changes (Account). Always refetched on view: any save adds a line. */
+export const activityQuery = queryOptions({
+  queryKey: ['activity'],
+  queryFn: () => api<ActivityEntry[]>('/activity?limit=30'),
+  staleTime: 0,
 });
 
 /**

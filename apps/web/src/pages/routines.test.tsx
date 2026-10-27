@@ -446,6 +446,28 @@ describe('account', () => {
     expect(currentUrl(router)).toBe('/account');
   });
 
+  it('lists the latest changes and where they came from, newest first', async () => {
+    const me = signedInAs();
+    const { bench } = seedCatalog();
+    seedRoutine(me.id, { name: 'Push', days: [{ name: 'Push', exerciseIds: [bench.id] }] });
+    const { user, router } = renderApp('/account');
+
+    expect(await screen.findByText('Nothing logged yet.')).toBeInTheDocument();
+
+    await router.navigate({ to: '/workouts/new' });
+    await user.selectOptions(await screen.findByLabelText('Routine day'), 'Day 1 · Push');
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-07-16' } });
+    await user.type(await screen.findByLabelText('Reps'), '8');
+    await user.type(screen.getByLabelText('Weight (kg)'), '60');
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+    await screen.findByRole('heading', { name: bench.name });
+    await router.navigate({ to: '/account' });
+
+    const log = await screen.findByRole('list', { name: 'Activity' });
+    const [line] = within(log).getAllByRole('listitem');
+    expect(line).toHaveTextContent(/^Added workout · Day 1 · Push · Jul 16, 2026Web · /);
+  });
+
   it('shows the profile and signs out', async () => {
     signedInAs({ displayName: 'Alex', email: 'alex@example.com' });
     const { user, router } = renderApp('/account');

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -13,8 +14,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Exercise, Paginated } from '@fitness/contracts';
+import type { Exercise, JwtAccessPayload, Paginated } from '@fitness/contracts';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
+import { CurrentUser } from '../../../auth/current-user.decorator';
+import { ActivityService } from '../../activity/application/activity.service';
 import { ExercisesService } from '../application/exercises.service';
 import { CreateExerciseDto, ListExercisesQueryDto, UpdateExerciseDto } from './dto/exercise.dto';
 
@@ -23,12 +26,25 @@ import { CreateExerciseDto, ListExercisesQueryDto, UpdateExerciseDto } from './d
 @UseGuards(JwtAuthGuard)
 @Controller('exercises')
 export class ExercisesController {
-  constructor(private readonly exercises: ExercisesService) {}
+  constructor(
+    private readonly exercises: ExercisesService,
+    private readonly activity: ActivityService,
+  ) {}
+
+  private log(userId: string, action: string, summary: string, userAgent?: string) {
+    return this.activity.record({ userId, action, summary, userAgent });
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create an exercise in the catalog' })
-  create(@Body() dto: CreateExerciseDto): Promise<Exercise> {
-    return this.exercises.create(dto);
+  async create(
+    @CurrentUser() user: JwtAccessPayload,
+    @Body() dto: CreateExerciseDto,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<Exercise> {
+    const exercise = await this.exercises.create(dto);
+    await this.log(user.sub, 'exercise.create', `Added exercise ${exercise.name}`, userAgent);
+    return exercise;
   }
 
   @Get()
@@ -45,17 +61,27 @@ export class ExercisesController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update an exercise' })
-  update(
+  async update(
+    @CurrentUser() user: JwtAccessPayload,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateExerciseDto,
+    @Headers('user-agent') userAgent?: string,
   ): Promise<Exercise> {
-    return this.exercises.update(id, dto);
+    const exercise = await this.exercises.update(id, dto);
+    await this.log(user.sub, 'exercise.update', `Edited exercise ${exercise.name}`, userAgent);
+    return exercise;
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an exercise' })
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.exercises.remove(id);
+  async remove(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<void> {
+    const exercise = await this.exercises.getById(id);
+    await this.exercises.remove(id);
+    await this.log(user.sub, 'exercise.delete', `Deleted exercise ${exercise.name}`, userAgent);
   }
 }

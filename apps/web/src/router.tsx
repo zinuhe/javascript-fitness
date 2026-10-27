@@ -17,6 +17,7 @@ import {
   progressQuery,
   routineQuery,
   routinesQuery,
+  activityQuery,
   workoutQuery,
   workoutsQuery,
 } from './api/queries';
@@ -235,6 +236,8 @@ const editRoutineRoute = createRoute({
 const accountRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'account',
+  // fetchQuery, not ensureQueryData: every visit shows the changes made since the last one.
+  loader: ({ context }) => context.queryClient.fetchQuery(activityQuery),
   component: AccountPage,
 });
 

@@ -59,7 +59,7 @@ async function bootstrap(): Promise<void> {
 
   // Protected core routes: JWT verified at the edge, then /api/{resource}/* → /{resource}/*
   const jwtGuard = createJwtMiddleware(jwtSecret);
-  const CORE_PREFIXES = ['/api/exercises', '/api/workouts', '/api/routines'];
+  const CORE_PREFIXES = ['/api/exercises', '/api/workouts', '/api/routines', '/api/activity'];
   const isCorePath = (path: string): boolean =>
     CORE_PREFIXES.some((prefix) => path.startsWith(prefix));
   app.use((req: Request, res: Response, next: NextFunction) =>

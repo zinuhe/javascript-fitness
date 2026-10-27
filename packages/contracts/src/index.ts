@@ -9,3 +9,4 @@ export * from './auth/auth.contract';
 export * from './core/exercise.contract';
 export * from './core/workout.contract';
 export * from './core/routine.contract';
+export * from './core/activity.contract';

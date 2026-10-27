@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -23,6 +24,8 @@ import type {
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/current-user.decorator';
 import { WorkoutsService } from '../application/workouts.service';
+import { ActivityService } from '../../activity/application/activity.service';
+import { workoutSummary } from '../../activity/application/summaries';
 import {
   CreateWorkoutDto,
   LastSetsQueryDto,
@@ -36,12 +39,27 @@ import {
 @UseGuards(JwtAuthGuard)
 @Controller('workouts')
 export class WorkoutsController {
-  constructor(private readonly workouts: WorkoutsService) {}
+  constructor(
+    private readonly workouts: WorkoutsService,
+    private readonly activity: ActivityService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Log a new workout session' })
-  create(@CurrentUser() user: JwtAccessPayload, @Body() dto: CreateWorkoutDto): Promise<Workout> {
-    return this.workouts.create(user.sub, dto);
+  async create(
+    @CurrentUser() user: JwtAccessPayload,
+    @Body() dto: CreateWorkoutDto,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<Workout> {
+    const workout = await this.workouts.create(user.sub, dto);
+    await this.activity.record({
+      userId: user.sub,
+      action: 'workout.create',
+      summary: workoutSummary('Added', workout),
+      subjectAt: workout.performedAt,
+      userAgent,
+    });
+    return workout;
   }
 
   @Get()
@@ -89,21 +107,40 @@ export class WorkoutsController {
     summary:
       'Replace a workout: notes and exercises as given; omitted performedAt and routineDayId are kept, routineDayId null unlinks it',
   })
-  update(
+  async update(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateWorkoutDto,
+    @Headers('user-agent') userAgent?: string,
   ): Promise<Workout> {
-    return this.workouts.update(user.sub, id, dto);
+    const workout = await this.workouts.update(user.sub, id, dto);
+    await this.activity.record({
+      userId: user.sub,
+      action: 'workout.update',
+      summary: workoutSummary('Edited', workout),
+      subjectAt: workout.performedAt,
+      userAgent,
+    });
+    return workout;
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a workout' })
-  remove(
+  async remove(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id', ParseUUIDPipe) id: string,
+    @Headers('user-agent') userAgent?: string,
   ): Promise<void> {
-    return this.workouts.remove(user.sub, id);
+    // Read first: once deleted, its date and routine day are gone.
+    const workout = await this.workouts.getById(user.sub, id);
+    await this.workouts.remove(user.sub, id);
+    await this.activity.record({
+      userId: user.sub,
+      action: 'workout.delete',
+      summary: workoutSummary('Deleted', workout),
+      subjectAt: workout.performedAt,
+      userAgent,
+    });
   }
 }

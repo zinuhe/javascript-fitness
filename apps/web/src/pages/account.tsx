@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import type { WeightUnit } from '@fitness/contracts';
-import { logout, meQuery, updateProfile } from '../api/queries';
-import { ErrorMessage, formatShortDate, parseDecimal } from '../components/ui';
+import type { ActivityEntry, WeightUnit } from '@fitness/contracts';
+import { activityQuery, logout, meQuery, updateProfile } from '../api/queries';
+import { ErrorMessage, formatDate, formatShortDate, parseDecimal } from '../components/ui';
 import { formatWeight, toKg, weightInputValue } from '../components/units';
 
 const UNITS: { value: WeightUnit; label: string }[] = [
@@ -74,6 +74,8 @@ export function AccountPage() {
       <button type="button" className="button danger" onClick={signOut}>
         Sign out
       </button>
+
+      <ActivityLog />
     </section>
   );
 }
@@ -117,5 +119,37 @@ function BarWeightForm() {
         </button>
       </div>
     </form>
+  );
+}
+
+const subjectDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+
+/** "Added workout · Day 2 · Legs · Jul 16, 2026": the line plus the day it is about. */
+const activityLine = (entry: ActivityEntry) =>
+  entry.subjectAt
+    ? `${entry.summary} · ${subjectDate.format(new Date(entry.subjectAt))}`
+    : entry.summary;
+
+/** The user's latest changes and where each came from (iPhone or Web), newest first. */
+function ActivityLog() {
+  const { data: entries } = useSuspenseQuery(activityQuery);
+  return (
+    <section className="card stack-tight" aria-labelledby="activity-title">
+      <h2 id="activity-title">Activity</h2>
+      {entries.length === 0 ? (
+        <p className="muted">Nothing logged yet.</p>
+      ) : (
+        <ul className="activity" aria-label="Activity">
+          {entries.map((entry) => (
+            <li key={entry.id}>
+              <span>{activityLine(entry)}</span>
+              <span className="hint">
+                {entry.device} · {formatDate(entry.createdAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
