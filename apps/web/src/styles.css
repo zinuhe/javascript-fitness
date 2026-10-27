@@ -922,9 +922,17 @@ table.compact th:last-child {
   }
   .topnav {
     display: flex;
+    flex: none;
+  }
+  /* Desktop: the version follows the links (Workouts · Routines · Exercises · v1.0.x)
+     instead of the brand, and pushes the user to the right edge. */
+  .version {
+    order: 1;
+    margin-right: auto;
   }
   .user {
     display: flex;
+    order: 2;
     margin-left: 0;
   }
   .tabbar {
