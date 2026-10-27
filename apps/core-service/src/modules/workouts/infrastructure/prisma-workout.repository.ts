@@ -80,7 +80,8 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         where: { id },
         data: {
           ...(data.performedAt ? { performedAt: new Date(data.performedAt) } : {}),
-          ...(data.routineDayId ? { routineDayId: data.routineDayId } : {}),
+          // Omitted keeps the routine day; null unlinks it.
+          ...(data.routineDayId !== undefined ? { routineDayId: data.routineDayId } : {}),
           notes: data.notes ?? null,
           exercises: exercisesCreate(data.exercises),
         },

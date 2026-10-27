@@ -219,7 +219,7 @@ const missingExercises = (ids: string[]) =>
 const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** Like the API: a 422 when an exercise needs its equipment chosen or names one it lacks. */
-function invalidEquipment(input: CreateWorkoutRequest) {
+function invalidEquipment(input: Pick<CreateWorkoutRequest, 'exercises'>) {
   for (const entry of input.exercises) {
     const options = state.exercises.find((e) => e.id === entry.exerciseId)?.equipment ?? [];
     const ok = entry.equipment ? options.includes(entry.equipment) : options.length === 1;
@@ -482,16 +482,21 @@ export const handlers = [
     if (missing.length > 0) {
       return problem(422, 'Workout references unknown exercises', { exerciseId: missing });
     }
+    if (body.routineDayId && !ownsRoutineDay(user.id, body.routineDayId)) {
+      return problem(422, 'Workout references an unknown routine day');
+    }
     const invalid = invalidEquipment(body);
     if (invalid) return invalid;
     const index = state.workouts.findIndex((w) => w.id === params.id && w.userId === user.id);
     if (index === -1) return problem(404, 'Workout not found');
     const current = state.workouts[index];
-    // Same semantics as the API: notes/exercises replaced, omitted performedAt kept.
+    // Same semantics as the API: notes/exercises replaced, omitted performedAt and routine
+    // day kept, a null routine day unlinked.
     const rebuilt = buildWorkout(user.id, {
       ...body,
       performedAt: body.performedAt ?? current.performedAt,
-      routineDayId: body.routineDayId ?? current.routineDay?.id,
+      routineDayId:
+        body.routineDayId === null ? undefined : (body.routineDayId ?? current.routineDay?.id),
     });
     const updated: Workout = { ...rebuilt, id: current.id, createdAt: current.createdAt };
     state.workouts[index] = updated;

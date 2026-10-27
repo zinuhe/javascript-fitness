@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -22,6 +22,7 @@ import type {
   CreateSetRequest,
   CreateWorkoutExerciseRequest,
   CreateWorkoutRequest,
+  UpdateWorkoutRequest,
 } from '@fitness/contracts';
 
 export class CreateSetDto implements CreateSetRequest {
@@ -97,6 +98,21 @@ export class CreateWorkoutDto implements CreateWorkoutRequest {
   @ValidateNested({ each: true })
   @Type(() => CreateWorkoutExerciseDto)
   exercises!: CreateWorkoutExerciseDto[];
+}
+
+export class UpdateWorkoutDto
+  extends OmitType(CreateWorkoutDto, ['routineDayId'] as const)
+  implements UpdateWorkoutRequest
+{
+  // @IsOptional also lets null through: null unlinks the routine day, omitted keeps it.
+  @ApiPropertyOptional({
+    format: 'uuid',
+    nullable: true,
+    description: 'Routine day this session follows; null unlinks it, omitted keeps it',
+  })
+  @IsOptional()
+  @IsUUID()
+  routineDayId?: string | null;
 }
 
 export class ListWorkoutsQueryDto {

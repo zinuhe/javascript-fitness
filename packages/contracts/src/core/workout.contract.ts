@@ -66,9 +66,12 @@ export interface CreateWorkoutRequest {
 
 /**
  * Full replacement of a workout (`PUT /workouts/:id`): notes and exercises are replaced as
- * given (omitted notes are cleared); an omitted `performedAt` or `routineDayId` is kept.
+ * given (omitted notes are cleared); an omitted `performedAt` or `routineDayId` is kept, and
+ * `routineDayId: null` unlinks the workout from its routine day.
  */
-export type UpdateWorkoutRequest = CreateWorkoutRequest;
+export interface UpdateWorkoutRequest extends Omit<CreateWorkoutRequest, 'routineDayId'> {
+  routineDayId?: string | null;
+}
 
 /** Derived progress metrics for a given exercise over time. */
 export interface ExerciseProgressPoint {

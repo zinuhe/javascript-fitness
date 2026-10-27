@@ -76,10 +76,10 @@ export class WorkoutsService {
    * Checks the exercises and routine day the workout points to, and returns the input with
    * each exercise's equipment filled in (the only one it has, when the client sent none).
    */
-  private async resolveReferences(
+  private async resolveReferences<T extends UpdateWorkoutRequest>(
     userId: string,
-    input: CreateWorkoutRequest,
-  ): Promise<CreateWorkoutRequest> {
+    input: T,
+  ): Promise<T> {
     const exercises = await this.resolveEquipment(input);
     if (
       input.routineDayId &&
@@ -97,7 +97,7 @@ export class WorkoutsService {
   }
 
   private async resolveEquipment(
-    input: CreateWorkoutRequest,
+    input: Pick<CreateWorkoutRequest, 'exercises'>,
   ): Promise<CreateWorkoutRequest['exercises']> {
     const catalog = await this.workouts.findExerciseEquipment(
       input.exercises.map((e) => e.exerciseId),

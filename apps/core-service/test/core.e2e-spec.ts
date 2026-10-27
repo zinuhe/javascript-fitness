@@ -469,6 +469,41 @@ describe('core-service (e2e)', () => {
       });
     });
 
+    it('history logged later with older dates does not move the rotation', async () => {
+      const token = tokenFor();
+      const { routine, bench, row, squat } = await threeDaySplit(token);
+      const [push, pull, legs] = routine.days;
+      await logDay(token, push.id, bench.id, '2026-10-20T09:00:00.000Z');
+
+      // Old sessions typed in afterwards: the newest date still decides.
+      await logDay(token, legs.id, squat.id, '2026-09-05T09:00:00.000Z');
+      await logDay(token, pull.id, row.id, '2026-09-03T09:00:00.000Z');
+      expect(await nextDayName(token)).toBe('Pull');
+    });
+
+    it('PUT changes the routine day of a workout, null unlinks it, omitted keeps it', async () => {
+      const token = tokenFor();
+      const { routine, bench } = await threeDaySplit(token);
+      const [push, , legs] = routine.days;
+      const workout = (await logDay(token, push.id, bench.id, '2026-10-01T09:00:00.000Z'))
+        .body as Workout;
+      const body = { exercises: [{ exerciseId: bench.id, sets: [{ reps: 5, weightKg: 100 }] }] };
+
+      const moved = await as(token)
+        .put(`/workouts/${workout.id}`, { ...body, routineDayId: legs.id })
+        .expect(200);
+      expect((moved.body as Workout).routineDay?.id).toBe(legs.id);
+      expect(await nextDayName(token)).toBe('Push'); // after Legs, wraps around
+
+      const kept = await as(token).put(`/workouts/${workout.id}`, body).expect(200);
+      expect((kept.body as Workout).routineDay?.id).toBe(legs.id);
+
+      const unlinked = await as(token)
+        .put(`/workouts/${workout.id}`, { ...body, routineDayId: null })
+        .expect(200);
+      expect((unlinked.body as Workout).routineDay).toBeUndefined();
+    });
+
     it('editing days keeps their ids, so the rotation keeps its place', async () => {
       const token = tokenFor();
       const { routine, bench, row, squat } = await threeDaySplit(token);

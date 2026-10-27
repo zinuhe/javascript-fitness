@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Equipment, MuscleGroup } from '@fitness/contracts';
 import { apiState, seedExercise, seedRoutine, seedWorkout } from '../test/api';
@@ -11,6 +11,12 @@ function seedCatalog() {
     row: seedExercise({ name: 'Barbell Row', muscleGroup: MuscleGroup.Back }),
     squat: seedExercise({ name: 'Barbell Back Squat', muscleGroup: MuscleGroup.Legs }),
   };
+}
+
+/** The exercise picker inside the workout form's "Exercise N" group. */
+async function exerciseSelect(n: number) {
+  const group = await screen.findByRole('group', { name: `Exercise ${n}` });
+  return within(group).getByRole('combobox', { name: 'Exercise' });
 }
 
 /** The "Day N" group of the routine editor. */
@@ -299,6 +305,63 @@ describe('starting a routine day', () => {
     await router.navigate({ to: '/workouts/start' });
     await user.click(await screen.findByRole('link', { name: 'Empty workout' }));
     expect(await screen.findByRole('heading', { name: 'Log workout' })).toBeInTheDocument();
+  });
+
+  it('logs past sessions of any day by choosing it in the form', async () => {
+    const me = signedInAs();
+    const { bench, press, row } = seedCatalog();
+    seedRoutine(me.id, {
+      name: 'Push / Pull',
+      days: [
+        { name: 'Push', exerciseIds: [bench.id, press.id] },
+        { name: 'Pull', exerciseIds: [row.id] },
+      ],
+    });
+    seedWorkout(me.id, {
+      performedAt: '2026-10-10T09:00:00.000Z',
+      exercises: [{ exerciseId: row.id, sets: [{ reps: 10, weightKg: 50 }] }],
+    });
+    const { user } = renderApp('/workouts/new');
+
+    fireEvent.change(await screen.findByLabelText('Date'), {
+      target: { value: '2026-09-02T18:30' },
+    });
+    await user.selectOptions(screen.getByLabelText('Routine day'), 'Day 2 · Pull');
+
+    expect(await screen.findByRole('heading', { name: 'Day 2 · Pull' })).toBeInTheDocument();
+    expect(screen.getAllByRole('group', { name: /^Exercise/ })).toHaveLength(1);
+    expect(await exerciseSelect(1)).toHaveValue(row.id);
+    expect(screen.getByLabelText('Weight (kg)')).toHaveValue('50'); // last time
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    await screen.findByRole('heading', { name: row.name });
+    const saved = apiState.workouts.at(-1)!;
+    expect(saved.routineDay).toMatchObject({ name: 'Pull' });
+    expect(saved.performedAt).toBe(new Date('2026-09-02T18:30').toISOString());
+  });
+
+  it('asks before a routine day replaces sets already typed', async () => {
+    const me = signedInAs();
+    const { bench, row } = seedCatalog();
+    seedRoutine(me.id, {
+      name: 'Push / Pull',
+      days: [
+        { name: 'Push', exerciseIds: [bench.id] },
+        { name: 'Pull', exerciseIds: [row.id] },
+      ],
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), bench.name);
+    await user.type(screen.getByLabelText('Reps'), '8');
+    await user.selectOptions(screen.getByLabelText('Routine day'), 'Day 2 · Pull');
+
+    expect(confirm).toHaveBeenCalledWith('Replace the exercises with those of Day 2 · Pull?');
+    // Declined: the day is set, the typed exercise stays.
+    expect(await exerciseSelect(1)).toHaveValue(bench.id);
+    expect(screen.getByLabelText('Reps')).toHaveValue('8');
+    expect(screen.getByRole('heading', { name: 'Day 2 · Pull' })).toBeInTheDocument();
   });
 
   it('goes straight to an empty workout without an active routine', async () => {

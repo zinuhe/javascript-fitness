@@ -164,6 +164,7 @@ const editWorkoutRoute = createRoute({
     Promise.all([
       context.queryClient.ensureQueryData(workoutQuery(params.workoutId)),
       context.queryClient.ensureQueryData(exercisesQuery),
+      context.queryClient.ensureQueryData(routinesQuery),
     ]),
   component: EditWorkoutPage,
 });

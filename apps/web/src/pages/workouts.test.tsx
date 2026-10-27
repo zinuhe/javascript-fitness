@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Equipment, MuscleGroup } from '@fitness/contracts';
-import { apiState, expireAccessTokens, seedExercise, seedWorkout } from '../test/api';
+import { apiState, expireAccessTokens, seedExercise, seedRoutine, seedWorkout } from '../test/api';
 import { currentUrl, renderApp, signedInAs } from '../test/render';
 
 /** The exercise picker inside the form's "Exercise N" group. */
@@ -409,6 +409,41 @@ describe('editing a workout', () => {
       [squat.id, [expect.objectContaining({ reps: 5, weightKg: 105, rpe: 8, restSeconds: 180 })]],
       [bench.id, [expect.objectContaining({ reps: 8, weightKg: 60 })]],
     ]);
+  });
+
+  it('moves a workout to another routine day, or out of the routine', async () => {
+    const me = signedInAs();
+    const { squat, bench } = seedCatalog();
+    const routine = seedRoutine(me.id, {
+      name: '3 Days',
+      days: [
+        { name: 'Chest', exerciseIds: [bench.id] },
+        { name: 'Back', exerciseIds: [bench.id] },
+        { name: 'Legs', exerciseIds: [squat.id] },
+      ],
+    });
+    const workout = seedWorkout(me.id, {
+      routineDayId: routine.days[0].id,
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+    });
+    const { user } = renderApp(`/workouts/${workout.id}/edit`);
+
+    const day = await screen.findByLabelText('Routine day');
+    expect(day).toHaveValue(routine.days[0].id);
+    await user.selectOptions(day, 'Day 3 · Legs');
+    // Editing only relabels: the logged exercises stay as they are.
+    expect(await exerciseSelect(1)).toHaveValue(squat.id);
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await screen.findByRole('link', { name: 'Edit' });
+    expect(apiState.workouts[0].routineDay).toMatchObject({ name: 'Legs' });
+
+    await user.click(screen.getByRole('link', { name: 'Edit' }));
+    await user.selectOptions(await screen.findByLabelText('Routine day'), 'No routine day');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await screen.findByRole('link', { name: 'Edit' });
+    expect(apiState.workouts[0].routineDay).toBeUndefined();
   });
 
   it('leaves the workout untouched when cancelled', async () => {

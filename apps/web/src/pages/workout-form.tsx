@@ -7,11 +7,11 @@ import {
 } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import type {
-  CreateWorkoutRequest,
   Equipment,
   Exercise,
   LastExerciseSets,
   RoutineDay,
+  UpdateWorkoutRequest,
   Workout,
 } from '@fitness/contracts';
 import {
@@ -199,7 +199,7 @@ function draftFromRoutineDay(
   };
 }
 
-function useSaveWorkout(mutationFn: (input: CreateWorkoutRequest) => Promise<Workout>) {
+function useSaveWorkout(mutationFn: (input: UpdateWorkoutRequest) => Promise<Workout>) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   return useMutation({
@@ -233,50 +233,37 @@ export function NewWorkoutPage() {
   const found = useRoutineDay(routineDayId);
   const { data: lastSets } = useSuspenseQuery(lastSetsQuery(found?.day.exerciseIds ?? []));
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
-  const save = useSaveWorkout(createWorkout);
+  // A new workout never sends null: "no routine day" is simply left out.
+  const save = useSaveWorkout(({ routineDayId: dayId, ...input }) =>
+    createWorkout({ ...input, ...(dayId ? { routineDayId: dayId } : {}) }),
+  );
   const unit = useWeightUnit();
-  const back = (
-    <Link to="/workouts" className="muted">
-      ← Workouts
-    </Link>
-  );
-  const cancel = (
-    <Link to="/workouts" className="button secondary">
-      Cancel
-    </Link>
-  );
-
-  if (found) {
-    return (
-      <WorkoutForm
-        // A different day (same route) must start from its own draft.
-        key={found.day.id}
-        title={dayLabel(found.day)}
-        subtitle={found.routine.name}
-        submitLabel="Save workout"
-        initial={() => draftFromRoutineDay(found.day, catalog.items, lastSets, unit)}
-        lastSets={lastSets}
-        routineDayId={found.day.id}
-        save={save}
-        back={back}
-        cancel={cancel}
-      />
-    );
-  }
 
   return (
     <WorkoutForm
-      key="empty"
+      // A different day from Next up / Other days (same route) starts from its own draft.
+      key={found?.day.id ?? 'empty'}
       title="Log workout"
       submitLabel="Save workout"
-      initial={() => ({
-        performedAt: toInputDate(new Date()),
-        notes: '',
-        entries: [emptyExercise()],
-      })}
+      dayFillsExercises
+      initial={() =>
+        found
+          ? draftFromRoutineDay(found.day, catalog.items, lastSets, unit)
+          : { performedAt: toInputDate(new Date()), notes: '', entries: [emptyExercise()] }
+      }
+      initialRoutineDayId={found?.day.id}
+      lastSets={lastSets}
       save={save}
-      back={back}
-      cancel={cancel}
+      back={
+        <Link to="/workouts" className="muted">
+          ← Workouts
+        </Link>
+      }
+      cancel={
+        <Link to="/workouts" className="button secondary">
+          Cancel
+        </Link>
+      }
     />
   );
 }
@@ -304,6 +291,7 @@ export function EditWorkoutPage() {
       title="Edit workout"
       submitLabel="Save changes"
       initial={() => draftFromWorkout(workout, unit)}
+      initialRoutineDayId={workout.routineDay?.id}
       save={save}
       back={back}
       cancel={cancel}
@@ -312,38 +300,62 @@ export function EditWorkoutPage() {
 }
 
 interface WorkoutFormProps {
+  /** Heading; a new workout shows its routine day instead once one is chosen. */
   title: string;
-  /** Shown under the title, e.g. the routine name. */
-  subtitle?: string;
   submitLabel: string;
+  /**
+   * Choosing a routine day loads its exercises (new workouts). Otherwise it only relabels
+   * the workout (editing never swaps logged exercises).
+   */
+  dayFillsExercises?: boolean;
   /** Routine day the session follows; sent with the workout so the rotation advances. */
-  routineDayId?: string;
+  initialRoutineDayId?: string;
   /** Lazy initial state: read once, when the form mounts. */
   initial: () => WorkoutDraft;
   /** The last sets per exercise and equipment, to re-fill when the equipment changes. */
   lastSets?: LastExerciseSets[];
-  save: UseMutationResult<Workout, Error, CreateWorkoutRequest>;
+  save: UseMutationResult<Workout, Error, UpdateWorkoutRequest>;
   back: ReactNode;
   cancel: ReactNode;
 }
 
 function WorkoutForm({
   title,
-  subtitle,
   submitLabel,
-  routineDayId,
+  dayFillsExercises = false,
+  initialRoutineDayId,
   initial,
-  lastSets = [],
+  lastSets: initialLastSets = [],
   save,
   back,
   cancel,
 }: WorkoutFormProps) {
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
+  const { data: routines } = useSuspenseQuery(routinesQuery);
+  const queryClient = useQueryClient();
   const unit = useWeightUnit();
   const [draft] = useState(initial);
   const [performedAt, setPerformedAt] = useState(draft.performedAt);
   const [notes, setNotes] = useState(draft.notes);
   const [entries, setEntries] = useState<ExerciseDraft[]>(draft.entries);
+  const [lastSets, setLastSets] = useState(initialLastSets);
+  // '' is "no routine day"; a day that no longer exists shows as none.
+  const [routineDayId, setRoutineDayId] = useState(initialRoutineDayId ?? '');
+  const selected = routines
+    .flatMap((routine) => routine.days.map((day) => ({ routine, day })))
+    .find(({ day }) => day.id === routineDayId);
+
+  const chooseRoutineDay = async (dayId: string) => {
+    setRoutineDayId(dayId);
+    const day = routines.flatMap((r) => r.days).find((d) => d.id === dayId);
+    if (!dayFillsExercises || !day) return;
+    // Sets the user typed are only thrown away with their OK.
+    const typed = entries.some((e) => !e.pristine);
+    if (typed && !confirm(`Replace the exercises with those of ${dayLabel(day)}?`)) return;
+    const dayLastSets = await queryClient.fetchQuery(lastSetsQuery(day.exerciseIds));
+    setLastSets(dayLastSets);
+    setEntries(draftFromRoutineDay(day, catalog.items, dayLastSets, unit).entries);
+  };
 
   const updateEntry = (key: number, change: (entry: ExerciseDraft) => ExerciseDraft) =>
     setEntries((all) => all.map((e) => (e.key === key ? change(e) : e)));
@@ -360,10 +372,11 @@ function WorkoutForm({
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const request: CreateWorkoutRequest = {
+    const request: UpdateWorkoutRequest = {
       performedAt: new Date(performedAt).toISOString(),
       notes: notes.trim() || undefined,
-      ...(routineDayId ? { routineDayId } : {}),
+      // null takes an edited workout out of its routine day.
+      routineDayId: routineDayId || null,
       exercises: entries.map((e) => ({
         exerciseId: e.exerciseId,
         ...(e.equipment ? { equipment: e.equipment } : {}),
@@ -392,8 +405,14 @@ function WorkoutForm({
       <div className="page-header">
         <div>
           {back}
-          <h1>{title}</h1>
-          {subtitle && <p className="muted">{subtitle}</p>}
+          {dayFillsExercises && selected ? (
+            <>
+              <h1>{dayLabel(selected.day)}</h1>
+              <p className="muted">{selected.routine.name}</p>
+            </>
+          ) : (
+            <h1>{title}</h1>
+          )}
         </div>
       </div>
 
@@ -416,6 +435,23 @@ function WorkoutForm({
             onChange={(e) => setNotes(e.target.value)}
           />
         </label>
+        {routines.length > 0 && (
+          <label>
+            Routine day
+            <select value={routineDayId} onChange={(e) => void chooseRoutineDay(e.target.value)}>
+              <option value="">No routine day</option>
+              {routines.map((routine) => (
+                <optgroup key={routine.id} label={routine.name}>
+                  {routine.days.map((day) => (
+                    <option key={day.id} value={day.id}>
+                      {dayLabel(day)}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {entries.map((entry, entryIndex) => (

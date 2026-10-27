@@ -28,6 +28,7 @@ import {
   LastSetsQueryDto,
   ListWorkoutsQueryDto,
   ProgressQueryDto,
+  UpdateWorkoutDto,
 } from './dto/workout.dto';
 
 @ApiTags('workouts')
@@ -85,12 +86,13 @@ export class WorkoutsController {
 
   @Put(':id')
   @ApiOperation({
-    summary: 'Replace a workout: notes and exercises as given; omitted performedAt is kept',
+    summary:
+      'Replace a workout: notes and exercises as given; omitted performedAt and routineDayId are kept, routineDayId null unlinks it',
   })
   update(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CreateWorkoutDto,
+    @Body() dto: UpdateWorkoutDto,
   ): Promise<Workout> {
     return this.workouts.update(user.sub, id, dto);
   }
