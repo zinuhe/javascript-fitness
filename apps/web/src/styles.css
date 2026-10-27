@@ -696,6 +696,9 @@ fieldset {
   overflow: hidden;
   background: var(--bg);
 }
+.stepper:has(input[aria-invalid='true']) {
+  border-color: var(--danger);
+}
 .stepper:focus-within {
   outline: 2px solid var(--accent);
   outline-offset: -1px;

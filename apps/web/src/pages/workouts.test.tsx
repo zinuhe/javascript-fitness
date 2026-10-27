@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { Equipment, MuscleGroup } from '@fitness/contracts';
 import { apiState, expireAccessTokens, seedExercise, seedRoutine, seedWorkout } from '../test/api';
 import { currentUrl, renderApp, signedInAs } from '../test/render';
+import { server } from '../test/setup';
+import { HttpResponse, http } from 'msw';
 
 /** The exercise picker inside the form's "Exercise N" group. */
 async function exerciseSelect(n: number) {
@@ -466,6 +468,63 @@ describe('editing a workout', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await screen.findByRole('link', { name: 'Edit' });
     expect(apiState.workouts[0].performedAt).toBe(new Date('2026-10-11T12:00').toISOString());
+  });
+
+  it('explains which exercise, set and field is wrong before saving', async () => {
+    const me = signedInAs();
+    const { squat, bench } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      exercises: [
+        { exerciseId: bench.id, sets: [{ reps: 8, weightKg: 60 }] },
+        { exerciseId: squat.id, sets: [{ reps: 1, weightKg: 2.27 }] },
+      ],
+    });
+    const { user } = renderApp(`/workouts/${workout.id}/edit`);
+
+    const exercise2 = await screen.findByRole('group', { name: 'Exercise 2' });
+    const reps = within(exercise2).getByLabelText('Reps');
+    await user.clear(reps);
+    await user.type(reps, '0');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Some sets need fixing before saving:');
+    expect(alert).toHaveTextContent(
+      'Exercise 2 · Barbell Back Squat, set 1: reps must be a whole number from 1 to 1000 (it says "0").',
+    );
+    expect(reps).toHaveAttribute('aria-invalid', 'true');
+    expect(apiState.workouts[0].exercises[1].sets[0].reps).toBe(1); // nothing sent
+  });
+
+  it('rewords API validation errors with the exercise and set they point at', async () => {
+    const me = signedInAs();
+    const { squat } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+    });
+    server.use(
+      http.put('/api/workouts/:id', () =>
+        HttpResponse.json(
+          {
+            type: 'urn:fitness:error:http_400',
+            title: 'BAD_REQUEST',
+            status: 400,
+            detail: 'Validation failed',
+            errors: { _: ['exercises.0.sets.0.weightKg must not be greater than 9999.99'] },
+          },
+          { status: 400, headers: { 'content-type': 'application/problem+json' } },
+        ),
+      ),
+    );
+    const { user } = renderApp(`/workouts/${workout.id}/edit`);
+
+    await user.click(await screen.findByRole('button', { name: 'Save changes' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The server rejected some values:');
+    expect(alert).toHaveTextContent(
+      'Exercise 1 · Barbell Back Squat, set 1: weight must not be greater than 9999.99',
+    );
   });
 
   it('leaves the workout untouched when cancelled', async () => {

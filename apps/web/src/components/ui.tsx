@@ -60,16 +60,28 @@ export function exerciseNames(exercises: Exercise[]): Map<string, string> {
   return new Map(exercises.map((e) => [e.id, e.name]));
 }
 
-/** Human message for an API/network error, including per-field validation details. */
-export function ErrorMessage({ error }: { error: unknown }) {
+/**
+ * Human message for an API/network error, including per-field validation details;
+ * `describe` can reword each detail in the page's own terms.
+ */
+export function ErrorMessage({
+  error,
+  describe = (detail) => detail,
+}: {
+  error: unknown;
+  describe?: (detail: string) => string;
+}) {
   if (!error) return null;
   const details =
     error instanceof ApiError && error.problem.errors
-      ? Object.values(error.problem.errors).flat()
+      ? Object.values(error.problem.errors).flat().map(describe)
       : [];
   const message =
     error instanceof ApiError
-      ? error.message
+      ? // The API's generic 400 title; the details below say what was wrong.
+        error.message === 'Validation failed' && details.length > 0
+        ? 'The server rejected some values:'
+        : error.message
       : 'Could not reach the server. Check that the API is running.';
   return (
     <div className="alert" role="alert">

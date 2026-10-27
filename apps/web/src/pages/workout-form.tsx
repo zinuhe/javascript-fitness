@@ -44,6 +44,8 @@ interface StepperProps {
   /** Mobile keypad: whole numbers for reps, decimals (with "," or ".") for weight. */
   decimal?: boolean;
   required?: boolean;
+  /** Marks the field when the form found a problem with it (the alert says which). */
+  invalid?: boolean;
 }
 
 /**
@@ -58,6 +60,7 @@ function Stepper({
   min,
   decimal = false,
   required = false,
+  invalid = false,
 }: StepperProps) {
   const id = useId();
   return (
@@ -82,6 +85,7 @@ function Stepper({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required={required}
+          aria-invalid={invalid || undefined}
         />
         <button
           type="button"
@@ -127,6 +131,39 @@ interface WorkoutDraft {
   notes: string;
   entries: ExerciseDraft[];
 }
+
+const API_FIELDS: Record<string, string> = {
+  reps: 'reps',
+  weightKg: 'weight',
+  rpe: 'RPE',
+  restSeconds: 'rest',
+  equipment: 'equipment',
+  exerciseId: 'exercise',
+};
+
+/**
+ * Rewrites an API validation detail such as "exercises.4.sets.0.reps must not be less
+ * than 1" as "Exercise 5 · Split Squat, set 1: reps must not be less than 1".
+ */
+function describeApiDetail(detail: string, sentLabels: string[]): string {
+  const match = /^exercises\.(\d+)(?:\.sets\.(\d+))?\.(\w+) (.*)$/.exec(detail);
+  if (!match) return detail;
+  const [, exercise, set, field, rest] = match;
+  const label = sentLabels[Number(exercise)] ?? `Exercise ${Number(exercise) + 1}`;
+  const where = set === undefined ? label : `${label}, set ${Number(set) + 1}`;
+  return `${where}: ${API_FIELDS[field] ?? field} ${rest}`;
+}
+
+/** A problem with a typed set, found before sending: names the exercise, set and field. */
+interface SetProblem {
+  key: number;
+  setIndex: number;
+  field: 'reps' | 'weight';
+  message: string;
+}
+
+const MAX_REPS = 1000;
+const MAX_WEIGHT_KG = 9999.99;
 
 // A set with neither reps nor weight was not done; an exercise with only such sets was
 // skipped (a tired day), and neither is saved.
@@ -400,12 +437,59 @@ function WorkoutForm({
     catalog.items.find((e) => e.id === exerciseId)?.equipment ?? [];
 
   const [nothingDone, setNothingDone] = useState(false);
+  const [problems, setProblems] = useState<SetProblem[]>([]);
+  // What each sent exercise was, to explain API errors that point at "exercises.4…".
+  const [sentLabels, setSentLabels] = useState<string[]>([]);
+
+  /** "Exercise 5 · Split Squat (Dumbbell)", as the user sees it in the form. */
+  const entryLabel = (entry: ExerciseDraft) => {
+    const exercise = catalog.items.find((e) => e.id === entry.exerciseId);
+    const index = entries.findIndex((e) => e.key === entry.key);
+    const equipment =
+      entry.equipment && (exercise?.equipment.length ?? 0) > 1
+        ? ` (${labelize(entry.equipment)})`
+        : '';
+    return `Exercise ${index + 1} · ${exercise?.name ?? 'Unknown exercise'}${equipment}`;
+  };
+
+  /** Problems the API would reject, explained in the user's terms before sending. */
+  const findProblems = (done: ExerciseDraft[]): SetProblem[] =>
+    done.flatMap((entry) =>
+      entry.sets.flatMap((set, setIndex): SetProblem[] => {
+        if (isBlankSet(set)) return [];
+        const where = `${entryLabel(entry)}, set ${setIndex + 1}`;
+        const found: SetProblem[] = [];
+        const reps = parseDecimal(set.reps);
+        if (!Number.isInteger(reps) || reps < 1 || reps > MAX_REPS) {
+          found.push({
+            key: entry.key,
+            setIndex,
+            field: 'reps',
+            message: `${where}: reps must be a whole number from 1 to ${MAX_REPS} (it says "${set.reps}"). Leave reps and weight empty to skip the set.`,
+          });
+        }
+        const weight = parseDecimal(set.weight);
+        if (!Number.isFinite(weight) || weight < 0 || toKg(weight, unit) > MAX_WEIGHT_KG) {
+          found.push({
+            key: entry.key,
+            setIndex,
+            field: 'weight',
+            message: `${where}: weight must be a number of 0 ${unit} or more (it says "${set.weight}"). Use 0 for bodyweight.`,
+          });
+        }
+        return found;
+      }),
+    );
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     const done = entries.filter((e) => e.exerciseId !== '' && !isSkipped(e));
     setNothingDone(done.length === 0);
     if (done.length === 0) return;
+    const found = findProblems(done);
+    setProblems(found);
+    if (found.length > 0) return;
+    setSentLabels(done.map(entryLabel));
     const request: UpdateWorkoutRequest = {
       performedAt: performedAtFor(performedAt, draft.savedPerformedAt),
       notes: notes.trim() || undefined,
@@ -592,6 +676,9 @@ function WorkoutForm({
                   step={REPS_STEP}
                   min={1}
                   required={!isBlankSet(set)}
+                  invalid={problems.some(
+                    (p) => p.key === entry.key && p.setIndex === setIndex && p.field === 'reps',
+                  )}
                   onChange={(reps) => updateSet(entry.key, setIndex, { reps })}
                 />
                 <Stepper
@@ -600,6 +687,9 @@ function WorkoutForm({
                   step={WEIGHT_STEP[unit]}
                   min={0}
                   required={!isBlankSet(set)}
+                  invalid={problems.some(
+                    (p) => p.key === entry.key && p.setIndex === setIndex && p.field === 'weight',
+                  )}
                   decimal
                   onChange={(weight) => updateSet(entry.key, setIndex, { weight })}
                 />
@@ -639,7 +729,20 @@ function WorkoutForm({
           <p>Fill in at least one set to save the workout.</p>
         </div>
       )}
-      <ErrorMessage error={save.error} />
+      {problems.length > 0 && (
+        <div className="alert" role="alert">
+          <p>Some sets need fixing before saving:</p>
+          <ul>
+            {problems.map((p) => (
+              <li key={`${p.key}-${p.setIndex}-${p.field}`}>{p.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <ErrorMessage
+        error={save.error}
+        describe={(detail) => describeApiDetail(detail, sentLabels)}
+      />
       {/* Sticky on phones: Save stays under the thumb however long the session gets. */}
       <div className="form-actions">
         <button className="button" disabled={save.isPending}>
