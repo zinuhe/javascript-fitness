@@ -9,6 +9,7 @@ import {
   workoutsQuery,
 } from '../api/queries';
 import { ErrorMessage, dayLabel, exerciseNames, formatDay, labelize } from '../components/ui';
+import { BarWord } from '../components/bar';
 import { formatVolume, formatWeight, useWeightUnit } from '../components/units';
 import { NextUpCard } from './start';
 
@@ -208,15 +209,18 @@ export function WorkoutDetailPage() {
                   <tr key={set.id}>
                     <td>{index + 1}</td>
                     <td>{set.reps}</td>
-                    <td>
-                      {formatWeight(set.weightKg, unit)}
-                      {/* Barbell sets store the total; show what was on the bar too. */}
-                      {entry.barKg !== undefined && (
+                    {/* Barbell sets store the total: show the plates as typed, the sum below. */}
+                    {entry.barKg !== undefined ? (
+                      <td>
+                        {formatWeight(set.weightKg - entry.barKg, unit)}
                         <span className="hint cell-note">
-                          {formatWeight(set.weightKg - entry.barKg, unit)} + bar
+                          {formatWeight(set.weightKg - entry.barKg, unit)} +{' '}
+                          <BarWord barKg={entry.barKg} /> = {formatWeight(set.weightKg, unit)}
                         </span>
-                      )}
-                    </td>
+                      </td>
+                    ) : (
+                      <td>{formatWeight(set.weightKg, unit)}</td>
+                    )}
                     {showRpe && <td>{set.rpe ?? '—'}</td>}
                     {showRest && (
                       <td>{set.restSeconds !== undefined ? `${set.restSeconds}s` : '—'}</td>

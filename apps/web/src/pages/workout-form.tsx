@@ -23,6 +23,7 @@ import {
   updateWorkout,
   workoutQuery,
 } from '../api/queries';
+import { BarWord } from '../components/bar';
 import { ErrorMessage, dayLabel, labelize, parseDecimal } from '../components/ui';
 import {
   WEIGHT_STEP,
@@ -123,7 +124,7 @@ function BarTotal({
   const bar = displayWeight(barKg, unit);
   return (
     <p className="hint">
-      + bar {formatWeight(barKg, unit)}
+      + <BarWord barKg={barKg} /> {formatWeight(barKg, unit)}
       {plates.trim() !== '' && Number.isFinite(typed)
         ? ` = ${formatWeight(toKg(typed + bar, unit), unit)}`
         : ''}
