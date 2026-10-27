@@ -436,6 +436,16 @@ describe('account', () => {
     expect(best).toHaveTextContent('220.5 lb');
   });
 
+  it('opens from the user name in the desktop top bar', async () => {
+    signedInAs({ displayName: 'Alex' });
+    const { user, router } = renderApp('/workouts');
+
+    await user.click(await screen.findByRole('link', { name: 'Account: Alex' }));
+
+    expect(await screen.findByText('alex@example.com')).toBeInTheDocument();
+    expect(currentUrl(router)).toBe('/account');
+  });
+
   it('shows the profile and signs out', async () => {
     signedInAs({ displayName: 'Alex', email: 'alex@example.com' });
     const { user, router } = renderApp('/account');

@@ -131,6 +131,12 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--muted);
+  font-weight: 500;
+}
+.user-name:hover,
+.user-name.active {
+  color: var(--text);
 }
 
 .page {

@@ -41,7 +41,14 @@ export function AppLayout() {
         </nav>
         {/* Wide screens only; on phones this lives in the Account tab. */}
         <div className="user">
-          <span className="muted user-name">{user.displayName}</span>
+          <Link
+            to="/account"
+            className="user-name"
+            activeProps={{ className: 'active' }}
+            aria-label={`Account: ${user.displayName}`}
+          >
+            {user.displayName}
+          </Link>
           <button type="button" className="button secondary small" onClick={signOut}>
             Sign out
           </button>
