@@ -6,6 +6,7 @@ export interface UserEntity {
   email: string;
   displayName: string;
   weightUnit: WeightUnit;
+  barWeightKg: number;
   passwordHash: string;
   createdAt: Date;
 }

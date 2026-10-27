@@ -362,6 +362,43 @@ describe('core-service (e2e)', () => {
         await as(token).get(`/workouts/progress/${press.id}?equipment=spoon`).expect(400);
       });
 
+      it('keeps the bar weight of barbell sets, also for the next pre-fill', async () => {
+        const res = await as(token)
+          .post('/workouts', {
+            performedAt: '2026-10-01T09:00:00.000Z',
+            exercises: [
+              {
+                exerciseId: press.id,
+                equipment: Equipment.Barbell,
+                barKg: 12.5,
+                sets: [{ reps: 8, weightKg: 32.5 }], // 20 kg of plates + the bar
+              },
+            ],
+          })
+          .expect(201);
+        expect((res.body as Workout).exercises[0]).toMatchObject({
+          barKg: 12.5,
+          sets: [expect.objectContaining({ weightKg: 32.5 })],
+        });
+
+        const last = await as(token).get(`/workouts/last-sets?exerciseIds=${press.id}`).expect(200);
+        expect(last.body).toEqual([expect.objectContaining({ equipment: 'barbell', barKg: 12.5 })]);
+
+        const dumbbell = await as(token)
+          .post('/workouts', {
+            exercises: [
+              {
+                exerciseId: press.id,
+                equipment: Equipment.Dumbbell,
+                barKg: 12.5,
+                sets: [{ reps: 8, weightKg: 30 }],
+              },
+            ],
+          })
+          .expect(422);
+        expect(dumbbell.body.title).toBe('workout.bar_without_barbell');
+      });
+
       it('equipment used by logged workouts cannot be removed (409)', async () => {
         await log(token, '2026-10-01T09:00:00.000Z', Equipment.Dumbbell, 30).expect(201);
 

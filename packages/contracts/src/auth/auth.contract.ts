@@ -30,6 +30,8 @@ export interface UserProfile {
   email: string;
   displayName: string;
   weightUnit: WeightUnit;
+  /** Weight of the user's barbell, added to the plates typed for barbell exercises. */
+  barWeightKg: number;
   createdAt: string;
 }
 
@@ -37,6 +39,7 @@ export interface UserProfile {
 export interface UpdateProfileRequest {
   displayName?: string;
   weightUnit?: WeightUnit;
+  barWeightKg?: number;
 }
 
 export interface AuthResponse {

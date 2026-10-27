@@ -208,7 +208,15 @@ export function WorkoutDetailPage() {
                   <tr key={set.id}>
                     <td>{index + 1}</td>
                     <td>{set.reps}</td>
-                    <td>{formatWeight(set.weightKg, unit)}</td>
+                    <td>
+                      {formatWeight(set.weightKg, unit)}
+                      {/* Barbell sets store the total; show what was on the bar too. */}
+                      {entry.barKg !== undefined && (
+                        <span className="hint cell-note">
+                          {formatWeight(set.weightKg - entry.barKg, unit)} + bar
+                        </span>
+                      )}
+                    </td>
                     {showRpe && <td>{set.rpe ?? '—'}</td>}
                     {showRest && (
                       <td>{set.restSeconds !== undefined ? `${set.restSeconds}s` : '—'}</td>

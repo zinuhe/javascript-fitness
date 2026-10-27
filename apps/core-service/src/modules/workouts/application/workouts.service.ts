@@ -1,13 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { NotFoundError, ValidationError } from '@fitness/common';
-import type {
-  CreateWorkoutRequest,
+import {
   Equipment,
-  ExerciseProgress,
-  LastExerciseSets,
-  Paginated,
-  UpdateWorkoutRequest,
-  Workout,
+  type CreateWorkoutRequest,
+  type ExerciseProgress,
+  type LastExerciseSets,
+  type Paginated,
+  type UpdateWorkoutRequest,
+  type Workout,
 } from '@fitness/contracts';
 import { WORKOUT_REPOSITORY, type WorkoutRepository } from '../domain/workout.repository';
 import { buildProgressPoints } from './progress.calculator';
@@ -116,6 +116,14 @@ export class WorkoutsService {
     }
     return input.exercises.map((entry) => {
       const options = catalog.get(entry.exerciseId)!;
+      const equipment = entry.equipment ?? (options.length === 1 ? options[0] : undefined);
+      if (entry.barKg !== undefined && equipment !== Equipment.Barbell) {
+        throw new ValidationError(
+          'Only barbell exercises can include a bar weight',
+          'workout.bar_without_barbell',
+          { [entry.exerciseId]: [`equipment: ${equipment ?? 'none'}`] },
+        );
+      }
       if (entry.equipment === undefined && options.length === 1) {
         return { ...entry, equipment: options[0] };
       }

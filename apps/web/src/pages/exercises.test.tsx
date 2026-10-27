@@ -192,8 +192,8 @@ describe('editing and deleting exercises', () => {
     expect(screen.getByLabelText('Muscle group')).toHaveValue('biceps');
     await user.clear(name);
     await user.type(name, 'Lying Dumbbell Biceps Curl');
-    expect(screen.getByRole('checkbox', { name: 'Barbell' })).toBeChecked();
-    await user.click(screen.getByRole('checkbox', { name: 'Barbell' }));
+    expect(screen.getByRole('checkbox', { name: 'Machine' })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: 'Machine' }));
     await user.click(screen.getByRole('checkbox', { name: 'Dumbbell' }));
     await user.type(screen.getByLabelText('Description'), 'Curl tumbado');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));

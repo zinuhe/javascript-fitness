@@ -69,6 +69,7 @@ export function seedUser(over: Partial<UserRecord> = {}): UserRecord {
     email: 'alex@example.com',
     displayName: 'Alex',
     weightUnit: 'kg',
+    barWeightKg: 12.5,
     password: DEFAULT_PASSWORD,
     createdAt: now(),
     ...over,
@@ -82,7 +83,7 @@ export function seedExercise(over: Partial<Exercise> = {}): Exercise {
     id: nextId('ex'),
     name: 'Barbell Bench Press',
     muscleGroup: MuscleGroup.Chest,
-    equipment: [Equipment.Barbell],
+    equipment: [Equipment.Machine],
     createdAt: now(),
     ...over,
   };
@@ -253,6 +254,7 @@ function buildWorkout(userId: string, input: CreateWorkoutRequest): Workout {
       exerciseId: entry.exerciseId,
       // The only equipment of the exercise is filled in, as the API does.
       equipment: entry.equipment ?? onlyEquipment(entry.exerciseId),
+      barKg: entry.barKg,
       order,
       sets: entry.sets.map((set, setOrder) => ({ id: nextId('set'), order: setOrder, ...set })),
     })),
@@ -456,6 +458,7 @@ export const handlers = [
             return {
               exerciseId,
               ...(entry.equipment ? { equipment: entry.equipment } : {}),
+              ...(entry.barKg !== undefined ? { barKg: entry.barKg } : {}),
               performedAt: workout.performedAt,
               sets,
             };

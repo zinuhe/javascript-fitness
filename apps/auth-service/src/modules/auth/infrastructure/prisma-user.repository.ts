@@ -9,6 +9,7 @@ type UserWithCredential = {
   email: string;
   displayName: string;
   weightUnit: WeightUnit;
+  barWeightKg: { toNumber(): number };
   createdAt: Date;
   credential: { passwordHash: string } | null;
 };
@@ -58,6 +59,7 @@ export class PrismaUserRepository implements UserRepository {
       email: user.email,
       displayName: user.displayName,
       weightUnit: user.weightUnit,
+      barWeightKg: user.barWeightKg.toNumber(),
       passwordHash: user.credential?.passwordHash ?? '',
       createdAt: user.createdAt,
     };

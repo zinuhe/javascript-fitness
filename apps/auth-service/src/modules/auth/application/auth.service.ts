@@ -95,6 +95,7 @@ export class AuthService {
     const user = await this.users.updateProfile(userId, {
       ...(input.displayName !== undefined ? { displayName: input.displayName.trim() } : {}),
       ...(input.weightUnit !== undefined ? { weightUnit: input.weightUnit } : {}),
+      ...(input.barWeightKg !== undefined ? { barWeightKg: input.barWeightKg } : {}),
     });
     if (!user) {
       throw new UnauthorizedError('User not found', 'auth.user_not_found');
@@ -123,6 +124,7 @@ export class AuthService {
       email: user.email,
       displayName: user.displayName,
       weightUnit: user.weightUnit,
+      barWeightKg: user.barWeightKg,
       createdAt: user.createdAt.toISOString(),
     };
   }

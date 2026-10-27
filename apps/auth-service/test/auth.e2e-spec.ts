@@ -155,6 +155,29 @@ describe('auth-service (e2e)', () => {
       expect(me.body.weightUnit).toBe('lb');
     });
 
+    it('keeps the barbell weight, 12.5 kg by default, and validates it', async () => {
+      const { tokens, user } = (await register().expect(201)).body as AuthResponse;
+      expect(user.barWeightKg).toBe(12.5);
+      const auth = `Bearer ${tokens.accessToken}`;
+
+      const patched = await request(http)
+        .patch('/auth/me')
+        .set('authorization', auth)
+        .send({ barWeightKg: 20 })
+        .expect(200);
+      expect(patched.body.barWeightKg).toBe(20);
+      await request(http)
+        .patch('/auth/me')
+        .set('authorization', auth)
+        .send({ barWeightKg: -1 })
+        .expect(400);
+      await request(http)
+        .patch('/auth/me')
+        .set('authorization', auth)
+        .send({ barWeightKg: 101 })
+        .expect(400);
+    });
+
     it('validates the unit and requires a token', async () => {
       const { tokens } = (await register().expect(201)).body as AuthResponse;
 

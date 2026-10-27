@@ -67,6 +67,18 @@ export class CreateWorkoutExerciseDto implements CreateWorkoutExerciseRequest {
   @IsEnum(Equipment)
   equipment?: Equipment;
 
+  @ApiPropertyOptional({
+    example: 12.5,
+    minimum: 0,
+    maximum: 100,
+    description: 'Barbell weight already included in each set weight; barbell only',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  barKg?: number;
+
   @ApiProperty({ type: [CreateSetDto] })
   @IsArray()
   @ArrayMinSize(1)

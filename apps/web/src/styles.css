@@ -543,6 +543,11 @@ fieldset.card > legend {
   font-size: 0.85rem;
   font-weight: 400;
 }
+/* A second line under a table value, e.g. "20 lb + bar". */
+.cell-note {
+  display: block;
+  font-size: 0.75rem;
+}
 .notes {
   white-space: pre-wrap;
 }

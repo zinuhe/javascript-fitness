@@ -17,7 +17,7 @@ function seedCatalog() {
     squat: seedExercise({
       name: 'Barbell Back Squat',
       muscleGroup: MuscleGroup.Legs,
-      equipment: [Equipment.Barbell],
+      equipment: [Equipment.Machine],
     }),
     bench: seedExercise({ name: 'Barbell Bench Press' }),
   };
@@ -57,7 +57,7 @@ describe('workouts list', () => {
 
     const card = (await screen.findByText('Felt strong')).closest('a')!;
     // Every exercise with its equipment, and the full date.
-    expect(card).toHaveTextContent('Barbell Back Squat (Barbell) · Barbell Bench Press (Barbell)');
+    expect(card).toHaveTextContent('Barbell Back Squat (Machine) · Barbell Bench Press (Machine)');
     expect(card).toHaveTextContent(/Sunday.*October.*18.*2026/);
     expect(card).toHaveTextContent('3 sets · Volume 1,530 kg'); // 500 + 550 + 480
   });
@@ -306,7 +306,7 @@ describe('workout detail', () => {
     ]);
     expect(screen.getByRole('rowheader', { name: 'Total' })).toBeInTheDocument();
     // Shown even when the exercise has a single equipment.
-    expect(screen.getByLabelText('Equipment: Barbell')).toBeInTheDocument();
+    expect(screen.getByLabelText('Equipment: Machine')).toBeInTheDocument();
     expect(screen.getByText('Volume 830 kg (1,829.8 lb)')).toBeInTheDocument();
   });
 
@@ -559,6 +559,69 @@ describe('editing a workout', () => {
     renderApp('/workouts/does-not-exist/edit');
 
     expect(await screen.findByRole('heading', { name: 'Not found' })).toBeInTheDocument();
+  });
+});
+
+describe('barbell exercises', () => {
+  it('adds the bar to the plates typed, and shows both', async () => {
+    signedInAs({ weightUnit: 'lb' });
+    const thrust = seedExercise({ name: 'Hip Thrust', equipment: [Equipment.Barbell] });
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), thrust.name);
+    await user.type(screen.getByLabelText('Reps'), '12');
+    await user.type(screen.getByLabelText('Plates (lb)'), '20');
+    expect(screen.getByText('+ bar 27.6 lb = 47.6 lb')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    await screen.findByRole('heading', { name: 'Hip Thrust' });
+    // Stored as the total lifted (9.07 kg of plates + the 12.5 kg bar).
+    expect(apiState.workouts[0].exercises[0]).toMatchObject({
+      barKg: 12.5,
+      sets: [expect.objectContaining({ reps: 12, weightKg: 21.57 })],
+    });
+    const row = screen.getAllByRole('row')[1];
+    expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('47.6 lb20 lb + bar');
+
+    // Editing shows the plates again.
+    await user.click(screen.getByRole('link', { name: 'Edit' }));
+    expect(await screen.findByLabelText('Plates (lb)')).toHaveValue('20');
+  });
+
+  it('uses the bar weight set in Account, keeping the bar of past workouts', async () => {
+    const me = signedInAs();
+    const thrust = seedExercise({ name: 'Hip Thrust', equipment: [Equipment.Barbell] });
+    const old = seedWorkout(me.id, {
+      exercises: [{ exerciseId: thrust.id, barKg: 12.5, sets: [{ reps: 10, weightKg: 32.5 }] }],
+    });
+    const { user, router } = renderApp('/account');
+
+    const bar = await screen.findByLabelText('Barbell weight (kg)');
+    expect(bar).toHaveValue('12.5');
+    await user.clear(bar);
+    await user.type(bar, '20');
+    await user.click(screen.getByRole('button', { name: 'Save bar weight' }));
+    expect(await screen.findByText(/Now 20 kg/)).toBeInTheDocument();
+    expect(apiState.users[0].barWeightKg).toBe(20);
+
+    // A new barbell exercise uses the new bar…
+    await router.navigate({ to: '/workouts/new' });
+    await user.selectOptions(await exerciseSelect(1), thrust.name);
+    expect(screen.getByText('+ bar 20 kg')).toBeInTheDocument();
+    // …while the old workout keeps its 12.5 kg bar: 32.5 kg total is 20 kg of plates.
+    await router.navigate({ to: '/workouts/$workoutId/edit', params: { workoutId: old.id } });
+    expect(await screen.findByLabelText('Plates (kg)')).toHaveValue('20');
+    expect(screen.getByText('+ bar 12.5 kg = 32.5 kg')).toBeInTheDocument();
+  });
+
+  it('has no bar for other equipment', async () => {
+    signedInAs();
+    const { squat } = seedCatalog();
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), squat.name);
+    expect(screen.getByLabelText('Weight (kg)')).toBeInTheDocument();
+    expect(screen.queryByText(/\+ bar/)).not.toBeInTheDocument();
   });
 });
 

@@ -79,6 +79,9 @@ model WorkoutExercise {
   order      Int
   // Which of the exercise's equipment was used this time (barbell, dumbbell…).
   equipment  Equipment?
+  // Barbell weight included in every set's weightKg (sets store the total lifted); null
+  // when no bar. Kept per exercise so later bar changes don't alter past workouts.
+  barKg      Decimal?   @db.Decimal(5, 2)
 
   workout  Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exercise Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)

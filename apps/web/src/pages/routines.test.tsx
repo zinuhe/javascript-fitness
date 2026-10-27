@@ -229,13 +229,13 @@ describe('starting a routine day', () => {
     const me = signedInAs();
     const press = seedExercise({
       name: 'Bench Press',
-      equipment: [Equipment.Barbell, Equipment.Dumbbell],
+      equipment: [Equipment.Cable, Equipment.Dumbbell],
     });
     seedRoutine(me.id, { name: 'Push', days: [{ name: 'Push', exerciseIds: [press.id] }] });
     seedWorkout(me.id, {
       performedAt: '2026-10-01T09:00:00.000Z',
       exercises: [
-        { exerciseId: press.id, equipment: Equipment.Barbell, sets: [{ reps: 5, weightKg: 80 }] },
+        { exerciseId: press.id, equipment: Equipment.Cable, sets: [{ reps: 5, weightKg: 80 }] },
       ],
     });
     seedWorkout(me.id, {
@@ -254,7 +254,7 @@ describe('starting a routine day', () => {
     expect(weight()).toHaveValue('30');
     expect(screen.getByLabelText('Reps')).toHaveValue('10');
 
-    await user.click(within(equipment).getByRole('radio', { name: 'Barbell' }));
+    await user.click(within(equipment).getByRole('radio', { name: 'Cable' }));
     expect(weight()).toHaveValue('80');
     expect(screen.getByLabelText('Reps')).toHaveValue('5');
 

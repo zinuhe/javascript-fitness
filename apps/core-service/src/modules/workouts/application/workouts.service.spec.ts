@@ -74,6 +74,25 @@ describe('WorkoutsService.create', () => {
     expect(repo.create).not.toHaveBeenCalled();
   });
 
+  it('accepts a bar weight only on barbell exercises (422 otherwise)', async () => {
+    const bar = { reps: 5, weightKg: 32.5 };
+    await service.create('user-1', {
+      exercises: [{ exerciseId: 'ex-1', barKg: 12.5, sets: [bar] }],
+    });
+    expect(repo.create).toHaveBeenCalledWith({
+      exercises: [{ exerciseId: 'ex-1', equipment: Equipment.Barbell, barKg: 12.5, sets: [bar] }],
+      userId: 'user-1',
+    });
+
+    await expect(
+      service.create('user-1', {
+        exercises: [
+          { exerciseId: 'ex-2', equipment: Equipment.Dumbbell, barKg: 12.5, sets: [bar] },
+        ],
+      }),
+    ).rejects.toMatchObject({ httpStatus: 422, code: 'workout.bar_without_barbell' });
+  });
+
   it('rejects equipment the exercise is not done with (422)', async () => {
     await expect(
       service.create('user-1', {

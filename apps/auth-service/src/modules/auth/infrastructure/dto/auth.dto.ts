@@ -1,5 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import type {
   LoginRequest,
   RefreshRequest,
@@ -57,4 +67,11 @@ export class UpdateProfileDto implements UpdateProfileRequest {
   @IsOptional()
   @IsIn(['kg', 'lb'])
   weightUnit?: WeightUnit;
+
+  @ApiPropertyOptional({ example: 12.5, minimum: 0, maximum: 100, description: 'Barbell weight' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  barWeightKg?: number;
 }

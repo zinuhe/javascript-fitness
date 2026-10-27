@@ -18,12 +18,20 @@ import {
   createWorkout,
   exercisesQuery,
   lastSetsQuery,
+  meQuery,
   routinesQuery,
   updateWorkout,
   workoutQuery,
 } from '../api/queries';
 import { ErrorMessage, dayLabel, labelize, parseDecimal } from '../components/ui';
-import { WEIGHT_STEP, toKg, useWeightUnit, weightInputValue } from '../components/units';
+import {
+  WEIGHT_STEP,
+  displayWeight,
+  formatWeight,
+  toKg,
+  useWeightUnit,
+  weightInputValue,
+} from '../components/units';
 import type { WeightUnit } from '@fitness/contracts';
 
 const REPS_STEP = 1;
@@ -100,11 +108,34 @@ function Stepper({
   );
 }
 
+/** "+ bar 27.6 lb = 47.6 lb" under a barbell set, once plates are typed. */
+function BarTotal({
+  plates,
+  barKg,
+  unit,
+}: {
+  plates: string;
+  barKg: number | undefined;
+  unit: WeightUnit;
+}) {
+  if (barKg === undefined) return null;
+  const typed = parseDecimal(plates);
+  const bar = displayWeight(barKg, unit);
+  return (
+    <p className="hint">
+      + bar {formatWeight(barKg, unit)}
+      {plates.trim() !== '' && Number.isFinite(typed)
+        ? ` = ${formatWeight(toKg(typed + bar, unit), unit)}`
+        : ''}
+    </p>
+  );
+}
+
 // Inputs hold strings while editing; they are converted once on submit. RPE and rest are
 // not editable in this form, but are carried through so editing a workout keeps them.
 interface SetDraft {
   reps: string;
-  /** In the user's unit (kg or lb), as typed. */
+  /** In the user's unit (kg or lb), as typed; for barbell exercises, the plates only. */
   weight: string;
   rpe?: number;
   restSeconds?: number;
@@ -115,6 +146,8 @@ interface ExerciseDraft {
   exerciseId: string;
   /** Which of the exercise's equipment is used; '' until an exercise is chosen. */
   equipment: Equipment | '';
+  /** The bar saved with this exercise; new barbell entries use the user's bar. */
+  barKg?: number;
   sets: SetDraft[];
   /**
    * The sets are still as pre-filled (not typed over), so switching the equipment may swap
@@ -180,10 +213,11 @@ const emptyExercise = (): ExerciseDraft => ({
   pristine: true,
 });
 
-const toSetDrafts = (sets: LastExerciseSets['sets'], unit: WeightUnit): SetDraft[] =>
+/** Saved sets as form drafts; with a bar, the weight field shows the plates only. */
+const toSetDrafts = (sets: LastExerciseSets['sets'], unit: WeightUnit, barKg = 0): SetDraft[] =>
   sets.map((set) => ({
     reps: String(set.reps),
-    weight: weightInputValue(set.weightKg, unit),
+    weight: weightInputValue(set.weightKg - barKg, unit),
     rpe: set.rpe,
     restSeconds: set.restSeconds,
   }));
@@ -196,7 +230,7 @@ function lastSetsFor(
   unit: WeightUnit,
 ): SetDraft[] {
   const previous = lastSets.find((e) => e.exerciseId === exerciseId && e.equipment === equipment);
-  return previous?.sets.length ? toSetDrafts(previous.sets, unit) : [emptySet()];
+  return previous?.sets.length ? toSetDrafts(previous.sets, unit, previous.barKg) : [emptySet()];
 }
 
 /** Local day of `date` in the `YYYY-MM-DD` shape a date input expects. */
@@ -226,7 +260,8 @@ function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
       key: nextKey++,
       exerciseId: entry.exerciseId,
       equipment: entry.equipment ?? '',
-      sets: toSetDrafts(entry.sets, unit),
+      barKg: entry.barKg,
+      sets: toSetDrafts(entry.sets, unit, entry.barKg),
       // Logged sets are never swapped behind the user's back.
       pristine: false,
     })),
@@ -398,8 +433,12 @@ function WorkoutForm({
 }: WorkoutFormProps) {
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const { data: routines } = useSuspenseQuery(routinesQuery);
+  const { data: me } = useSuspenseQuery(meQuery);
   const queryClient = useQueryClient();
   const unit = useWeightUnit();
+  /** The bar added to the plates of a barbell exercise; undefined without a barbell. */
+  const barOf = (entry: ExerciseDraft) =>
+    entry.equipment === 'barbell' ? (entry.barKg ?? me.barWeightKg) : undefined;
   const [draft] = useState(initial);
   const [performedAt, setPerformedAt] = useState(draft.performedAt);
   const [notes, setNotes] = useState(draft.notes);
@@ -495,18 +534,23 @@ function WorkoutForm({
       notes: notes.trim() || undefined,
       // null takes an edited workout out of its routine day.
       routineDayId: routineDayId || null,
-      exercises: done.map((e) => ({
-        exerciseId: e.exerciseId,
-        ...(e.equipment ? { equipment: e.equipment } : {}),
-        sets: e.sets
-          .filter((s) => !isBlankSet(s))
-          .map((s) => ({
-            reps: parseDecimal(s.reps),
-            weightKg: toKg(parseDecimal(s.weight), unit),
-            ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
-            ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
-          })),
-      })),
+      exercises: done.map((e) => {
+        const bar = barOf(e);
+        return {
+          exerciseId: e.exerciseId,
+          ...(e.equipment ? { equipment: e.equipment } : {}),
+          ...(bar !== undefined ? { barKg: bar } : {}),
+          sets: e.sets
+            .filter((s) => !isBlankSet(s))
+            .map((s) => ({
+              reps: parseDecimal(s.reps),
+              // Sets store the total lifted: the plates typed plus the bar.
+              weightKg: Math.round((toKg(parseDecimal(s.weight), unit) + (bar ?? 0)) * 100) / 100,
+              ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
+              ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
+            })),
+        };
+      }),
     };
     save.mutate(request);
   };
@@ -682,7 +726,7 @@ function WorkoutForm({
                   onChange={(reps) => updateSet(entry.key, setIndex, { reps })}
                 />
                 <Stepper
-                  label={`Weight (${unit})`}
+                  label={`${barOf(entry) !== undefined ? 'Plates' : 'Weight'} (${unit})`}
                   value={set.weight}
                   step={WEIGHT_STEP[unit]}
                   min={0}
@@ -694,6 +738,7 @@ function WorkoutForm({
                   onChange={(weight) => updateSet(entry.key, setIndex, { weight })}
                 />
               </div>
+              <BarTotal plates={set.weight} barKg={barOf(entry)} unit={unit} />
             </div>
           ))}
           <button
