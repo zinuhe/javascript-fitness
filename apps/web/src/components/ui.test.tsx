@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/client';
-import { ErrorMessage, formatDay, formatShortDate, labelize, parseDecimal, setsVolume } from './ui';
+import { ErrorMessage, formatDay, formatShortDate, labelize, parseDecimal } from './ui';
 
 describe('labelize', () => {
   it.each([
@@ -10,17 +10,6 @@ describe('labelize', () => {
     ['', ''],
   ])('%j → %j', (input, expected) => {
     expect(labelize(input)).toBe(expected);
-  });
-});
-
-describe('setsVolume', () => {
-  it('sums reps × weight across sets', () => {
-    const sets = [
-      { id: 'a', order: 0, reps: 5, weightKg: 100 },
-      { id: 'b', order: 1, reps: 3, weightKg: 110.5 },
-    ];
-    expect(setsVolume(sets)).toBe(831.5);
-    expect(setsVolume([])).toBe(0);
   });
 });
 

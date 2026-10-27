@@ -838,6 +838,13 @@ th {
 tr:last-child td {
   border-bottom: none;
 }
+/* Totals under a table of sets: separated from the sets, bold like a result. */
+tfoot th,
+tfoot td {
+  border-top: 1px solid var(--border);
+  border-bottom: none;
+  font-weight: 700;
+}
 table.compact th,
 table.compact td {
   padding: 8px 6px;

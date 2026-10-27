@@ -8,15 +8,8 @@ import {
   workoutQuery,
   workoutsQuery,
 } from '../api/queries';
-import {
-  ErrorMessage,
-  dayLabel,
-  exerciseNames,
-  formatDay,
-  labelize,
-  setsVolume,
-} from '../components/ui';
-import { formatWeight, useWeightUnit } from '../components/units';
+import { ErrorMessage, dayLabel, exerciseNames, formatDay, labelize } from '../components/ui';
+import { formatVolume, formatWeight, useWeightUnit } from '../components/units';
 import { NextUpCard } from './start';
 
 /** "Bench Press (Dumbbell)": the equipment only for exercises that have several. */
@@ -58,7 +51,7 @@ export function WorkoutsPage() {
         <ul className="list">
           {data.items.map((workout) => {
             const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0);
-            const volume = workout.exercises.reduce((v, e) => v + setsVolume(e.sets), 0);
+            const allSets = workout.exercises.flatMap((e) => e.sets);
             return (
               <li key={workout.id}>
                 <Link
@@ -71,7 +64,7 @@ export function WorkoutsPage() {
                     {workout.routineDay && (
                       <span className="day-chip">{dayLabel(workout.routineDay)}</span>
                     )}
-                    {totalSets} sets · {formatWeight(volume, unit)}
+                    {totalSets} sets · Volume {formatVolume(allSets, unit)}
                   </p>
                   <p className="muted">
                     {workout.exercises
@@ -137,7 +130,7 @@ export function WorkoutDetailPage() {
   });
 
   const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0);
-  const volume = workout.exercises.reduce((v, e) => v + setsVolume(e.sets), 0);
+  const allSets = workout.exercises.flatMap((e) => e.sets);
 
   return (
     <section className="stack">
@@ -148,7 +141,7 @@ export function WorkoutDetailPage() {
           </Link>
           <h1>{formatDay(workout.performedAt)}</h1>
           <p className="muted">
-            {totalSets} sets · {formatWeight(volume, unit)}
+            {totalSets} sets · Volume {formatVolume(allSets, unit)}
           </p>
           {workout.routineDay && (
             <p>
@@ -197,7 +190,8 @@ export function WorkoutDetailPage() {
                   <span className="tag">{labelize(entry.equipment)}</span>
                 )}
               </h2>
-              <span className="muted">{formatWeight(setsVolume(entry.sets), unit)}</span>
+              {/* Volume: reps × weight of every set, added up. */}
+              <span className="muted">Volume {formatVolume(entry.sets, unit)}</span>
             </div>
             <table>
               <thead>
@@ -222,6 +216,17 @@ export function WorkoutDetailPage() {
                   </tr>
                 ))}
               </tbody>
+              {entry.sets.length > 1 && (
+                <tfoot>
+                  <tr>
+                    <th scope="row">Total</th>
+                    <td>{entry.sets.reduce((n, set) => n + set.reps, 0)}</td>
+                    <td colSpan={1 + Number(showRpe) + Number(showRest)}>
+                      {formatVolume(entry.sets, unit)} volume
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </article>
         );

@@ -1,5 +1,5 @@
 import { Link, type ErrorComponentProps } from '@tanstack/react-router';
-import type { Equipment, Exercise, WorkoutSet } from '@fitness/contracts';
+import type { Equipment, Exercise } from '@fitness/contracts';
 import { ApiError } from '../api/client';
 
 /** `full_body` → `Full body` for enum values shown in the UI. */
@@ -52,9 +52,6 @@ export function formatDay(iso: string, now = new Date()): string {
 
 /** Parses a typed number, accepting a decimal comma (iOS keypads in many locales). */
 export const parseDecimal = (value: string) => Number(value.trim().replace(',', '.'));
-
-export const setsVolume = (sets: WorkoutSet[]) =>
-  sets.reduce((sum, set) => sum + set.reps * set.weightKg, 0);
 
 export function exerciseNames(exercises: Exercise[]): Map<string, string> {
   return new Map(exercises.map((e) => [e.id, e.name]));

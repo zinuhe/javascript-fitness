@@ -17,9 +17,12 @@ export const kgTo = (kg: number, unit: WeightUnit) => (unit === 'lb' ? kg * LB_P
 export const toKg = (value: number, unit: WeightUnit) =>
   Math.round((unit === 'lb' ? value / LB_PER_KG : value) * 100) / 100;
 
+/** A stored kg value in `unit`, rounded as it is shown and typed (0.1 lb). */
+export const displayWeight = (kg: number, unit: WeightUnit) =>
+  unit === 'lb' ? Math.round(kg * LB_PER_KG * 10) / 10 : kg;
+
 /** A stored kg value as the text of a weight input in `unit`. */
-export const weightInputValue = (kg: number, unit: WeightUnit) =>
-  String(unit === 'lb' ? Math.round(kg * LB_PER_KG * 10) / 10 : kg);
+export const weightInputValue = (kg: number, unit: WeightUnit) => String(displayWeight(kg, unit));
 
 const formats: Record<WeightUnit, Intl.NumberFormat> = {
   kg: new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }),
@@ -29,6 +32,16 @@ const formats: Record<WeightUnit, Intl.NumberFormat> = {
 /** "100 kg" or "220.5 lb" for a stored kg value. */
 export const formatWeight = (kg: number, unit: WeightUnit) =>
   `${formats[unit].format(kgTo(kg, unit))} ${unit}`;
+
+/**
+ * Volume (reps × weight, summed) of some sets, e.g. "1,000 lb". Each set's weight is taken
+ * as shown, so 4 × 25 reps of 10 lb is exactly 1,000 lb, not the 1,000.9 that the kg
+ * round trip (10 lb → 4.54 kg) would give.
+ */
+export const formatVolume = (sets: { reps: number; weightKg: number }[], unit: WeightUnit) =>
+  `${formats[unit].format(
+    sets.reduce((sum, set) => sum + set.reps * displayWeight(set.weightKg, unit), 0),
+  )} ${unit}`;
 
 /** The signed-in user's unit (the profile is loaded for every page of the app). */
 export function useWeightUnit(): WeightUnit {

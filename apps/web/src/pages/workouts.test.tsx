@@ -57,7 +57,7 @@ describe('workouts list', () => {
 
     const card = (await screen.findByText('Felt strong')).closest('a')!;
     expect(card).toHaveTextContent('Barbell Back Squat · Barbell Bench Press');
-    expect(card).toHaveTextContent('3 sets · 1,530 kg'); // 500 + 550 + 480
+    expect(card).toHaveTextContent('3 sets · Volume 1,530 kg'); // 500 + 550 + 480
   });
 
   it('only lists the signed-in user’s workouts', async () => {
@@ -140,7 +140,7 @@ describe('logging a workout', () => {
       ],
       [bench.id, [expect.objectContaining({ reps: 8, weightKg: 60 })]],
     ]);
-    expect(screen.getByText('1,050 kg')).toBeInTheDocument();
+    expect(screen.getByText('Volume 1,050 kg')).toBeInTheDocument();
   });
 
   it('asks which equipment was used only for exercises that have several', async () => {
@@ -298,7 +298,10 @@ describe('workout detail', () => {
     ).toEqual([
       ['1', '5', '100 kg', '8', '180s'],
       ['2', '3', '110 kg', '—', '—'],
+      ['8', '830 kg volume'], // the Total row: reps and volume added up
     ]);
+    expect(screen.getByRole('rowheader', { name: 'Total' })).toBeInTheDocument();
+    expect(screen.getByText('Volume 830 kg')).toBeInTheDocument();
   });
 
   it('deletes the workout after confirmation and returns to the list', async () => {

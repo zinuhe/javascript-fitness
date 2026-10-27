@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatWeight, kgTo, toKg, weightInputValue } from './units';
+import { formatVolume, formatWeight, kgTo, toKg, weightInputValue } from './units';
 
 describe('weight units', () => {
   it('leaves kilograms untouched', () => {
@@ -13,6 +13,21 @@ describe('weight units', () => {
     expect(toKg(22.5, 'lb')).toBe(10.21);
     expect(kgTo(100, 'lb')).toBeCloseTo(220.46, 2);
     expect(formatWeight(100, 'lb')).toBe('220.5 lb');
+  });
+
+  it('sums reps × weight as volume', () => {
+    const sets = [
+      { reps: 5, weightKg: 100 },
+      { reps: 3, weightKg: 110.5 },
+    ];
+    expect(formatVolume(sets, 'kg')).toBe('831.5 kg');
+    expect(formatVolume([], 'kg')).toBe('0 kg');
+  });
+
+  it('adds pound volumes from the weights as shown, without kg rounding drift', () => {
+    // 10 lb is stored as 4.54 kg (10.009 lb): 4 × 25 reps must still read 1,000 lb.
+    const set = { reps: 25, weightKg: toKg(10, 'lb') };
+    expect(formatVolume([set, set, set, set], 'lb')).toBe('1,000 lb');
   });
 
   it('keeps every typed pound value through the kg round trip', () => {
