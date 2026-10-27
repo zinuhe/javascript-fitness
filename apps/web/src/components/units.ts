@@ -34,14 +34,19 @@ export const formatWeight = (kg: number, unit: WeightUnit) =>
   `${formats[unit].format(kgTo(kg, unit))} ${unit}`;
 
 /**
- * Volume (reps × weight, summed) of some sets, e.g. "1,000 lb". Each set's weight is taken
- * as shown, so 4 × 25 reps of 10 lb is exactly 1,000 lb, not the 1,000.9 that the kg
- * round trip (10 lb → 4.54 kg) would give.
+ * Volume (reps × weight, summed) of some sets in the user's unit, with the other unit in
+ * parentheses: "1,000 lb (453.6 kg)". Each set's weight is taken as shown, so 4 × 25 reps
+ * of 10 lb is exactly 1,000 lb, not the 1,000.9 that the kg round trip (10 lb → 4.54 kg)
+ * would give.
  */
-export const formatVolume = (sets: { reps: number; weightKg: number }[], unit: WeightUnit) =>
-  `${formats[unit].format(
-    sets.reduce((sum, set) => sum + set.reps * displayWeight(set.weightKg, unit), 0),
-  )} ${unit}`;
+export const formatVolume = (sets: { reps: number; weightKg: number }[], unit: WeightUnit) => {
+  const volume = sets.reduce((sum, set) => sum + set.reps * displayWeight(set.weightKg, unit), 0);
+  const other: WeightUnit = unit === 'lb' ? 'kg' : 'lb';
+  const converted = unit === 'lb' ? volume / LB_PER_KG : volume * LB_PER_KG;
+  return `${formats[unit].format(volume)} ${unit} (${volumeFormat.format(converted)} ${other})`;
+};
+
+const volumeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
 /** The signed-in user's unit (the profile is loaded for every page of the app). */
 export function useWeightUnit(): WeightUnit {

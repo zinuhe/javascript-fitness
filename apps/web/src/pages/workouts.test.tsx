@@ -142,7 +142,7 @@ describe('logging a workout', () => {
       ],
       [bench.id, [expect.objectContaining({ reps: 8, weightKg: 60 })]],
     ]);
-    expect(screen.getByText('Volume 1,050 kg')).toBeInTheDocument();
+    expect(screen.getByText('Volume 1,050 kg (2,314.9 lb)')).toBeInTheDocument();
   });
 
   it('asks which equipment was used only for exercises that have several', async () => {
@@ -302,12 +302,12 @@ describe('workout detail', () => {
     ).toEqual([
       ['1', '5', '100 kg', '8', '180s'],
       ['2', '3', '110 kg', '—', '—'],
-      ['8', '830 kg volume'], // the Total row: reps and volume added up
+      ['8', '830 kg (1,829.8 lb) volume'], // the Total row: reps and volume added up
     ]);
     expect(screen.getByRole('rowheader', { name: 'Total' })).toBeInTheDocument();
     // Shown even when the exercise has a single equipment.
     expect(screen.getByLabelText('Equipment: Barbell')).toBeInTheDocument();
-    expect(screen.getByText('Volume 830 kg')).toBeInTheDocument();
+    expect(screen.getByText('Volume 830 kg (1,829.8 lb)')).toBeInTheDocument();
   });
 
   it('deletes the workout after confirmation and returns to the list', async () => {
@@ -579,7 +579,7 @@ describe('in pounds', () => {
     await screen.findByRole('heading', { name: squat.name });
     expect(apiState.workouts[0].exercises[0].sets[0]).toMatchObject({ reps: 5, weightKg: 63.5 });
     expect(screen.getAllByText('140 lb').length).toBeGreaterThan(0); // the set
-    expect(screen.getAllByText(/700 lb/).length).toBeGreaterThan(0); // the volume
+    expect(screen.getAllByText(/700 lb \(317\.5 kg\)/).length).toBeGreaterThan(0); // the volume
   });
 
   it('edits in lb without drifting the stored kg', async () => {

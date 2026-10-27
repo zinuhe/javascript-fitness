@@ -20,14 +20,15 @@ describe('weight units', () => {
       { reps: 5, weightKg: 100 },
       { reps: 3, weightKg: 110.5 },
     ];
-    expect(formatVolume(sets, 'kg')).toBe('831.5 kg');
-    expect(formatVolume([], 'kg')).toBe('0 kg');
+    // In the user's unit, with the other one in parentheses.
+    expect(formatVolume(sets, 'kg')).toBe('831.5 kg (1,833.1 lb)');
+    expect(formatVolume([], 'kg')).toBe('0 kg (0 lb)');
   });
 
   it('adds pound volumes from the weights as shown, without kg rounding drift', () => {
     // 10 lb is stored as 4.54 kg (10.009 lb): 4 × 25 reps must still read 1,000 lb.
     const set = { reps: 25, weightKg: toKg(10, 'lb') };
-    expect(formatVolume([set, set, set, set], 'lb')).toBe('1,000 lb');
+    expect(formatVolume([set, set, set, set], 'lb')).toBe('1,000 lb (453.6 kg)');
   });
 
   it('keeps every typed pound value through the kg round trip', () => {
