@@ -3,6 +3,7 @@ import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-q
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import {
   Equipment,
+  Muscle,
   MuscleGroup,
   type CreateExerciseRequest,
   type Exercise,
@@ -23,6 +24,7 @@ import {
   formatShortDate,
   labelize,
 } from '../components/ui';
+import { MuscleMap } from '../components/muscle-map';
 import { formatWeight, useWeightUnit } from '../components/units';
 
 /**
@@ -59,6 +61,51 @@ function EquipmentPicker({ initial = [] }: { initial?: Equipment[] }) {
   );
 }
 
+/**
+ * Main and secondary muscles as two groups of chips, with the map drawn as they are picked.
+ * A muscle is in one group at most: picking it in one disables it in the other.
+ */
+function MusclePicker({ initial }: { initial?: Exercise }) {
+  const [primary, setPrimary] = useState(() => initial?.primaryMuscles ?? []);
+  const [secondary, setSecondary] = useState(() => initial?.secondaryMuscles ?? []);
+  // In catalog order, whatever order they were ticked in.
+  const toggle = (list: Muscle[], muscle: Muscle) =>
+    Object.values(Muscle).filter((m) => (m === muscle ? !list.includes(m) : list.includes(m)));
+  const group = (
+    legend: string,
+    name: string,
+    chosen: Muscle[],
+    other: Muscle[],
+    set: (next: Muscle[]) => void,
+  ) => (
+    <fieldset className="field-group">
+      <legend>{legend}</legend>
+      <div className="chips">
+        {Object.values(Muscle).map((muscle) => (
+          <label key={muscle}>
+            <input
+              type="checkbox"
+              name={name}
+              value={muscle}
+              checked={chosen.includes(muscle)}
+              disabled={other.includes(muscle)}
+              onChange={() => set(toggle(chosen, muscle))}
+            />
+            <span>{labelize(muscle)}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+  return (
+    <>
+      <MuscleMap primary={primary} secondary={secondary} />
+      {group('Main muscles', 'primaryMuscles', primary, secondary, setPrimary)}
+      {group('Also works', 'secondaryMuscles', secondary, primary, setSecondary)}
+    </>
+  );
+}
+
 /** Name, muscle group, equipment and description; shared by the add and edit forms. */
 function ExerciseFields({ initial }: { initial?: Exercise }) {
   return (
@@ -89,6 +136,7 @@ function ExerciseFields({ initial }: { initial?: Exercise }) {
         </label>
       </div>
       <EquipmentPicker initial={initial?.equipment} />
+      <MusclePicker initial={initial} />
       <label>
         Description
         <input
@@ -111,6 +159,8 @@ function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
     // In catalog order, whatever order they were ticked in.
     equipment: Object.values(Equipment).filter((value) => data.getAll('equipment').includes(value)),
     description: String(data.get('description')).trim(),
+    primaryMuscles: data.getAll('primaryMuscles') as Muscle[],
+    secondaryMuscles: data.getAll('secondaryMuscles') as Muscle[],
   };
 }
 
@@ -172,8 +222,14 @@ export function ExercisesPage() {
               <Link
                 to="/exercises/$exerciseId"
                 params={{ exerciseId: exercise.id }}
-                className="list-row"
+                className="list-row with-figure"
               >
+                <MuscleMap
+                  primary={exercise.primaryMuscles}
+                  secondary={exercise.secondaryMuscles}
+                  size="small"
+                  decorative
+                />
                 <span className="list-row-title">{exercise.name}</span>
                 <span className="list-row-meta">
                   {labelize(exercise.muscleGroup)} · {equipmentLabel(exercise.equipment)}
@@ -236,6 +292,21 @@ function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
   );
 }
 
+/** The muscle map of an exercise with the muscles named under it. */
+function MusclesWorked({ exercise }: { exercise: Exercise }) {
+  const { primaryMuscles: primary, secondaryMuscles: secondary } = exercise;
+  if (primary.length + secondary.length === 0) return null;
+  return (
+    <div className="stack-tight">
+      <MuscleMap primary={primary} secondary={secondary} />
+      <p className="muscle-legend">
+        {primary.length > 0 && <span>{primary.map(labelize).join(', ')}</span>}
+        {secondary.length > 0 && <span className="also">{secondary.map(labelize).join(', ')}</span>}
+      </p>
+    </div>
+  );
+}
+
 const detailRoute = getRouteApi('/_app/exercises/$exerciseId');
 
 export function ExerciseDetailPage() {
@@ -278,6 +349,7 @@ export function ExerciseDetailPage() {
             ))}
           </p>
           {exercise.description && <p>{exercise.description}</p>}
+          <MusclesWorked exercise={exercise} />
         </div>
         <div className="detail-actions">
           <Link

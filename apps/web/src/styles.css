@@ -590,6 +590,64 @@ fieldset.card > legend {
 .activity li + li {
   border-top: 1px solid var(--border);
 }
+/* Muscle map: body outline in gray, worked muscles in the accent color. */
+.muscle-map {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+}
+.muscle-map.large .muscle-figure {
+  width: min(42%, 150px);
+  height: auto;
+}
+.muscle-map.small {
+  display: inline-flex;
+  flex: none;
+  width: 30px;
+}
+.muscle-map.small .muscle-figure {
+  width: 100%;
+  height: auto;
+}
+.mm-base {
+  fill: color-mix(in srgb, var(--muted) 35%, transparent);
+}
+.mm-secondary {
+  fill: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.mm-primary {
+  fill: var(--accent);
+}
+.muscle-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.muscle-legend span::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.muscle-legend span.also::before {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.list-row.with-figure {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  column-gap: 12px;
+  align-items: center;
+}
+.list-row.with-figure .muscle-map {
+  grid-row: span 2;
+}
+
 .cell-note {
   display: block;
   font-size: 0.75rem;

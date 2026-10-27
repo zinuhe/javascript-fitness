@@ -1,8 +1,10 @@
-import type { Equipment, Exercise, MuscleGroup } from '@fitness/contracts';
+import type { Equipment, Exercise, Muscle, MuscleGroup } from '@fitness/contracts';
 
 export interface CreateExerciseData {
   name: string;
   muscleGroup: MuscleGroup;
+  primaryMuscles?: Muscle[];
+  secondaryMuscles?: Muscle[];
   equipment: Equipment[];
   description?: string;
 }

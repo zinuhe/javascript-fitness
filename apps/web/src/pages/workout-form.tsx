@@ -24,6 +24,7 @@ import {
   workoutQuery,
 } from '../api/queries';
 import { BarWord } from '../components/bar';
+import { MuscleMap } from '../components/muscle-map';
 import { ErrorMessage, dayLabel, labelize, parseDecimal } from '../components/ui';
 import {
   WEIGHT_STEP,
@@ -106,6 +107,22 @@ function Stepper({
         </button>
       </div>
     </div>
+  );
+}
+
+/** The chosen exercise's muscle map, small, next to its card title. */
+function ExerciseFigure({ exerciseId, catalog }: { exerciseId: string; catalog: Exercise[] }) {
+  const exercise = catalog.find((e) => e.id === exerciseId);
+  if (!exercise || exercise.primaryMuscles.length + exercise.secondaryMuscles.length === 0) {
+    return null;
+  }
+  return (
+    <MuscleMap
+      primary={exercise.primaryMuscles}
+      secondary={exercise.secondaryMuscles}
+      size="small"
+      decorative
+    />
   );
 }
 
@@ -628,9 +645,12 @@ function WorkoutForm({
           aria-labelledby={`exercise-${entry.key}-title`}
         >
           <div className="row between">
-            <span id={`exercise-${entry.key}-title`} className="legend">
-              Exercise {entryIndex + 1}
-            </span>
+            <div className="row">
+              <ExerciseFigure exerciseId={entry.exerciseId} catalog={catalog.items} />
+              <span id={`exercise-${entry.key}-title`} className="legend">
+                Exercise {entryIndex + 1}
+              </span>
+            </div>
             {entries.length > 1 && (
               <button
                 type="button"

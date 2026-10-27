@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { Equipment, MuscleGroup } from '@fitness/contracts';
+import { Equipment, Muscle, MuscleGroup } from '@fitness/contracts';
 import { apiState, seedExercise, seedRoutine, seedWorkout } from '../test/api';
 import { currentUrl, renderApp, signedInAs } from '../test/render';
 
@@ -23,7 +23,9 @@ describe('exercise catalog', () => {
     const list = await screen.findByRole('list', { name: 'Exercise catalog' });
     const rows = within(list)
       .getAllByRole('link')
-      .map((link) => [...link.children].map((part) => part.textContent));
+      .map((link) =>
+        [...link.querySelectorAll('.list-row-title, .list-row-meta')].map((p) => p.textContent),
+      );
     expect(rows).toEqual([
       ['Burpee', 'Full body · Bodyweight'],
       ['Pull-up', 'Back · Bodyweight'],
@@ -47,7 +49,7 @@ describe('exercise catalog', () => {
     const names = () =>
       within(screen.getByRole('list', { name: 'Exercise catalog' }))
         .getAllByRole('link')
-        .map((link) => link.firstChild?.textContent);
+        .map((link) => link.querySelector('.list-row-title')?.textContent);
 
     await user.type(search, 'PRESS');
     expect(names()).toEqual(['Leg Press']);
@@ -208,6 +210,33 @@ describe('editing and deleting exercises', () => {
       equipment: [Equipment.Dumbbell],
       description: 'Curl tumbado',
     });
+  });
+
+  it('picks main and secondary muscles, drawn on the map', async () => {
+    signedInAs();
+    const thrust = seedExercise({ name: 'Hip Thrust', muscleGroup: MuscleGroup.Glutes });
+    const { user } = renderApp(`/exercises/${thrust.id}/edit`);
+
+    const main = await screen.findByRole('group', { name: 'Main muscles' });
+    const also = screen.getByRole('group', { name: 'Also works' });
+    await user.click(within(main).getByRole('checkbox', { name: 'Glutes' }));
+    // A main muscle can't also be secondary.
+    expect(within(also).getByRole('checkbox', { name: 'Glutes' })).toBeDisabled();
+    await user.click(within(also).getByRole('checkbox', { name: 'Hamstrings' }));
+    await user.click(within(also).getByRole('checkbox', { name: 'Adductors' }));
+    expect(
+      screen.getByRole('img', { name: 'Works: Glutes (main), Hamstrings, Adductors' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await screen.findByRole('heading', { name: 'Hip Thrust' });
+    expect(apiState.exercises[0]).toMatchObject({
+      primaryMuscles: [Muscle.Glutes],
+      secondaryMuscles: [Muscle.Hamstrings, Muscle.Adductors],
+    });
+    expect(
+      screen.getByRole('img', { name: 'Works: Glutes (main), Hamstrings, Adductors' }),
+    ).toBeInTheDocument();
   });
 
   it('shows the conflict when the new name already exists', async () => {

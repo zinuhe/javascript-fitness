@@ -13,7 +13,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Equipment, MuscleGroup, type CreateExerciseRequest } from '@fitness/contracts';
+import { Equipment, Muscle, MuscleGroup, type CreateExerciseRequest } from '@fitness/contracts';
 
 export class CreateExerciseDto implements CreateExerciseRequest {
   @ApiProperty({ example: 'Barbell Bench Press', maxLength: 120 })
@@ -25,6 +25,24 @@ export class CreateExerciseDto implements CreateExerciseRequest {
   @ApiProperty({ enum: MuscleGroup, example: MuscleGroup.Chest })
   @IsEnum(MuscleGroup)
   muscleGroup!: MuscleGroup;
+
+  @ApiPropertyOptional({ enum: Muscle, isArray: true, example: [Muscle.Chest] })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsEnum(Muscle, { each: true })
+  primaryMuscles?: Muscle[];
+
+  @ApiPropertyOptional({
+    enum: Muscle,
+    isArray: true,
+    example: [Muscle.FrontDelts, Muscle.Triceps],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsEnum(Muscle, { each: true })
+  secondaryMuscles?: Muscle[];
 
   @ApiProperty({
     enum: Equipment,

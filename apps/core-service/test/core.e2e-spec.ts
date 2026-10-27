@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import {
   Equipment,
+  Muscle,
   MuscleGroup,
   type ActivityEntry,
   type Exercise,
@@ -113,6 +114,31 @@ describe('core-service (e2e)', () => {
         .post('/exercises', { ...base, equipment: [Equipment.Disk] })
         .expect(201);
       expect((plate.body as Exercise).equipment).toEqual(['disk']);
+    });
+
+    it('keeps the main and secondary muscles, and validates them', async () => {
+      const token = tokenFor();
+      const thrust = await createExercise(token, {
+        muscleGroup: MuscleGroup.Glutes,
+        primaryMuscles: [Muscle.Glutes],
+        secondaryMuscles: [Muscle.Hamstrings, Muscle.Adductors],
+      });
+      expect(thrust).toMatchObject({
+        primaryMuscles: ['glutes'],
+        secondaryMuscles: ['hamstrings', 'adductors'],
+      });
+      expect((await createExercise(token)).primaryMuscles).toEqual([]); // optional
+
+      const patch = (body: object) =>
+        request(http)
+          .patch(`/exercises/${thrust.id}`)
+          .set('authorization', `Bearer ${token}`)
+          .send(body);
+      expect((await patch({ secondaryMuscles: [] }).expect(200)).body.secondaryMuscles).toEqual([]);
+      await patch({ primaryMuscles: ['wings'] }).expect(400);
+      await patch({ primaryMuscles: [Muscle.Glutes, Muscle.Glutes] }).expect(400);
+      const overlap = await patch({ secondaryMuscles: [Muscle.Glutes] }).expect(422);
+      expect(overlap.body.title).toBe('exercise.muscle_overlap');
     });
 
     it('validates query params and ids (400)', async () => {

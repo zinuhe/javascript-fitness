@@ -86,6 +86,8 @@ export function seedExercise(over: Partial<Exercise> = {}): Exercise {
     id: nextId('ex'),
     name: 'Barbell Bench Press',
     muscleGroup: MuscleGroup.Chest,
+    primaryMuscles: [],
+    secondaryMuscles: [],
     equipment: [Equipment.Machine],
     createdAt: now(),
     ...over,

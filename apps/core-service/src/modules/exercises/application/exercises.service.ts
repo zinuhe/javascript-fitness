@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ConflictError, NotFoundError } from '@fitness/common';
+import { ConflictError, NotFoundError, ValidationError } from '@fitness/common';
 import type {
   CreateExerciseRequest,
   Exercise,
@@ -16,6 +16,7 @@ export class ExercisesService {
     if (await this.exercises.existsByName(input.name)) {
       throw duplicateName();
     }
+    assertMusclesApart(input.primaryMuscles ?? [], input.secondaryMuscles ?? []);
     return this.exercises.create(input);
   }
 
@@ -43,6 +44,10 @@ export class ExercisesService {
 
   async update(id: string, input: UpdateExerciseRequest): Promise<Exercise> {
     const current = await this.getById(id);
+    assertMusclesApart(
+      input.primaryMuscles ?? current.primaryMuscles,
+      input.secondaryMuscles ?? current.secondaryMuscles,
+    );
     if (input.name !== undefined && input.name !== current.name) {
       if (await this.exercises.existsByName(input.name, id)) {
         throw duplicateName();
@@ -76,4 +81,16 @@ export class ExercisesService {
 
 function duplicateName(): ConflictError {
   return new ConflictError('An exercise with this name already exists', 'exercise.duplicate');
+}
+
+/** A muscle is worked either mainly or also, never both. */
+function assertMusclesApart(primary: string[], secondary: string[]): void {
+  const both = primary.filter((m) => secondary.includes(m));
+  if (both.length > 0) {
+    throw new ValidationError(
+      'A muscle cannot be both a main and a secondary muscle',
+      'exercise.muscle_overlap',
+      { muscles: both },
+    );
+  }
 }

@@ -1,5 +1,5 @@
 import { ConflictError } from '@fitness/common';
-import { Equipment, MuscleGroup, type Exercise } from '@fitness/contracts';
+import { Equipment, Muscle, MuscleGroup, type Exercise } from '@fitness/contracts';
 import { ExercisesService } from './exercises.service';
 import type { ExerciseRepository } from '../domain/exercise.repository';
 
@@ -7,6 +7,8 @@ const bench: Exercise = {
   id: 'ex-1',
   name: 'Barbell Bench Press',
   muscleGroup: MuscleGroup.Chest,
+  primaryMuscles: [],
+  secondaryMuscles: [],
   equipment: [Equipment.Barbell],
   createdAt: '2026-01-01T00:00:00.000Z',
 };
@@ -67,6 +69,31 @@ describe('ExercisesService', () => {
       ).rejects.toMatchObject({ code: 'exercise.equipment_in_use' });
       expect(repo.findUsedEquipment).toHaveBeenCalledWith('ex-1', [Equipment.Dumbbell]);
       expect(repo.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('muscles', () => {
+    it('rejects a muscle that is both main and secondary (422)', async () => {
+      await expect(
+        service.create({
+          name: 'Hip Thrust',
+          muscleGroup: MuscleGroup.Glutes,
+          equipment: [Equipment.Barbell],
+          primaryMuscles: [Muscle.Glutes],
+          secondaryMuscles: [Muscle.Hamstrings, Muscle.Glutes],
+        }),
+      ).rejects.toMatchObject({ httpStatus: 422, code: 'exercise.muscle_overlap' });
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it('checks an update against the muscles it keeps', async () => {
+      repo.findById.mockResolvedValue({ ...bench, primaryMuscles: [Muscle.Chest] });
+
+      await expect(
+        service.update('ex-1', { secondaryMuscles: [Muscle.Chest] }),
+      ).rejects.toMatchObject({ code: 'exercise.muscle_overlap' });
+      await service.update('ex-1', { secondaryMuscles: [Muscle.Triceps] });
+      expect(repo.update).toHaveBeenCalledWith('ex-1', { secondaryMuscles: [Muscle.Triceps] });
     });
   });
 

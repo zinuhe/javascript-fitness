@@ -23,6 +23,29 @@ enum MuscleGroup {
   cardio
 }
 
+// Muscles an exercise works, fine-grained enough for the muscle map.
+enum Muscle {
+  chest
+  front_delts
+  side_delts
+  rear_delts
+  biceps
+  triceps
+  forearms
+  abs
+  obliques
+  traps
+  lats
+  upper_back
+  lower_back
+  glutes
+  quads
+  hamstrings
+  adductors
+  abductors
+  calves
+}
+
 enum Equipment {
   barbell
   dumbbell
@@ -40,6 +63,9 @@ model Exercise {
   id          String      @id @default(uuid()) @db.Uuid
   name        String
   muscleGroup MuscleGroup
+  // Worked mainly / also; drawn on the muscle map. A muscle is in one list at most.
+  primaryMuscles   Muscle[] @default([])
+  secondaryMuscles Muscle[] @default([])
   // What it can be done with (at least one); each logged workout says which one was used.
   equipment   Equipment[]
   description String?

@@ -11,6 +11,29 @@ export enum MuscleGroup {
   Cardio = 'cardio',
 }
 
+/** Muscles an exercise works, fine-grained enough for the muscle map. */
+export enum Muscle {
+  Chest = 'chest',
+  FrontDelts = 'front_delts',
+  SideDelts = 'side_delts',
+  RearDelts = 'rear_delts',
+  Biceps = 'biceps',
+  Triceps = 'triceps',
+  Forearms = 'forearms',
+  Abs = 'abs',
+  Obliques = 'obliques',
+  Traps = 'traps',
+  Lats = 'lats',
+  UpperBack = 'upper_back',
+  LowerBack = 'lower_back',
+  Glutes = 'glutes',
+  Quads = 'quads',
+  Hamstrings = 'hamstrings',
+  Adductors = 'adductors',
+  Abductors = 'abductors',
+  Calves = 'calves',
+}
+
 export enum Equipment {
   Barbell = 'barbell',
   Dumbbell = 'dumbbell',
@@ -28,6 +51,10 @@ export interface Exercise {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
+  /** Worked mainly (bright on the muscle map). */
+  primaryMuscles: Muscle[];
+  /** Also worked (pale on the muscle map). */
+  secondaryMuscles: Muscle[];
   /** What it can be done with, at least one (e.g. barbell and dumbbell). */
   equipment: Equipment[];
   description?: string;
@@ -37,6 +64,8 @@ export interface Exercise {
 export interface CreateExerciseRequest {
   name: string;
   muscleGroup: MuscleGroup;
+  primaryMuscles?: Muscle[];
+  secondaryMuscles?: Muscle[];
   equipment: Equipment[];
   description?: string;
 }

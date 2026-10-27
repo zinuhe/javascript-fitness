@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Equipment, Exercise, MuscleGroup } from '@fitness/contracts';
+import type { Equipment, Exercise, Muscle, MuscleGroup } from '@fitness/contracts';
 import { PrismaService } from '../../../prisma/prisma.service';
 import type {
   CreateExerciseData,
@@ -11,6 +11,8 @@ type ExerciseRow = {
   id: string;
   name: string;
   muscleGroup: string;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
   equipment: string[];
   description: string | null;
   createdAt: Date;
@@ -23,7 +25,12 @@ export class PrismaExerciseRepository implements ExerciseRepository {
 
   async create(data: CreateExerciseData): Promise<Exercise> {
     const row = await this.prisma.exercise.create({
-      data: { ...data, equipment: data.equipment as never },
+      data: {
+        ...data,
+        equipment: data.equipment as never,
+        primaryMuscles: data.primaryMuscles as never,
+        secondaryMuscles: data.secondaryMuscles as never,
+      },
     });
     return this.toContract(row);
   }
@@ -51,7 +58,12 @@ export class PrismaExerciseRepository implements ExerciseRepository {
   async update(id: string, data: UpdateExerciseData): Promise<Exercise> {
     const row = await this.prisma.exercise.update({
       where: { id },
-      data: { ...data, equipment: data.equipment as never },
+      data: {
+        ...data,
+        equipment: data.equipment as never,
+        primaryMuscles: data.primaryMuscles as never,
+        secondaryMuscles: data.secondaryMuscles as never,
+      },
     });
     return this.toContract(row);
   }
@@ -94,6 +106,8 @@ export class PrismaExerciseRepository implements ExerciseRepository {
       id: row.id,
       name: row.name,
       muscleGroup: row.muscleGroup as MuscleGroup,
+      primaryMuscles: row.primaryMuscles as Muscle[],
+      secondaryMuscles: row.secondaryMuscles as Muscle[],
       equipment: row.equipment as Equipment[],
       description: row.description ?? undefined,
       createdAt: row.createdAt.toISOString(),
