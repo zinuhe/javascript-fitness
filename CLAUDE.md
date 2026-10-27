@@ -31,5 +31,8 @@ README "Deploying to the Raspberry Pi" has the details.
 - Weights are always stored and exchanged in kilograms; kg/lb is only a per-user display and
   input preference (`apps/web/src/components/units.ts`).
 - The exercise catalog is shared by every user; workouts and routines are per user.
+- An exercise has one or more pieces of equipment (`Exercise.equipment` is a list, names are
+  unique); each logged exercise records which one was used, and last sets and progress are kept
+  apart per equipment.
 - The web app is used mostly on an iPhone: design mobile-first (16px inputs, 44px targets,
   safe areas) and check it at 393×852 as well as on desktop.

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useTransition, type FormEvent } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import {
@@ -16,14 +16,54 @@ import {
   progressQuery,
   updateExercise,
 } from '../api/queries';
-import { ErrorMessage, formatShortDate, labelize } from '../components/ui';
+import {
+  ErrorMessage,
+  defaultProgressEquipment,
+  equipmentLabel,
+  formatShortDate,
+  labelize,
+} from '../components/ui';
 import { formatWeight, useWeightUnit } from '../components/units';
+
+/**
+ * One or more pieces of equipment as toggle chips. While none is checked every box is
+ * `required`, so the browser itself asks for at least one before submitting.
+ */
+function EquipmentPicker({ initial = [] }: { initial?: Equipment[] }) {
+  const [checked, setChecked] = useState(() => new Set(initial));
+  const toggle = (value: Equipment) =>
+    setChecked((current) => {
+      const next = new Set(current);
+      if (!next.delete(value)) next.add(value);
+      return next;
+    });
+  return (
+    <fieldset className="field-group">
+      <legend>Equipment</legend>
+      <div className="chips">
+        {Object.values(Equipment).map((value) => (
+          <label key={value}>
+            <input
+              type="checkbox"
+              name="equipment"
+              value={value}
+              checked={checked.has(value)}
+              required={checked.size === 0}
+              onChange={() => toggle(value)}
+            />
+            <span>{labelize(value)}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 /** Name, muscle group, equipment and description; shared by the add and edit forms. */
 function ExerciseFields({ initial }: { initial?: Exercise }) {
   return (
     <>
-      <div className="grid-3">
+      <div className="grid-2">
         <label>
           Name
           <input
@@ -47,20 +87,8 @@ function ExerciseFields({ initial }: { initial?: Exercise }) {
             ))}
           </select>
         </label>
-        <label>
-          Equipment
-          <select name="equipment" required defaultValue={initial?.equipment ?? ''}>
-            <option value="" disabled>
-              Choose…
-            </option>
-            {Object.values(Equipment).map((value) => (
-              <option key={value} value={value}>
-                {labelize(value)}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
+      <EquipmentPicker initial={initial?.equipment} />
       <label>
         Description
         <input
@@ -80,7 +108,8 @@ function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
   return {
     name: String(data.get('name')).trim(),
     muscleGroup: data.get('muscleGroup') as MuscleGroup,
-    equipment: data.get('equipment') as Equipment,
+    // In catalog order, whatever order they were ticked in.
+    equipment: Object.values(Equipment).filter((value) => data.getAll('equipment').includes(value)),
     description: String(data.get('description')).trim(),
   };
 }
@@ -89,6 +118,7 @@ export function ExercisesPage() {
   const { data } = useSuspenseQuery(exercisesQuery);
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
+  const [formKey, setFormKey] = useState(0);
 
   const create = useMutation({
     mutationFn: createExercise,
@@ -98,7 +128,7 @@ export function ExercisesPage() {
   const needle = query.trim().toLowerCase();
   const visible = needle
     ? data.items.filter((e) =>
-        [e.name, labelize(e.muscleGroup), labelize(e.equipment)].some((text) =>
+        [e.name, labelize(e.muscleGroup), ...e.equipment.map(labelize)].some((text) =>
           text.toLowerCase().includes(needle),
         ),
       )
@@ -110,7 +140,8 @@ export function ExercisesPage() {
     const { description, ...fields } = readExerciseFields(formElement);
     create.mutate(
       { ...fields, description: description || undefined },
-      { onSuccess: () => formElement.reset() },
+      // A new key remounts the fields: reset() alone would not clear the equipment chips.
+      { onSuccess: () => setFormKey((k) => k + 1) },
     );
   };
 
@@ -145,7 +176,7 @@ export function ExercisesPage() {
               >
                 <span className="list-row-title">{exercise.name}</span>
                 <span className="list-row-meta">
-                  {labelize(exercise.muscleGroup)} · {labelize(exercise.equipment)}
+                  {labelize(exercise.muscleGroup)} · {equipmentLabel(exercise.equipment)}
                 </span>
               </Link>
             </li>
@@ -155,7 +186,7 @@ export function ExercisesPage() {
 
       <form className="card stack" onSubmit={onSubmit}>
         <h2>Add exercise</h2>
-        <ExerciseFields />
+        <ExerciseFields key={formKey} />
         <ErrorMessage error={create.error} />
         <div className="row">
           <button className="button" disabled={create.isPending}>
@@ -210,7 +241,10 @@ const detailRoute = getRouteApi('/_app/exercises/$exerciseId');
 export function ExerciseDetailPage() {
   const { exerciseId } = detailRoute.useParams();
   const { data: exercise } = useSuspenseQuery(exerciseQuery(exerciseId));
-  const { data: progress } = useSuspenseQuery(progressQuery(exerciseId));
+  const [equipment, setEquipment] = useState(() => defaultProgressEquipment(exercise));
+  // A transition keeps the current numbers on screen while the other equipment loads.
+  const [switching, startSwitch] = useTransition();
+  const { data: progress } = useSuspenseQuery(progressQuery(exerciseId, equipment));
   const unit = useWeightUnit();
   const points = [...progress.points].reverse(); // newest first
   const best = Math.max(0, ...progress.points.map((p) => p.estimatedOneRepMaxKg));
@@ -237,7 +271,11 @@ export function ExerciseDetailPage() {
           <h1>{exercise.name}</h1>
           <p className="row">
             <span className="tag">{labelize(exercise.muscleGroup)}</span>
-            <span className="tag">{labelize(exercise.equipment)}</span>
+            {exercise.equipment.map((value) => (
+              <span key={value} className="tag">
+                {labelize(value)}
+              </span>
+            ))}
           </p>
           {exercise.description && <p>{exercise.description}</p>}
         </div>
@@ -264,11 +302,29 @@ export function ExerciseDetailPage() {
       {/* 409 when workouts or routines use it: the API explains why. */}
       <ErrorMessage error={remove.error} />
 
-      <div className="card stack">
+      <div className="card stack" aria-busy={switching}>
         <h2>Your progress</h2>
+        {equipment && (
+          <div className="segmented" role="radiogroup" aria-label="Progress with">
+            {exercise.equipment.map((value) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="progressEquipment"
+                  value={value}
+                  checked={equipment === value}
+                  onChange={() => startSwitch(() => setEquipment(value))}
+                />
+                <span>{labelize(value)}</span>
+              </label>
+            ))}
+          </div>
+        )}
         {points.length === 0 ? (
           <p className="muted">
-            No sets logged for this exercise yet. <Link to="/workouts/new">Log a workout</Link>
+            No sets logged for this exercise
+            {equipment ? ` with ${labelize(equipment).toLowerCase()}` : ''} yet.{' '}
+            <Link to="/workouts/new">Log a workout</Link>
           </p>
         ) : (
           <>

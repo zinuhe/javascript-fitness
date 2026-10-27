@@ -15,7 +15,7 @@ function seedCatalog() {
     squat: seedExercise({
       name: 'Barbell Back Squat',
       muscleGroup: MuscleGroup.Legs,
-      equipment: Equipment.Barbell,
+      equipment: [Equipment.Barbell],
     }),
     bench: seedExercise({ name: 'Barbell Bench Press' }),
   };
@@ -139,6 +139,37 @@ describe('logging a workout', () => {
       [bench.id, [expect.objectContaining({ reps: 8, weightKg: 60 })]],
     ]);
     expect(screen.getByText('1,050 kg')).toBeInTheDocument();
+  });
+
+  it('asks which equipment was used only for exercises that have several', async () => {
+    signedInAs();
+    const { squat } = seedCatalog();
+    const press = seedExercise({
+      name: 'Bench Press',
+      equipment: [Equipment.Barbell, Equipment.Dumbbell],
+    });
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), squat.name);
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+
+    await user.selectOptions(await exerciseSelect(1), press.name);
+    const equipment = screen.getByRole('radiogroup', { name: 'Equipment for exercise 1' });
+    expect(within(equipment).getByRole('radio', { name: 'Barbell' })).toBeChecked();
+    await user.click(within(equipment).getByRole('radio', { name: 'Dumbbell' }));
+    await user.type(screen.getByLabelText('Reps'), '10');
+    await user.type(screen.getByLabelText('Weight (kg)'), '30');
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    const heading = await screen.findByRole('heading', { name: 'Bench Press Dumbbell' });
+    expect(within(heading).getByText('Dumbbell')).toHaveClass('tag');
+    expect(apiState.workouts[0].exercises[0]).toMatchObject({
+      exerciseId: press.id,
+      equipment: Equipment.Dumbbell,
+    });
+
+    await user.click(screen.getByRole('link', { name: '← Workouts' }));
+    expect(await screen.findByText('Bench Press (Dumbbell)')).toBeInTheDocument();
   });
 
   it('steps reps and weight with the −/+ buttons and accepts a decimal comma', async () => {

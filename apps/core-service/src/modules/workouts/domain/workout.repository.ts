@@ -1,5 +1,6 @@
 import type {
   CreateWorkoutRequest,
+  Equipment,
   LastExerciseSets,
   UpdateWorkoutRequest,
   Workout,
@@ -29,14 +30,21 @@ export interface WorkoutRepository {
    */
   replaceForUser(id: string, userId: string, data: UpdateWorkoutRequest): Promise<Workout | null>;
   deleteForUser(id: string, userId: string): Promise<boolean>;
-  /** Returns the subset of `exerciseIds` that do not exist in the catalog. */
-  findMissingExerciseIds(exerciseIds: string[]): Promise<string[]>;
+  /** Equipment of each catalog exercise among `exerciseIds`; unknown ids are left out. */
+  findExerciseEquipment(exerciseIds: string[]): Promise<Map<string, Equipment[]>>;
   /** Whether the routine day exists and belongs to one of the user's routines. */
   routineDayBelongsToUser(routineDayId: string, userId: string): Promise<boolean>;
-  /** Per exercise, the sets of the user's most recent workout that included it. */
+  /**
+   * Per exercise and equipment used, the sets of the user's most recent workout with them;
+   * for each exercise, the most recent entry comes first.
+   */
   findLastSets(userId: string, exerciseIds: string[]): Promise<LastExerciseSets[]>;
-  /** All sets a user has logged for a given exercise, oldest first. */
-  findSetHistory(userId: string, exerciseId: string): Promise<SetHistoryRow[]>;
+  /** All sets a user has logged for a given exercise (only with `equipment`, when given). */
+  findSetHistory(
+    userId: string,
+    exerciseId: string,
+    equipment?: Equipment,
+  ): Promise<SetHistoryRow[]>;
 }
 
 export const WORKOUT_REPOSITORY = Symbol('WORKOUT_REPOSITORY');

@@ -11,7 +11,7 @@ type ExerciseRow = {
   id: string;
   name: string;
   muscleGroup: string;
-  equipment: string;
+  equipment: string[];
   description: string | null;
   createdAt: Date;
 };
@@ -22,7 +22,9 @@ export class PrismaExerciseRepository implements ExerciseRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateExerciseData): Promise<Exercise> {
-    const row = await this.prisma.exercise.create({ data });
+    const row = await this.prisma.exercise.create({
+      data: { ...data, equipment: data.equipment as never },
+    });
     return this.toContract(row);
   }
 
@@ -47,7 +49,10 @@ export class PrismaExerciseRepository implements ExerciseRepository {
   }
 
   async update(id: string, data: UpdateExerciseData): Promise<Exercise> {
-    const row = await this.prisma.exercise.update({ where: { id }, data });
+    const row = await this.prisma.exercise.update({
+      where: { id },
+      data: { ...data, equipment: data.equipment as never },
+    });
     return this.toContract(row);
   }
 
@@ -55,20 +60,25 @@ export class PrismaExerciseRepository implements ExerciseRepository {
     await this.prisma.exercise.delete({ where: { id } });
   }
 
-  async existsByNameAndEquipment(
-    name: string,
-    equipment: Equipment,
-    excludeId?: string,
-  ): Promise<boolean> {
+  async existsByName(name: string, excludeId?: string): Promise<boolean> {
     const found = await this.prisma.exercise.findFirst({
       where: {
-        name,
-        equipment: equipment as never,
+        name: { equals: name, mode: 'insensitive' },
         ...(excludeId ? { id: { not: excludeId } } : {}),
       },
       select: { id: true },
     });
     return found !== null;
+  }
+
+  async findUsedEquipment(id: string, equipment: Equipment[]): Promise<Equipment[]> {
+    if (equipment.length === 0) return [];
+    const rows = await this.prisma.workoutExercise.findMany({
+      where: { exerciseId: id, equipment: { in: equipment as never } },
+      distinct: ['equipment'],
+      select: { equipment: true },
+    });
+    return rows.map((r) => r.equipment as Equipment);
   }
 
   async isInUse(id: string): Promise<boolean> {
@@ -84,7 +94,7 @@ export class PrismaExerciseRepository implements ExerciseRepository {
       id: row.id,
       name: row.name,
       muscleGroup: row.muscleGroup as MuscleGroup,
-      equipment: row.equipment as Equipment,
+      equipment: row.equipment as Equipment[],
       description: row.description ?? undefined,
       createdAt: row.createdAt.toISOString(),
     };

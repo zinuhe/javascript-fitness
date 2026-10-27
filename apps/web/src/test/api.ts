@@ -82,7 +82,7 @@ export function seedExercise(over: Partial<Exercise> = {}): Exercise {
     id: nextId('ex'),
     name: 'Barbell Bench Press',
     muscleGroup: MuscleGroup.Chest,
-    equipment: Equipment.Barbell,
+    equipment: [Equipment.Barbell],
     createdAt: now(),
     ...over,
   };
@@ -216,6 +216,30 @@ const ownsRoutineDay = (userId: string, dayId: string) =>
 const missingExercises = (ids: string[]) =>
   [...new Set(ids)].filter((id) => !state.exercises.some((e) => e.id === id));
 
+const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** Like the API: a 422 when an exercise needs its equipment chosen or names one it lacks. */
+function invalidEquipment(input: CreateWorkoutRequest) {
+  for (const entry of input.exercises) {
+    const options = state.exercises.find((e) => e.id === entry.exerciseId)?.equipment ?? [];
+    const ok = entry.equipment ? options.includes(entry.equipment) : options.length === 1;
+    if (!ok) {
+      return problem(
+        422,
+        entry.equipment
+          ? 'The exercise is not done with that equipment'
+          : 'Choose the equipment used for each exercise',
+      );
+    }
+  }
+  return null;
+}
+
+function onlyEquipment(exerciseId: string) {
+  const options = state.exercises.find((e) => e.id === exerciseId)?.equipment ?? [];
+  return options.length === 1 ? options[0] : undefined;
+}
+
 function buildWorkout(userId: string, input: CreateWorkoutRequest): Workout {
   return {
     id: nextId('workout'),
@@ -227,18 +251,24 @@ function buildWorkout(userId: string, input: CreateWorkoutRequest): Workout {
     exercises: input.exercises.map((entry, order) => ({
       id: nextId('we'),
       exerciseId: entry.exerciseId,
+      // The only equipment of the exercise is filled in, as the API does.
+      equipment: entry.equipment ?? onlyEquipment(entry.exerciseId),
       order,
       sets: entry.sets.map((set, setOrder) => ({ id: nextId('set'), order: setOrder, ...set })),
     })),
   };
 }
 
-function progressFor(userId: string, exerciseId: string): ExerciseProgressPoint[] {
+function progressFor(
+  userId: string,
+  exerciseId: string,
+  equipment: string | null,
+): ExerciseProgressPoint[] {
   return state.workouts
     .filter((w) => w.userId === userId)
     .flatMap((w) =>
       w.exercises
-        .filter((e) => e.exerciseId === exerciseId)
+        .filter((e) => e.exerciseId === exerciseId && (!equipment || e.equipment === equipment))
         .map((e) => ({
           performedAt: w.performedAt,
           totalVolumeKg: e.sets.reduce((v, s) => v + s.reps * s.weightKg, 0),
@@ -312,8 +342,8 @@ export const handlers = [
   http.post('/api/exercises', async ({ request }) => {
     if (!currentUser(request)) return problem(401, 'Unauthorized');
     const body = (await request.json()) as CreateExerciseRequest;
-    if (state.exercises.some((e) => e.name === body.name && e.equipment === body.equipment)) {
-      return problem(409, 'An exercise with this name and equipment already exists');
+    if (state.exercises.some((e) => sameName(e.name, body.name))) {
+      return problem(409, 'An exercise with this name already exists');
     }
     return HttpResponse.json(seedExercise(body), { status: 201 });
   }),
@@ -330,11 +360,20 @@ export const handlers = [
     if (!exercise) return problem(404, 'Exercise not found');
     const body = (await request.json()) as Partial<CreateExerciseRequest>;
     const name = body.name ?? exercise.name;
-    const equipment = body.equipment ?? exercise.equipment;
-    if (
-      state.exercises.some((e) => e !== exercise && e.name === name && e.equipment === equipment)
-    ) {
-      return problem(409, 'An exercise with this name and equipment already exists');
+    if (state.exercises.some((e) => e !== exercise && sameName(e.name, name))) {
+      return problem(409, 'An exercise with this name already exists');
+    }
+    const removed = exercise.equipment.filter((e) => body.equipment && !body.equipment.includes(e));
+    const used = removed.filter((equipment) =>
+      state.workouts.some((w) =>
+        w.exercises.some((e) => e.exerciseId === exercise.id && e.equipment === equipment),
+      ),
+    );
+    if (used.length > 0) {
+      return problem(
+        409,
+        `Logged workouts use this exercise with ${used.join(', ')}; that equipment cannot be removed`,
+      );
     }
     Object.assign(exercise, body, { description: body.description || undefined });
     return HttpResponse.json(exercise);
@@ -379,6 +418,8 @@ export const handlers = [
     if (body.routineDayId && !ownsRoutineDay(user.id, body.routineDayId)) {
       return problem(422, 'Workout references an unknown routine day');
     }
+    const invalid = invalidEquipment(body);
+    if (invalid) return invalid;
     return HttpResponse.json(seedWorkout(user.id, body), { status: 201 });
   }),
 
@@ -386,7 +427,8 @@ export const handlers = [
     const user = currentUser(request);
     if (!user) return problem(401, 'Unauthorized');
     const exerciseId = String(params.exerciseId);
-    return HttpResponse.json({ exerciseId, points: progressFor(user.id, exerciseId) });
+    const equipment = new URL(request.url).searchParams.get('equipment');
+    return HttpResponse.json({ exerciseId, points: progressFor(user.id, exerciseId, equipment) });
   }),
 
   http.get('/api/workouts/last-sets', ({ request }) => {
@@ -396,20 +438,29 @@ export const handlers = [
     const newestFirst = state.workouts
       .filter((w) => w.userId === user.id)
       .sort((a, b) => b.performedAt.localeCompare(a.performedAt));
+    // One entry per exercise and equipment, the most recent first for each exercise.
     const result: LastExerciseSets[] = ids.flatMap((exerciseId) => {
-      for (const workout of newestFirst) {
-        const entry = workout.exercises.find((e) => e.exerciseId === exerciseId);
-        if (entry) {
-          const sets = entry.sets.map(({ reps, weightKg, rpe, restSeconds }) => ({
-            reps,
-            weightKg,
-            ...(rpe !== undefined ? { rpe } : {}),
-            ...(restSeconds !== undefined ? { restSeconds } : {}),
-          }));
-          return [{ exerciseId, performedAt: workout.performedAt, sets }];
-        }
-      }
-      return [];
+      const seen = new Set<string | undefined>();
+      return newestFirst.flatMap((workout) =>
+        workout.exercises
+          .filter((e) => e.exerciseId === exerciseId && !seen.has(e.equipment))
+          .slice(0, 1)
+          .map((entry) => {
+            seen.add(entry.equipment);
+            const sets = entry.sets.map(({ reps, weightKg, rpe, restSeconds }) => ({
+              reps,
+              weightKg,
+              ...(rpe !== undefined ? { rpe } : {}),
+              ...(restSeconds !== undefined ? { restSeconds } : {}),
+            }));
+            return {
+              exerciseId,
+              ...(entry.equipment ? { equipment: entry.equipment } : {}),
+              performedAt: workout.performedAt,
+              sets,
+            };
+          }),
+      );
     });
     return HttpResponse.json(result);
   }),
@@ -431,6 +482,8 @@ export const handlers = [
     if (missing.length > 0) {
       return problem(422, 'Workout references unknown exercises', { exerciseId: missing });
     }
+    const invalid = invalidEquipment(body);
+    if (invalid) return invalid;
     const index = state.workouts.findIndex((w) => w.id === params.id && w.userId === user.id);
     if (index === -1) return problem(404, 'Workout not found');
     const current = state.workouts[index];

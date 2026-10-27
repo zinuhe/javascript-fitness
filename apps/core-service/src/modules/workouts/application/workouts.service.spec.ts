@@ -1,14 +1,23 @@
 import { NotFoundError, ValidationError } from '@fitness/common';
-import type { Workout } from '@fitness/contracts';
+import { Equipment, type Workout } from '@fitness/contracts';
 import { WorkoutsService } from './workouts.service';
 import type { WorkoutRepository } from '../domain/workout.repository';
 
+// ex-1 is barbell only, so its equipment can be left out; ex-2 has two and says which.
 const input = {
   exercises: [
     { exerciseId: 'ex-1', sets: [{ reps: 5, weightKg: 100 }] },
-    { exerciseId: 'ex-2', sets: [{ reps: 8, weightKg: 60 }] },
+    { exerciseId: 'ex-2', equipment: Equipment.Dumbbell, sets: [{ reps: 8, weightKg: 60 }] },
   ],
 };
+const resolved = {
+  exercises: [{ ...input.exercises[0], equipment: Equipment.Barbell }, input.exercises[1]],
+};
+const catalog = () =>
+  new Map([
+    ['ex-1', [Equipment.Barbell]],
+    ['ex-2', [Equipment.Barbell, Equipment.Dumbbell]],
+  ]);
 
 let repo: jest.Mocked<WorkoutRepository>;
 let service: WorkoutsService;
@@ -20,7 +29,7 @@ beforeEach(() => {
     findManyForUser: jest.fn(),
     replaceForUser: jest.fn().mockResolvedValue({ id: 'w-1' } as Workout),
     deleteForUser: jest.fn(),
-    findMissingExerciseIds: jest.fn().mockResolvedValue([]),
+    findExerciseEquipment: jest.fn().mockImplementation(() => Promise.resolve(catalog())),
     routineDayBelongsToUser: jest.fn().mockResolvedValue(true),
     findLastSets: jest.fn().mockResolvedValue([]),
     findSetHistory: jest.fn(),
@@ -30,7 +39,7 @@ beforeEach(() => {
 
 describe('WorkoutsService.create', () => {
   it('rejects workouts that reference unknown exercises (422)', async () => {
-    repo.findMissingExerciseIds.mockResolvedValue(['ex-2']);
+    repo.findExerciseEquipment.mockResolvedValue(new Map([['ex-1', [Equipment.Barbell]]]));
 
     const error = await service.create('user-1', input).catch((e: unknown) => e);
 
@@ -43,11 +52,36 @@ describe('WorkoutsService.create', () => {
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  it('creates the workout when every exercise exists', async () => {
+  it('creates the workout, filling in the equipment of single-equipment exercises', async () => {
     await service.create('user-1', input);
 
-    expect(repo.findMissingExerciseIds).toHaveBeenCalledWith(['ex-1', 'ex-2']);
-    expect(repo.create).toHaveBeenCalledWith({ ...input, userId: 'user-1' });
+    expect(repo.findExerciseEquipment).toHaveBeenCalledWith(['ex-1', 'ex-2']);
+    expect(repo.create).toHaveBeenCalledWith({ ...resolved, userId: 'user-1' });
+  });
+
+  it('requires the equipment when the exercise has more than one (422)', async () => {
+    const error = await service
+      .create('user-1', {
+        exercises: [{ exerciseId: 'ex-2', sets: [{ reps: 8, weightKg: 60 }] }],
+      })
+      .catch((e: unknown) => e);
+
+    expect(error).toMatchObject({
+      httpStatus: 422,
+      code: 'workout.invalid_equipment',
+      errors: { 'ex-2': [Equipment.Barbell, Equipment.Dumbbell] },
+    });
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects equipment the exercise is not done with (422)', async () => {
+    await expect(
+      service.create('user-1', {
+        exercises: [
+          { exerciseId: 'ex-1', equipment: Equipment.Cable, sets: [{ reps: 5, weightKg: 20 }] },
+        ],
+      }),
+    ).rejects.toMatchObject({ httpStatus: 422, code: 'workout.invalid_equipment' });
   });
 });
 
@@ -55,13 +89,13 @@ describe('WorkoutsService.update', () => {
   it('replaces the workout scoped to the user', async () => {
     const result = await service.update('user-1', 'w-1', input);
 
-    expect(repo.findMissingExerciseIds).toHaveBeenCalledWith(['ex-1', 'ex-2']);
-    expect(repo.replaceForUser).toHaveBeenCalledWith('w-1', 'user-1', input);
+    expect(repo.findExerciseEquipment).toHaveBeenCalledWith(['ex-1', 'ex-2']);
+    expect(repo.replaceForUser).toHaveBeenCalledWith('w-1', 'user-1', resolved);
     expect(result).toEqual({ id: 'w-1' });
   });
 
   it('rejects unknown exercises (422) without touching the workout', async () => {
-    repo.findMissingExerciseIds.mockResolvedValue(['ex-1']);
+    repo.findExerciseEquipment.mockResolvedValue(new Map());
 
     await expect(service.update('user-1', 'w-1', input)).rejects.toMatchObject({
       httpStatus: 422,
@@ -85,7 +119,11 @@ describe('WorkoutsService routine days', () => {
     await service.create('user-1', { ...input, routineDayId: 'day-1' });
 
     expect(repo.routineDayBelongsToUser).toHaveBeenCalledWith('day-1', 'user-1');
-    expect(repo.create).toHaveBeenCalledWith({ ...input, routineDayId: 'day-1', userId: 'user-1' });
+    expect(repo.create).toHaveBeenCalledWith({
+      ...resolved,
+      routineDayId: 'day-1',
+      userId: 'user-1',
+    });
   });
 
   it('rejects a routine day that is not the user’s (422)', async () => {

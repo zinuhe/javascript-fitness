@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Equipment, MuscleGroup } from '@fitness/contracts';
 import { apiState, seedExercise, seedRoutine, seedWorkout } from '../test/api';
@@ -10,12 +10,12 @@ describe('exercise catalog', () => {
     seedExercise({
       name: 'Pull-up',
       muscleGroup: MuscleGroup.Back,
-      equipment: Equipment.Bodyweight,
+      equipment: [Equipment.Bodyweight],
     });
     seedExercise({
       name: 'Burpee',
       muscleGroup: MuscleGroup.FullBody,
-      equipment: Equipment.Bodyweight,
+      equipment: [Equipment.Bodyweight],
     });
 
     renderApp('/exercises');
@@ -35,12 +35,12 @@ describe('exercise catalog', () => {
     seedExercise({
       name: 'Pull-up',
       muscleGroup: MuscleGroup.Back,
-      equipment: Equipment.Bodyweight,
+      equipment: [Equipment.Bodyweight],
     });
     seedExercise({
       name: 'Leg Press',
       muscleGroup: MuscleGroup.Legs,
-      equipment: Equipment.Machine,
+      equipment: [Equipment.Machine],
     });
     const { user } = renderApp('/exercises');
     const search = await screen.findByRole('searchbox', { name: 'Search exercises' });
@@ -67,7 +67,11 @@ describe('exercise catalog', () => {
 
     await user.type(await screen.findByLabelText('Name'), 'Goblet Squat');
     await user.selectOptions(screen.getByLabelText('Muscle group'), 'Legs');
-    await user.selectOptions(screen.getByLabelText('Equipment'), 'Kettlebell');
+    const kettlebell = screen.getByRole('checkbox', { name: 'Kettlebell' });
+    // Until one is ticked the browser asks for at least one equipment.
+    expect(kettlebell).toBeRequired();
+    await user.click(kettlebell);
+    expect(kettlebell).not.toBeRequired();
     await user.type(screen.getByLabelText('Description'), '  Hold the bell at chest height  ');
     await user.click(screen.getByRole('button', { name: 'Add exercise' }));
 
@@ -75,24 +79,44 @@ describe('exercise catalog', () => {
     expect(apiState.exercises[0]).toMatchObject({
       name: 'Goblet Squat',
       muscleGroup: MuscleGroup.Legs,
-      equipment: Equipment.Kettlebell,
+      equipment: [Equipment.Kettlebell],
       description: 'Hold the bell at chest height',
     });
     expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(screen.getByRole('checkbox', { name: 'Kettlebell' })).not.toBeChecked();
   });
 
-  it('shows the conflict message for a duplicate name + equipment', async () => {
+  it('adds an exercise done with several pieces of equipment', async () => {
     signedInAs();
-    seedExercise({ name: 'Plank', muscleGroup: MuscleGroup.Core, equipment: Equipment.Bodyweight });
+    const { user } = renderApp('/exercises');
+
+    await user.type(await screen.findByLabelText('Name'), 'Bench Press');
+    await user.selectOptions(screen.getByLabelText('Muscle group'), 'Chest');
+    // Ticked out of order; saved in catalog order.
+    await user.click(screen.getByRole('checkbox', { name: 'Dumbbell' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Barbell' }));
+    await user.click(screen.getByRole('button', { name: 'Add exercise' }));
+
+    expect(await screen.findByText('Chest · Barbell · Dumbbell')).toBeInTheDocument();
+    expect(apiState.exercises[0].equipment).toEqual([Equipment.Barbell, Equipment.Dumbbell]);
+  });
+
+  it('shows the conflict message for a duplicate name', async () => {
+    signedInAs();
+    seedExercise({
+      name: 'Plank',
+      muscleGroup: MuscleGroup.Core,
+      equipment: [Equipment.Bodyweight],
+    });
     const { user } = renderApp('/exercises');
 
     await user.type(await screen.findByLabelText('Name'), 'Plank');
     await user.selectOptions(screen.getByLabelText('Muscle group'), 'Core');
-    await user.selectOptions(screen.getByLabelText('Equipment'), 'Bodyweight');
+    await user.click(screen.getByRole('checkbox', { name: 'Bodyweight' }));
     await user.click(screen.getByRole('button', { name: 'Add exercise' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'An exercise with this name and equipment already exists',
+      'An exercise with this name already exists',
     );
     expect(apiState.exercises).toHaveLength(1);
     // The form keeps what was typed so it can be corrected.
@@ -167,7 +191,9 @@ describe('editing and deleting exercises', () => {
     expect(screen.getByLabelText('Muscle group')).toHaveValue('biceps');
     await user.clear(name);
     await user.type(name, 'Lying Dumbbell Biceps Curl');
-    await user.selectOptions(screen.getByLabelText('Equipment'), 'Dumbbell');
+    expect(screen.getByRole('checkbox', { name: 'Barbell' })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: 'Barbell' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Dumbbell' }));
     await user.type(screen.getByLabelText('Description'), 'Curl tumbado');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
@@ -178,22 +204,46 @@ describe('editing and deleting exercises', () => {
     expect(screen.getByText('Curl tumbado')).toBeInTheDocument();
     expect(apiState.exercises[0]).toMatchObject({
       name: 'Lying Dumbbell Biceps Curl',
-      equipment: Equipment.Dumbbell,
+      equipment: [Equipment.Dumbbell],
       description: 'Curl tumbado',
     });
   });
 
-  it('shows the conflict when the new name + equipment already exists', async () => {
+  it('shows the conflict when the new name already exists', async () => {
     signedInAs();
-    seedExercise({ name: 'Bench', equipment: Equipment.Barbell });
-    const other = seedExercise({ name: 'Bench', equipment: Equipment.Dumbbell });
+    seedExercise({ name: 'Bench' });
+    const other = seedExercise({ name: 'Incline Bench' });
     const { user } = renderApp(`/exercises/${other.id}/edit`);
 
-    await user.selectOptions(await screen.findByLabelText('Equipment'), 'Barbell');
+    const name = await screen.findByLabelText('Name');
+    await user.clear(name);
+    await user.type(name, 'bench');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('already exists');
-    expect(apiState.exercises[1].equipment).toBe(Equipment.Dumbbell);
+    expect(apiState.exercises[1].name).toBe('Incline Bench');
+  });
+
+  it('refuses to remove equipment that logged workouts used', async () => {
+    const me = signedInAs();
+    const press = seedExercise({
+      name: 'Bench Press',
+      equipment: [Equipment.Barbell, Equipment.Dumbbell],
+    });
+    seedWorkout(me.id, {
+      exercises: [
+        { exerciseId: press.id, equipment: Equipment.Dumbbell, sets: [{ reps: 8, weightKg: 30 }] },
+      ],
+    });
+    const { user } = renderApp(`/exercises/${press.id}/edit`);
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Dumbbell' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Logged workouts use this exercise with dumbbell',
+    );
+    expect(apiState.exercises[0].equipment).toEqual([Equipment.Barbell, Equipment.Dumbbell]);
   });
 
   it('deletes an unused exercise after confirmation', async () => {
@@ -234,5 +284,48 @@ describe('editing and deleting exercises', () => {
 
     expect(await screen.findByRole('heading', { name: 'Curl' })).toBeInTheDocument();
     expect(currentUrl(router)).toBe(`/exercises/${curl.id}`);
+  });
+});
+
+describe('progress with several pieces of equipment', () => {
+  it('shows one equipment at a time, switching with the tabs', async () => {
+    const me = signedInAs();
+    const press = seedExercise({
+      name: 'Bench Press',
+      equipment: [Equipment.Barbell, Equipment.Dumbbell],
+    });
+    seedWorkout(me.id, {
+      performedAt: '2026-10-01T09:00:00.000Z',
+      exercises: [
+        { exerciseId: press.id, equipment: Equipment.Barbell, sets: [{ reps: 1, weightKg: 80 }] },
+      ],
+    });
+    seedWorkout(me.id, {
+      performedAt: '2026-10-08T09:00:00.000Z',
+      exercises: [
+        { exerciseId: press.id, equipment: Equipment.Dumbbell, sets: [{ reps: 1, weightKg: 30 }] },
+      ],
+    });
+    const { user } = renderApp(`/exercises/${press.id}`);
+
+    const tabs = await screen.findByRole('radiogroup', { name: 'Progress with' });
+    const stat = (label: string) => screen.getByText(label).closest('div');
+    expect(within(tabs).getByRole('radio', { name: 'Barbell' })).toBeChecked();
+    expect(stat('Heaviest set')).toHaveTextContent('80 kg');
+    expect(stat('Sessions')).toHaveTextContent('1');
+
+    await user.click(within(tabs).getByRole('radio', { name: 'Dumbbell' }));
+
+    await waitFor(() => expect(stat('Heaviest set')).toHaveTextContent('30 kg'));
+    expect(stat('Sessions')).toHaveTextContent('1');
+  });
+
+  it('has no tabs for an exercise with a single equipment', async () => {
+    signedInAs();
+    const squat = seedExercise({ name: 'Squat' });
+    renderApp(`/exercises/${squat.id}`);
+
+    expect(await screen.findByRole('heading', { name: 'Squat' })).toBeInTheDocument();
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { Link, type ErrorComponentProps } from '@tanstack/react-router';
-import type { Exercise, WorkoutSet } from '@fitness/contracts';
+import type { Equipment, Exercise, WorkoutSet } from '@fitness/contracts';
 import { ApiError } from '../api/client';
 
 /** `full_body` → `Full body` for enum values shown in the UI. */
@@ -17,6 +17,19 @@ export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 /** Short calendar date: "Oct 20", with the year only when it isn't the current one. */
+/**
+ * Equipment whose progress is shown first: weights with different equipment are not
+ * comparable, so an exercise with several shows one at a time; with one, all its sets.
+ */
+export function defaultProgressEquipment(exercise: Exercise): Equipment | undefined {
+  return exercise.equipment.length > 1 ? exercise.equipment[0] : undefined;
+}
+
+/** "Barbell · Dumbbell". */
+export function equipmentLabel(equipment: string[]): string {
+  return equipment.map(labelize).join(' · ');
+}
+
 export function formatShortDate(iso: string, now = new Date()): string {
   const date = new Date(iso);
   return date.toLocaleDateString(undefined, {

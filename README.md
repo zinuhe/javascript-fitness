@@ -136,8 +136,8 @@ healthcheck.
 | GET/POST       | `/api/exercises`                        | JWT  | Exercise catalog (CRUD)                      |
 | GET/POST       | `/api/workouts`                         | JWT  | User workouts                                |
 | GET/PUT/DELETE | `/api/workouts/:id`                     | JWT  | One workout (PUT replaces it)                |
-| GET            | `/api/workouts/progress/:id`            | JWT  | Per-exercise progress                        |
-| GET            | `/api/workouts/last-sets?exerciseIds=…` | JWT  | Last sets per exercise (pre-fill)            |
+| GET            | `/api/workouts/progress/:id`            | JWT  | Per-exercise progress (`?equipment=` filter) |
+| GET            | `/api/workouts/last-sets?exerciseIds=…` | JWT  | Last sets per exercise and equipment         |
 | GET/POST       | `/api/routines`                         | JWT  | Routines (rotating day splits)               |
 | GET/PUT/DELETE | `/api/routines/:id`                     | JWT  | One routine (PUT keeps day ids)              |
 | POST           | `/api/routines/:id/activate`            | JWT  | Make it the active routine                   |

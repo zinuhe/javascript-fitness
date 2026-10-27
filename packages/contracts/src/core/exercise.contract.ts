@@ -26,7 +26,8 @@ export interface Exercise {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
-  equipment: Equipment;
+  /** What it can be done with, at least one (e.g. barbell and dumbbell). */
+  equipment: Equipment[];
   description?: string;
   createdAt: string;
 }
@@ -34,7 +35,7 @@ export interface Exercise {
 export interface CreateExerciseRequest {
   name: string;
   muscleGroup: MuscleGroup;
-  equipment: Equipment;
+  equipment: Equipment[];
   description?: string;
 }
 

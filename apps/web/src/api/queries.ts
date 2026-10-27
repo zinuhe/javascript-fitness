@@ -8,6 +8,7 @@ import type {
   UpdateProfileRequest,
   UpdateRoutineRequest,
   UpdateWorkoutRequest,
+  Equipment,
   Exercise,
   ExerciseProgress,
   LastExerciseSets,
@@ -55,10 +56,14 @@ export const workoutQuery = (id: string) =>
     queryFn: () => api<Workout>(`/workouts/${id}`),
   });
 
-export const progressQuery = (exerciseId: string) =>
+/** Progress of an exercise; only the sets done with `equipment` when given. */
+export const progressQuery = (exerciseId: string, equipment?: Equipment) =>
   queryOptions({
-    queryKey: ['progress', exerciseId],
-    queryFn: () => api<ExerciseProgress>(`/workouts/progress/${exerciseId}`),
+    queryKey: ['progress', exerciseId, equipment ?? 'all'],
+    queryFn: () =>
+      api<ExerciseProgress>(
+        `/workouts/progress/${exerciseId}${equipment ? `?equipment=${equipment}` : ''}`,
+      ),
   });
 
 export const routinesQuery = queryOptions({
@@ -78,7 +83,10 @@ export const nextRoutineQuery = queryOptions({
   queryFn: async () => (await api<NextRoutineDay | undefined>('/routines/next')) ?? null,
 });
 
-/** Sets from the latest workout of each exercise, to pre-fill a routine day. */
+/**
+ * Sets from the latest workout of each exercise, one entry per equipment used (the most
+ * recent first), to pre-fill a routine day.
+ */
 export const lastSetsQuery = (exerciseIds: string[]) =>
   queryOptions({
     queryKey: ['last-sets', [...exerciseIds].sort()],

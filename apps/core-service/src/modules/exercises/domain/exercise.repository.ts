@@ -3,7 +3,7 @@ import type { Equipment, Exercise, MuscleGroup } from '@fitness/contracts';
 export interface CreateExerciseData {
   name: string;
   muscleGroup: MuscleGroup;
-  equipment: Equipment;
+  equipment: Equipment[];
   description?: string;
 }
 
@@ -16,11 +16,9 @@ export interface ExerciseRepository {
   update(id: string, data: UpdateExerciseData): Promise<Exercise>;
   delete(id: string): Promise<void>;
   /** `excludeId` lets an update ignore the exercise being edited. */
-  existsByNameAndEquipment(
-    name: string,
-    equipment: Equipment,
-    excludeId?: string,
-  ): Promise<boolean>;
+  existsByName(name: string, excludeId?: string): Promise<boolean>;
+  /** Which of `equipment` some logged workout used with this exercise. */
+  findUsedEquipment(id: string, equipment: Equipment[]): Promise<Equipment[]>;
   /** Whether any logged workout or routine references this exercise (blocks deletion). */
   isInUse(id: string): Promise<boolean>;
 }

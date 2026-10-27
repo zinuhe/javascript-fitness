@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
+import type { Exercise, WorkoutExercise } from '@fitness/contracts';
 import {
   deleteWorkout,
   exercisesQuery,
@@ -13,10 +14,20 @@ import {
   exerciseNames,
   formatDay,
   formatTime,
+  labelize,
   setsVolume,
 } from '../components/ui';
 import { formatWeight, useWeightUnit } from '../components/units';
 import { NextUpCard } from './start';
+
+/** "Bench Press (Dumbbell)": the equipment only for exercises that have several. */
+function loggedExerciseLabel(entry: WorkoutExercise, catalog: Exercise[]): string {
+  const exercise = catalog.find((e) => e.id === entry.exerciseId);
+  if (!exercise) return 'Unknown exercise';
+  return entry.equipment && exercise.equipment.length > 1
+    ? `${exercise.name} (${labelize(entry.equipment)})`
+    : exercise.name;
+}
 
 const listRoute = getRouteApi('/_app/workouts');
 
@@ -26,7 +37,6 @@ export function WorkoutsPage() {
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const { data: next } = useSuspenseQuery(nextRoutineQuery);
   const unit = useWeightUnit();
-  const names = exerciseNames(catalog.items);
 
   return (
     <section className="stack">
@@ -69,7 +79,7 @@ export function WorkoutsPage() {
                   </p>
                   <p className="muted">
                     {workout.exercises
-                      .map((e) => names.get(e.exerciseId) ?? 'Unknown exercise')
+                      .map((e) => loggedExerciseLabel(e, catalog.items))
                       .join(' · ')}
                   </p>
                   {workout.notes && <p className="notes">{workout.notes}</p>}
@@ -114,6 +124,8 @@ export function WorkoutDetailPage() {
   const { data: workout } = useSuspenseQuery(workoutQuery(workoutId));
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const names = exerciseNames(catalog.items);
+  const equipmentCount = (exerciseId: string) =>
+    catalog.items.find((e) => e.id === exerciseId)?.equipment.length ?? 0;
   const unit = useWeightUnit();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -183,7 +195,11 @@ export function WorkoutDetailPage() {
               <h2>
                 <Link to="/exercises/$exerciseId" params={{ exerciseId: entry.exerciseId }}>
                   {names.get(entry.exerciseId) ?? 'Unknown exercise'}
-                </Link>
+                </Link>{' '}
+                {/* Which one, for exercises done with several. */}
+                {entry.equipment && equipmentCount(entry.exerciseId) > 1 && (
+                  <span className="tag">{labelize(entry.equipment)}</span>
+                )}
               </h2>
               <span className="muted">{formatWeight(setsVolume(entry.sets), unit)}</span>
             </div>

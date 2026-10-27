@@ -8,6 +8,8 @@ import {
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import type {
   CreateWorkoutRequest,
+  Equipment,
+  Exercise,
   LastExerciseSets,
   RoutineDay,
   Workout,
@@ -20,7 +22,7 @@ import {
   updateWorkout,
   workoutQuery,
 } from '../api/queries';
-import { ErrorMessage, dayLabel, parseDecimal } from '../components/ui';
+import { ErrorMessage, dayLabel, labelize, parseDecimal } from '../components/ui';
 import { WEIGHT_STEP, toKg, useWeightUnit, weightInputValue } from '../components/units';
 import type { WeightUnit } from '@fitness/contracts';
 
@@ -98,7 +100,14 @@ interface SetDraft {
 interface ExerciseDraft {
   key: number;
   exerciseId: string;
+  /** Which of the exercise's equipment is used; '' until an exercise is chosen. */
+  equipment: Equipment | '';
   sets: SetDraft[];
+  /**
+   * The sets are still as pre-filled (not typed over), so switching the equipment may swap
+   * them for the last ones done with it.
+   */
+  pristine: boolean;
 }
 
 interface WorkoutDraft {
@@ -112,8 +121,29 @@ const emptySet = (): SetDraft => ({ reps: '', weight: '' });
 const emptyExercise = (): ExerciseDraft => ({
   key: nextKey++,
   exerciseId: '',
+  equipment: '',
   sets: [emptySet()],
+  pristine: true,
 });
+
+const toSetDrafts = (sets: LastExerciseSets['sets'], unit: WeightUnit): SetDraft[] =>
+  sets.map((set) => ({
+    reps: String(set.reps),
+    weight: weightInputValue(set.weightKg, unit),
+    rpe: set.rpe,
+    restSeconds: set.restSeconds,
+  }));
+
+/** The last sets done with this exercise and equipment, or one empty set the first time. */
+function lastSetsFor(
+  lastSets: LastExerciseSets[],
+  exerciseId: string,
+  equipment: Equipment | '',
+  unit: WeightUnit,
+): SetDraft[] {
+  const previous = lastSets.find((e) => e.exerciseId === exerciseId && e.equipment === equipment);
+  return previous?.sets.length ? toSetDrafts(previous.sets, unit) : [emptySet()];
+}
 
 /** Local time of `date` in the `YYYY-MM-DDTHH:mm` shape `datetime-local` expects. */
 function toInputDate(date: Date): string {
@@ -129,42 +159,41 @@ function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
     entries: workout.exercises.map((entry) => ({
       key: nextKey++,
       exerciseId: entry.exerciseId,
-      sets: entry.sets.map((set) => ({
-        reps: String(set.reps),
-        weight: weightInputValue(set.weightKg, unit),
-        rpe: set.rpe,
-        restSeconds: set.restSeconds,
-      })),
+      equipment: entry.equipment ?? '',
+      sets: toSetDrafts(entry.sets, unit),
+      // Logged sets are never swapped behind the user's back.
+      pristine: false,
     })),
   };
 }
 
 /**
- * A routine day as a ready-to-log draft: its exercises in order, each starting from the sets
- * of the last time the user did it (or one empty set the first time).
+ * A routine day as a ready-to-log draft: its exercises in order, each with the equipment and
+ * sets of the last time the user did it (its first equipment and one empty set the first
+ * time).
  */
 function draftFromRoutineDay(
   day: RoutineDay,
+  catalog: Exercise[],
   lastSets: LastExerciseSets[],
   unit: WeightUnit,
 ): WorkoutDraft {
-  const byExercise = new Map(lastSets.map((entry) => [entry.exerciseId, entry.sets]));
   return {
     performedAt: toInputDate(new Date()),
     notes: '',
     entries: day.exerciseIds.map((exerciseId) => {
-      const previous = byExercise.get(exerciseId);
+      const options = catalog.find((e) => e.id === exerciseId)?.equipment ?? [];
+      // last-sets lists the most recent equipment first.
+      const latest = lastSets.find(
+        (e) => e.exerciseId === exerciseId && e.equipment && options.includes(e.equipment),
+      );
+      const equipment = latest?.equipment ?? options[0] ?? '';
       return {
         key: nextKey++,
         exerciseId,
-        sets: previous?.length
-          ? previous.map((set) => ({
-              reps: String(set.reps),
-              weight: weightInputValue(set.weightKg, unit),
-              rpe: set.rpe,
-              restSeconds: set.restSeconds,
-            }))
-          : [emptySet()],
+        equipment,
+        sets: lastSetsFor(lastSets, exerciseId, equipment, unit),
+        pristine: true,
       };
     }),
   };
@@ -203,6 +232,7 @@ export function NewWorkoutPage() {
   const { routineDayId } = newRoute.useSearch();
   const found = useRoutineDay(routineDayId);
   const { data: lastSets } = useSuspenseQuery(lastSetsQuery(found?.day.exerciseIds ?? []));
+  const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const save = useSaveWorkout(createWorkout);
   const unit = useWeightUnit();
   const back = (
@@ -224,7 +254,8 @@ export function NewWorkoutPage() {
         title={dayLabel(found.day)}
         subtitle={found.routine.name}
         submitLabel="Save workout"
-        initial={() => draftFromRoutineDay(found.day, lastSets, unit)}
+        initial={() => draftFromRoutineDay(found.day, catalog.items, lastSets, unit)}
+        lastSets={lastSets}
         routineDayId={found.day.id}
         save={save}
         back={back}
@@ -289,6 +320,8 @@ interface WorkoutFormProps {
   routineDayId?: string;
   /** Lazy initial state: read once, when the form mounts. */
   initial: () => WorkoutDraft;
+  /** The last sets per exercise and equipment, to re-fill when the equipment changes. */
+  lastSets?: LastExerciseSets[];
   save: UseMutationResult<Workout, Error, CreateWorkoutRequest>;
   back: ReactNode;
   cancel: ReactNode;
@@ -300,6 +333,7 @@ function WorkoutForm({
   submitLabel,
   routineDayId,
   initial,
+  lastSets = [],
   save,
   back,
   cancel,
@@ -318,7 +352,11 @@ function WorkoutForm({
     updateEntry(key, (e) => ({
       ...e,
       sets: e.sets.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+      pristine: false,
     }));
+
+  const equipmentOf = (exerciseId: string): Equipment[] =>
+    catalog.items.find((e) => e.id === exerciseId)?.equipment ?? [];
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -328,6 +366,7 @@ function WorkoutForm({
       ...(routineDayId ? { routineDayId } : {}),
       exercises: entries.map((e) => ({
         exerciseId: e.exerciseId,
+        ...(e.equipment ? { equipment: e.equipment } : {}),
         sets: e.sets.map((s) => ({
           reps: parseDecimal(s.reps),
           weightKg: toKg(parseDecimal(s.weight), unit),
@@ -405,7 +444,13 @@ function WorkoutForm({
           <select
             aria-label="Exercise"
             value={entry.exerciseId}
-            onChange={(e) => updateEntry(entry.key, (d) => ({ ...d, exerciseId: e.target.value }))}
+            onChange={(e) =>
+              updateEntry(entry.key, (d) => ({
+                ...d,
+                exerciseId: e.target.value,
+                equipment: equipmentOf(e.target.value)[0] ?? '',
+              }))
+            }
             required
           >
             <option value="">Choose an exercise…</option>
@@ -415,6 +460,34 @@ function WorkoutForm({
               </option>
             ))}
           </select>
+          {equipmentOf(entry.exerciseId).length > 1 && (
+            <div
+              className="segmented"
+              role="radiogroup"
+              aria-label={`Equipment for exercise ${entryIndex + 1}`}
+            >
+              {equipmentOf(entry.exerciseId).map((value) => (
+                <label key={value}>
+                  <input
+                    type="radio"
+                    name={`equipment-${entry.key}`}
+                    value={value}
+                    checked={entry.equipment === value}
+                    onChange={() =>
+                      updateEntry(entry.key, (d) => ({
+                        ...d,
+                        equipment: value,
+                        sets: d.pristine
+                          ? lastSetsFor(lastSets, d.exerciseId, value, unit)
+                          : d.sets,
+                      }))
+                    }
+                  />
+                  <span>{labelize(value)}</span>
+                </label>
+              ))}
+            </div>
+          )}
 
           {entry.sets.map((set, setIndex) => (
             <div key={setIndex} className="set">
@@ -429,6 +502,7 @@ function WorkoutForm({
                     updateEntry(entry.key, (d) => ({
                       ...d,
                       sets: d.sets.filter((_, i) => i !== setIndex),
+                      pristine: false,
                     }))
                   }
                 >
@@ -461,7 +535,11 @@ function WorkoutForm({
               updateEntry(entry.key, (d) => {
                 // Pre-fill from the previous set: most sets repeat reps and weight.
                 const last = d.sets[d.sets.length - 1];
-                return { ...d, sets: [...d.sets, last ? { ...last } : emptySet()] };
+                return {
+                  ...d,
+                  sets: [...d.sets, last ? { ...last } : emptySet()],
+                  pristine: false,
+                };
               })
             }
           >

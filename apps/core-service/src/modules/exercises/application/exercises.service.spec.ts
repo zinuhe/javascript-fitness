@@ -7,7 +7,7 @@ const bench: Exercise = {
   id: 'ex-1',
   name: 'Barbell Bench Press',
   muscleGroup: MuscleGroup.Chest,
-  equipment: Equipment.Barbell,
+  equipment: [Equipment.Barbell],
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
@@ -22,32 +22,51 @@ describe('ExercisesService', () => {
       findMany: jest.fn(),
       update: jest.fn().mockResolvedValue(bench),
       delete: jest.fn(),
-      existsByNameAndEquipment: jest.fn().mockResolvedValue(false),
+      existsByName: jest.fn().mockResolvedValue(false),
+      findUsedEquipment: jest.fn().mockResolvedValue([]),
       isInUse: jest.fn().mockResolvedValue(false),
     };
     service = new ExercisesService(repo);
   });
 
   describe('update', () => {
-    it('rejects renaming onto an existing name + equipment', async () => {
-      repo.existsByNameAndEquipment.mockResolvedValue(true);
+    it('rejects renaming onto an existing name', async () => {
+      repo.existsByName.mockResolvedValue(true);
 
       await expect(service.update('ex-1', { name: 'Pull-up' })).rejects.toBeInstanceOf(
         ConflictError,
       );
-      expect(repo.existsByNameAndEquipment).toHaveBeenCalledWith(
-        'Pull-up',
-        Equipment.Barbell,
-        'ex-1',
-      );
+      expect(repo.existsByName).toHaveBeenCalledWith('Pull-up', 'ex-1');
       expect(repo.update).not.toHaveBeenCalled();
     });
 
-    it('skips the duplicate check when name and equipment are unchanged', async () => {
+    it('skips the duplicate check when the name is unchanged', async () => {
       await service.update('ex-1', { description: 'Flat bench' });
 
-      expect(repo.existsByNameAndEquipment).not.toHaveBeenCalled();
+      expect(repo.existsByName).not.toHaveBeenCalled();
       expect(repo.update).toHaveBeenCalledWith('ex-1', { description: 'Flat bench' });
+    });
+
+    it('adds equipment', async () => {
+      const equipment = [Equipment.Barbell, Equipment.Dumbbell];
+      await service.update('ex-1', { equipment });
+
+      expect(repo.findUsedEquipment).toHaveBeenCalledWith('ex-1', []);
+      expect(repo.update).toHaveBeenCalledWith('ex-1', { equipment });
+    });
+
+    it('rejects removing equipment that logged workouts used', async () => {
+      repo.findById.mockResolvedValue({
+        ...bench,
+        equipment: [Equipment.Barbell, Equipment.Dumbbell],
+      });
+      repo.findUsedEquipment.mockResolvedValue([Equipment.Dumbbell]);
+
+      await expect(
+        service.update('ex-1', { equipment: [Equipment.Barbell] }),
+      ).rejects.toMatchObject({ code: 'exercise.equipment_in_use' });
+      expect(repo.findUsedEquipment).toHaveBeenCalledWith('ex-1', [Equipment.Dumbbell]);
+      expect(repo.update).not.toHaveBeenCalled();
     });
   });
 

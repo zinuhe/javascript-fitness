@@ -38,7 +38,8 @@ model Exercise {
   id          String      @id @default(uuid()) @db.Uuid
   name        String
   muscleGroup MuscleGroup
-  equipment   Equipment
+  // What it can be done with (at least one); each logged workout says which one was used.
+  equipment   Equipment[]
   description String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -46,7 +47,7 @@ model Exercise {
   workoutExercises    WorkoutExercise[]
   routineDayExercises RoutineDayExercise[]
 
-  @@unique([name, equipment])
+  @@unique([name])
   @@map("exercises")
 }
 
@@ -72,8 +73,10 @@ model Workout {
 model WorkoutExercise {
   id         String @id @default(uuid()) @db.Uuid
   workoutId  String @db.Uuid
-  exerciseId String @db.Uuid
+  exerciseId String     @db.Uuid
   order      Int
+  // Which of the exercise's equipment was used this time (barbell, dumbbell…).
+  equipment  Equipment?
 
   workout  Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
   exercise Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)

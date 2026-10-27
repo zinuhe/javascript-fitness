@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { MuscleGroup } from '@fitness/contracts';
+import { Equipment, MuscleGroup } from '@fitness/contracts';
 import { apiState, seedExercise, seedRoutine, seedWorkout } from '../test/api';
 import { currentUrl, renderApp, signedInAs } from '../test/render';
 
@@ -217,6 +217,53 @@ describe('starting a routine day', () => {
       await screen.findByRole('link', { name: 'Start Day 2 · Pull of Push / Pull' }),
     ).toBeInTheDocument();
     expect(screen.getAllByText('Day 1 · Push')[0]).toBeInTheDocument();
+  });
+
+  it('starts with the equipment used last time and re-fills the sets when it changes', async () => {
+    const me = signedInAs();
+    const press = seedExercise({
+      name: 'Bench Press',
+      equipment: [Equipment.Barbell, Equipment.Dumbbell],
+    });
+    seedRoutine(me.id, { name: 'Push', days: [{ name: 'Push', exerciseIds: [press.id] }] });
+    seedWorkout(me.id, {
+      performedAt: '2026-10-01T09:00:00.000Z',
+      exercises: [
+        { exerciseId: press.id, equipment: Equipment.Barbell, sets: [{ reps: 5, weightKg: 80 }] },
+      ],
+    });
+    seedWorkout(me.id, {
+      performedAt: '2026-10-08T09:00:00.000Z',
+      exercises: [
+        { exerciseId: press.id, equipment: Equipment.Dumbbell, sets: [{ reps: 10, weightKg: 30 }] },
+      ],
+    });
+    const { user } = renderApp('/workouts/start');
+
+    await user.click(await screen.findByRole('link', { name: 'Start Day 1 · Push of Push' }));
+
+    const equipment = await screen.findByRole('radiogroup', { name: 'Equipment for exercise 1' });
+    const weight = () => screen.getByLabelText('Weight (kg)');
+    expect(within(equipment).getByRole('radio', { name: 'Dumbbell' })).toBeChecked();
+    expect(weight()).toHaveValue('30');
+    expect(screen.getByLabelText('Reps')).toHaveValue('10');
+
+    await user.click(within(equipment).getByRole('radio', { name: 'Barbell' }));
+    expect(weight()).toHaveValue('80');
+    expect(screen.getByLabelText('Reps')).toHaveValue('5');
+
+    // Once typed over, switching keeps what was typed.
+    await user.clear(weight());
+    await user.type(weight(), '85');
+    await user.click(within(equipment).getByRole('radio', { name: 'Dumbbell' }));
+    expect(weight()).toHaveValue('85');
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    await screen.findByRole('heading', { name: /^Bench Press/ });
+    expect(apiState.workouts.at(-1)!.exercises[0]).toMatchObject({
+      equipment: Equipment.Dumbbell,
+      sets: [expect.objectContaining({ reps: 5, weightKg: 85 })],
+    });
   });
 
   it('pre-fills the last sets in pounds when that is the unit', async () => {

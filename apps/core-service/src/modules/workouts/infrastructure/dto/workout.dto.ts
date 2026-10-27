@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsEnum,
   IsInt,
   IsISO8601,
   IsNumber,
@@ -16,6 +17,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { Equipment } from '@fitness/contracts';
 import type {
   CreateSetRequest,
   CreateWorkoutExerciseRequest,
@@ -55,6 +57,14 @@ export class CreateWorkoutExerciseDto implements CreateWorkoutExerciseRequest {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   exerciseId!: string;
+
+  @ApiPropertyOptional({
+    enum: Equipment,
+    description: 'Equipment used; required when the exercise has more than one',
+  })
+  @IsOptional()
+  @IsEnum(Equipment)
+  equipment?: Equipment;
 
   @ApiProperty({ type: [CreateSetDto] })
   @IsArray()
@@ -119,4 +129,11 @@ export class LastSetsQueryDto {
   @ArrayMaxSize(50)
   @IsUUID('all', { each: true })
   exerciseIds!: string[];
+}
+
+export class ProgressQueryDto {
+  @ApiPropertyOptional({ enum: Equipment, description: 'Only sets done with this equipment' })
+  @IsOptional()
+  @IsEnum(Equipment)
+  equipment?: Equipment;
 }

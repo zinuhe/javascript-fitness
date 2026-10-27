@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsEnum,
   IsInt,
   IsOptional,
@@ -23,9 +26,16 @@ export class CreateExerciseDto implements CreateExerciseRequest {
   @IsEnum(MuscleGroup)
   muscleGroup!: MuscleGroup;
 
-  @ApiProperty({ enum: Equipment, example: Equipment.Barbell })
-  @IsEnum(Equipment)
-  equipment!: Equipment;
+  @ApiProperty({
+    enum: Equipment,
+    isArray: true,
+    example: [Equipment.Barbell, Equipment.Dumbbell],
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @IsEnum(Equipment, { each: true })
+  equipment!: Equipment[];
 
   @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()

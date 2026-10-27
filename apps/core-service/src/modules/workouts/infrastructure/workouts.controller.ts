@@ -23,7 +23,12 @@ import type {
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/current-user.decorator';
 import { WorkoutsService } from '../application/workouts.service';
-import { CreateWorkoutDto, LastSetsQueryDto, ListWorkoutsQueryDto } from './dto/workout.dto';
+import {
+  CreateWorkoutDto,
+  LastSetsQueryDto,
+  ListWorkoutsQueryDto,
+  ProgressQueryDto,
+} from './dto/workout.dto';
 
 @ApiTags('workouts')
 @ApiBearerAuth()
@@ -49,7 +54,9 @@ export class WorkoutsController {
 
   // Declared before ':id' so "last-sets" is not parsed as a workout id.
   @Get('last-sets')
-  @ApiOperation({ summary: 'Sets from the most recent workout of each given exercise' })
+  @ApiOperation({
+    summary: 'Sets from the most recent workout of each given exercise, per equipment used',
+  })
   lastSets(
     @CurrentUser() user: JwtAccessPayload,
     @Query() query: LastSetsQueryDto,
@@ -62,8 +69,9 @@ export class WorkoutsController {
   progress(
     @CurrentUser() user: JwtAccessPayload,
     @Param('exerciseId', ParseUUIDPipe) exerciseId: string,
+    @Query() query: ProgressQueryDto,
   ): Promise<ExerciseProgress> {
-    return this.workouts.getExerciseProgress(user.sub, exerciseId);
+    return this.workouts.getExerciseProgress(user.sub, exerciseId, query.equipment);
   }
 
   @Get(':id')

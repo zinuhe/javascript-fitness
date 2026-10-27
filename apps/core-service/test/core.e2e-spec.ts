@@ -46,7 +46,7 @@ describe('core-service (e2e)', () => {
       .post('/exercises', {
         name: `Squat ${randomUUID()}`,
         muscleGroup: MuscleGroup.Legs,
-        equipment: Equipment.Barbell,
+        equipment: [Equipment.Barbell],
         ...over,
       })
       .expect(201);
@@ -71,7 +71,7 @@ describe('core-service (e2e)', () => {
       expect(read.body).toMatchObject({
         id: created.id,
         muscleGroup: 'legs',
-        equipment: 'barbell',
+        equipment: ['barbell'],
         description: 'Low bar',
       });
 
@@ -79,18 +79,35 @@ describe('core-service (e2e)', () => {
       expect(list.body.items.map((e: Exercise) => e.id)).toContain(created.id);
     });
 
-    it('rejects a duplicate name + equipment (409)', async () => {
+    it('rejects a duplicate name, whatever the equipment (409)', async () => {
       const token = tokenFor();
       const existing = await createExercise(token);
 
       const res = await as(token)
         .post('/exercises', {
-          name: existing.name,
+          name: existing.name.toUpperCase(),
           muscleGroup: MuscleGroup.Legs,
-          equipment: Equipment.Barbell,
+          equipment: [Equipment.Dumbbell],
         })
         .expect(409);
       expect(res.body.title).toBe('exercise.duplicate');
+    });
+
+    it('needs at least one known equipment, without repeats (400)', async () => {
+      const token = tokenFor();
+      const base = { name: `Row ${randomUUID()}`, muscleGroup: MuscleGroup.Back };
+      await as(token)
+        .post('/exercises', { ...base, equipment: [] })
+        .expect(400);
+      await as(token)
+        .post('/exercises', { ...base, equipment: ['spoon'] })
+        .expect(400);
+      await as(token)
+        .post('/exercises', { ...base, equipment: 'barbell' })
+        .expect(400);
+      await as(token)
+        .post('/exercises', { ...base, equipment: [Equipment.Cable, Equipment.Cable] })
+        .expect(400);
     });
 
     it('validates query params and ids (400)', async () => {
@@ -283,6 +300,80 @@ describe('core-service (e2e)', () => {
             bestSetWeightKg: 110,
           },
         ],
+      });
+    });
+
+    describe('with several pieces of equipment', () => {
+      const log = (token: string, performedAt: string, equipment: Equipment, weightKg: number) =>
+        as(token).post('/workouts', {
+          performedAt,
+          exercises: [{ exerciseId: press.id, equipment, sets: [{ reps: 8, weightKg }] }],
+        });
+      let token: string;
+      let press: Exercise;
+
+      beforeEach(async () => {
+        token = tokenFor();
+        press = await createExercise(token, {
+          muscleGroup: MuscleGroup.Chest,
+          equipment: [Equipment.Barbell, Equipment.Dumbbell],
+        });
+      });
+
+      it('records which one was used, and requires choosing it (422)', async () => {
+        const res = await log(token, '2026-10-01T09:00:00.000Z', Equipment.Dumbbell, 30).expect(
+          201,
+        );
+        expect((res.body as Workout).exercises[0].equipment).toBe('dumbbell');
+
+        const missing = await as(token)
+          .post('/workouts', {
+            exercises: [{ exerciseId: press.id, sets: [{ reps: 8, weightKg: 60 }] }],
+          })
+          .expect(422);
+        expect(missing.body.title).toBe('workout.invalid_equipment');
+        await log(token, '2026-10-01T09:00:00.000Z', Equipment.Cable, 30).expect(422);
+      });
+
+      it('keeps the last sets and the progress apart per equipment', async () => {
+        await log(token, '2026-10-01T09:00:00.000Z', Equipment.Barbell, 80).expect(201);
+        await log(token, '2026-10-08T09:00:00.000Z', Equipment.Dumbbell, 30).expect(201);
+
+        const last = await as(token).get(`/workouts/last-sets?exerciseIds=${press.id}`).expect(200);
+        expect(
+          (last.body as LastExerciseSets[]).map((e) => [e.equipment, e.sets[0].weightKg]),
+        ).toEqual([
+          ['dumbbell', 30],
+          ['barbell', 80],
+        ]);
+
+        const barbell = await as(token)
+          .get(`/workouts/progress/${press.id}?equipment=barbell`)
+          .expect(200);
+        expect(barbell.body.points).toEqual([
+          expect.objectContaining({ performedAt: '2026-10-01T09:00:00.000Z', bestSetWeightKg: 80 }),
+        ]);
+        const all = await as(token).get(`/workouts/progress/${press.id}`).expect(200);
+        expect(all.body.points).toHaveLength(2);
+        await as(token).get(`/workouts/progress/${press.id}?equipment=spoon`).expect(400);
+      });
+
+      it('equipment used by logged workouts cannot be removed (409)', async () => {
+        await log(token, '2026-10-01T09:00:00.000Z', Equipment.Dumbbell, 30).expect(201);
+
+        const res = await request(http)
+          .patch(`/exercises/${press.id}`)
+          .set('authorization', `Bearer ${token}`)
+          .send({ equipment: [Equipment.Barbell] })
+          .expect(409);
+        expect(res.body.title).toBe('exercise.equipment_in_use');
+
+        const ok = await request(http)
+          .patch(`/exercises/${press.id}`)
+          .set('authorization', `Bearer ${token}`)
+          .send({ equipment: [Equipment.Dumbbell, Equipment.Kettlebell] })
+          .expect(200);
+        expect((ok.body as Exercise).equipment).toEqual(['dumbbell', 'kettlebell']);
       });
     });
 
@@ -519,6 +610,7 @@ describe('core-service (e2e)', () => {
       expect(res.body as LastExerciseSets[]).toEqual([
         {
           exerciseId: bench.id,
+          equipment: 'barbell',
           performedAt: '2026-10-08T09:00:00.000Z',
           sets: [
             { reps: 8, weightKg: 65 },

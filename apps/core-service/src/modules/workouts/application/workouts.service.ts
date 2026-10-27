@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { NotFoundError, ValidationError } from '@fitness/common';
 import type {
   CreateWorkoutRequest,
+  Equipment,
   ExerciseProgress,
   LastExerciseSets,
   Paginated,
@@ -16,13 +17,13 @@ export class WorkoutsService {
   constructor(@Inject(WORKOUT_REPOSITORY) private readonly workouts: WorkoutRepository) {}
 
   async create(userId: string, input: CreateWorkoutRequest): Promise<Workout> {
-    await this.assertReferencesExist(userId, input);
-    return this.workouts.create({ ...input, userId });
+    const resolved = await this.resolveReferences(userId, input);
+    return this.workouts.create({ ...resolved, userId });
   }
 
   async update(userId: string, id: string, input: UpdateWorkoutRequest): Promise<Workout> {
-    await this.assertReferencesExist(userId, input);
-    const workout = await this.workouts.replaceForUser(id, userId, input);
+    const resolved = await this.resolveReferences(userId, input);
+    const workout = await this.workouts.replaceForUser(id, userId, resolved);
     if (!workout) {
       throw new NotFoundError('Workout not found', 'workout.not_found');
     }
@@ -62,13 +63,24 @@ export class WorkoutsService {
     return this.workouts.findLastSets(userId, exerciseIds);
   }
 
-  async getExerciseProgress(userId: string, exerciseId: string): Promise<ExerciseProgress> {
-    const history = await this.workouts.findSetHistory(userId, exerciseId);
+  async getExerciseProgress(
+    userId: string,
+    exerciseId: string,
+    equipment?: Equipment,
+  ): Promise<ExerciseProgress> {
+    const history = await this.workouts.findSetHistory(userId, exerciseId, equipment);
     return { exerciseId, points: buildProgressPoints(history) };
   }
 
-  private async assertReferencesExist(userId: string, input: CreateWorkoutRequest): Promise<void> {
-    await this.assertExercisesExist(input);
+  /**
+   * Checks the exercises and routine day the workout points to, and returns the input with
+   * each exercise's equipment filled in (the only one it has, when the client sent none).
+   */
+  private async resolveReferences(
+    userId: string,
+    input: CreateWorkoutRequest,
+  ): Promise<CreateWorkoutRequest> {
+    const exercises = await this.resolveEquipment(input);
     if (
       input.routineDayId &&
       !(await this.workouts.routineDayBelongsToUser(input.routineDayId, userId))
@@ -81,12 +93,18 @@ export class WorkoutsService {
         },
       );
     }
+    return { ...input, exercises };
   }
 
-  private async assertExercisesExist(input: CreateWorkoutRequest): Promise<void> {
-    const missing = await this.workouts.findMissingExerciseIds(
+  private async resolveEquipment(
+    input: CreateWorkoutRequest,
+  ): Promise<CreateWorkoutRequest['exercises']> {
+    const catalog = await this.workouts.findExerciseEquipment(
       input.exercises.map((e) => e.exerciseId),
     );
+    const missing = [
+      ...new Set(input.exercises.map((e) => e.exerciseId).filter((id) => !catalog.has(id))),
+    ];
     if (missing.length > 0) {
       throw new ValidationError(
         'Workout references unknown exercises',
@@ -96,5 +114,21 @@ export class WorkoutsService {
         },
       );
     }
+    return input.exercises.map((entry) => {
+      const options = catalog.get(entry.exerciseId)!;
+      if (entry.equipment === undefined && options.length === 1) {
+        return { ...entry, equipment: options[0] };
+      }
+      if (entry.equipment === undefined || !options.includes(entry.equipment)) {
+        throw new ValidationError(
+          entry.equipment === undefined
+            ? 'Choose the equipment used for each exercise'
+            : 'The exercise is not done with that equipment',
+          'workout.invalid_equipment',
+          { [entry.exerciseId]: options },
+        );
+      }
+      return entry;
+    });
   }
 }

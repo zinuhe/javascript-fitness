@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma';
 import type {
+  Equipment,
   LastExerciseSets,
   UpdateWorkoutRequest,
   Workout,
@@ -35,6 +36,7 @@ function exercisesCreate(
   return {
     create: exercises.map((we, exIndex) => ({
       exerciseId: we.exerciseId,
+      equipment: we.equipment ?? null,
       order: exIndex,
       sets: {
         create: we.sets.map((set, setIndex) => ({
@@ -118,14 +120,12 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
     return result.count > 0;
   }
 
-  async findMissingExerciseIds(exerciseIds: string[]): Promise<string[]> {
-    const unique = [...new Set(exerciseIds)];
+  async findExerciseEquipment(exerciseIds: string[]): Promise<Map<string, Equipment[]>> {
     const found = await this.prisma.exercise.findMany({
-      where: { id: { in: unique } },
-      select: { id: true },
+      where: { id: { in: [...new Set(exerciseIds)] } },
+      select: { id: true, equipment: true },
     });
-    const existing = new Set(found.map((e) => e.id));
-    return unique.filter((id) => !existing.has(id));
+    return new Map(found.map((e) => [e.id, e.equipment as Equipment[]]));
   }
 
   async routineDayBelongsToUser(routineDayId: string, userId: string): Promise<boolean> {
@@ -137,37 +137,54 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
   }
 
   async findLastSets(userId: string, exerciseIds: string[]): Promise<LastExerciseSets[]> {
+    const where = { exerciseId: { in: [...new Set(exerciseIds)] }, workout: { userId } };
+    // Each (exercise, equipment) pair the user has logged, then its latest entry.
+    const pairs = await this.prisma.workoutExercise.findMany({
+      where,
+      distinct: ['exerciseId', 'equipment'],
+      select: { exerciseId: true, equipment: true },
+    });
     const latest = await Promise.all(
-      [...new Set(exerciseIds)].map((exerciseId) =>
+      pairs.map((pair) =>
         this.prisma.workoutExercise.findFirst({
-          where: { exerciseId, workout: { userId } },
+          where: { ...where, exerciseId: pair.exerciseId, equipment: pair.equipment },
           orderBy: [{ workout: { performedAt: 'desc' } }, { workout: { createdAt: 'desc' } }],
           include: { sets: setsOrdered, workout: { select: { performedAt: true } } },
         }),
       ),
     );
-    return latest.flatMap((entry) =>
-      entry
-        ? [
-            {
-              exerciseId: entry.exerciseId,
-              performedAt: entry.workout.performedAt.toISOString(),
-              sets: entry.sets.map((s) => ({
-                reps: s.reps,
-                weightKg: s.weightKg.toNumber(),
-                ...(s.rpe !== null ? { rpe: s.rpe.toNumber() } : {}),
-                ...(s.restSeconds !== null ? { restSeconds: s.restSeconds } : {}),
-              })),
-            },
-          ]
-        : [],
-    );
+    return latest
+      .flatMap((entry) => (entry ? [entry] : []))
+      .sort(
+        (a, b) =>
+          a.exerciseId.localeCompare(b.exerciseId) ||
+          b.workout.performedAt.getTime() - a.workout.performedAt.getTime(),
+      )
+      .map((entry) => ({
+        exerciseId: entry.exerciseId,
+        ...(entry.equipment ? { equipment: entry.equipment as Equipment } : {}),
+        performedAt: entry.workout.performedAt.toISOString(),
+        sets: entry.sets.map((s) => ({
+          reps: s.reps,
+          weightKg: s.weightKg.toNumber(),
+          ...(s.rpe !== null ? { rpe: s.rpe.toNumber() } : {}),
+          ...(s.restSeconds !== null ? { restSeconds: s.restSeconds } : {}),
+        })),
+      }));
   }
 
-  async findSetHistory(userId: string, exerciseId: string): Promise<SetHistoryRow[]> {
+  async findSetHistory(
+    userId: string,
+    exerciseId: string,
+    equipment?: Equipment,
+  ): Promise<SetHistoryRow[]> {
     const sets = await this.prisma.workoutSet.findMany({
       where: {
-        workoutExercise: { exerciseId, workout: { userId } },
+        workoutExercise: {
+          exerciseId,
+          workout: { userId },
+          ...(equipment ? { equipment: equipment as never } : {}),
+        },
       },
       select: {
         reps: true,
@@ -201,6 +218,7 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
       exercises: row.exercises.map((we): WorkoutExercise => ({
         id: we.id,
         exerciseId: we.exerciseId,
+        equipment: (we.equipment as Equipment | null) ?? undefined,
         order: we.order,
         sets: we.sets.map((s): WorkoutSet => ({
           id: s.id,

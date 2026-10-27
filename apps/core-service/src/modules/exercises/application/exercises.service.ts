@@ -13,12 +13,8 @@ export class ExercisesService {
   constructor(@Inject(EXERCISE_REPOSITORY) private readonly exercises: ExerciseRepository) {}
 
   async create(input: CreateExerciseRequest): Promise<Exercise> {
-    const exists = await this.exercises.existsByNameAndEquipment(input.name, input.equipment);
-    if (exists) {
-      throw new ConflictError(
-        'An exercise with this name and equipment already exists',
-        'exercise.duplicate',
-      );
+    if (await this.exercises.existsByName(input.name)) {
+      throw duplicateName();
     }
     return this.exercises.create(input);
   }
@@ -47,14 +43,19 @@ export class ExercisesService {
 
   async update(id: string, input: UpdateExerciseRequest): Promise<Exercise> {
     const current = await this.getById(id);
-    const name = input.name ?? current.name;
-    const equipment = input.equipment ?? current.equipment;
-    if (name !== current.name || equipment !== current.equipment) {
-      const exists = await this.exercises.existsByNameAndEquipment(name, equipment, id);
-      if (exists) {
+    if (input.name !== undefined && input.name !== current.name) {
+      if (await this.exercises.existsByName(input.name, id)) {
+        throw duplicateName();
+      }
+    }
+    if (input.equipment) {
+      // Logged workouts must keep pointing at equipment the exercise still has.
+      const removed = current.equipment.filter((e) => !input.equipment!.includes(e));
+      const used = await this.exercises.findUsedEquipment(id, removed);
+      if (used.length > 0) {
         throw new ConflictError(
-          'An exercise with this name and equipment already exists',
-          'exercise.duplicate',
+          `Logged workouts use this exercise with ${used.join(', ')}; that equipment cannot be removed`,
+          'exercise.equipment_in_use',
         );
       }
     }
@@ -71,4 +72,8 @@ export class ExercisesService {
     }
     await this.exercises.delete(id);
   }
+}
+
+function duplicateName(): ConflictError {
+  return new ConflictError('An exercise with this name already exists', 'exercise.duplicate');
 }

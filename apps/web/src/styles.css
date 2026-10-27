@@ -413,10 +413,11 @@ a {
   margin-right: -10px;
 }
 
-/* Two-option toggle built from radio buttons (keyboard and screen-reader friendly). */
+/* One-of-a-few toggle built from radio buttons (keyboard and screen-reader friendly). */
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 4px;
   padding: 4px;
   border-radius: 12px;
@@ -448,6 +449,58 @@ a {
 .segmented label:has(input:focus-visible) {
   outline: 2px solid var(--accent);
 }
+/* Several-of-many toggle chips built from checkboxes. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chips label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: var(--tap);
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.chips input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.chips label:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+}
+.chips label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+}
+
+/* Inputs that read as one field: no box, the legend styled like a field label. */
+.field-group {
+  border: 0;
+  padding: 0;
+}
+.field-group > legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.field-group > legend + * {
+  clear: both;
+}
+
 fieldset.card > legend {
   float: left;
   width: 100%;

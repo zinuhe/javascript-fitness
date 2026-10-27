@@ -1,4 +1,4 @@
-import type { Exercise } from './exercise.contract';
+import type { Equipment, Exercise } from './exercise.contract';
 
 export interface WorkoutSet {
   id: string;
@@ -13,6 +13,8 @@ export interface WorkoutExercise {
   id: string;
   exerciseId: string;
   exercise?: Exercise;
+  /** Which of the exercise's equipment was used this time. */
+  equipment?: Equipment;
   order: number;
   sets: WorkoutSet[];
 }
@@ -46,6 +48,11 @@ export interface CreateSetRequest {
 
 export interface CreateWorkoutExerciseRequest {
   exerciseId: string;
+  /**
+   * Which of the exercise's equipment was used. Required when the exercise has more than
+   * one; filled in when it has only one.
+   */
+  equipment?: Equipment;
   sets: CreateSetRequest[];
 }
 
@@ -76,9 +83,13 @@ export interface ExerciseProgress {
   points: ExerciseProgressPoint[];
 }
 
-/** The sets of the most recent workout where the user did an exercise (`GET /workouts/last-sets`). */
+/**
+ * The sets of the most recent workout where the user did an exercise with a given equipment
+ * (`GET /workouts/last-sets`): one entry per exercise and equipment used.
+ */
 export interface LastExerciseSets {
   exerciseId: string;
+  equipment?: Equipment;
   performedAt: string;
   sets: CreateSetRequest[];
 }
