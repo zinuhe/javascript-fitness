@@ -93,7 +93,7 @@ describe('core-service (e2e)', () => {
       expect(res.body.title).toBe('exercise.duplicate');
     });
 
-    it('needs at least one known equipment, without repeats (400)', async () => {
+    it('needs at least one known equipment, without repeats (400); a disk is one', async () => {
       const token = tokenFor();
       const base = { name: `Row ${randomUUID()}`, muscleGroup: MuscleGroup.Back };
       await as(token)
@@ -108,6 +108,10 @@ describe('core-service (e2e)', () => {
       await as(token)
         .post('/exercises', { ...base, equipment: [Equipment.Cable, Equipment.Cable] })
         .expect(400);
+      const plate = await as(token)
+        .post('/exercises', { ...base, equipment: [Equipment.Disk] })
+        .expect(201);
+      expect((plate.body as Exercise).equipment).toEqual(['disk']);
     });
 
     it('validates query params and ids (400)', async () => {

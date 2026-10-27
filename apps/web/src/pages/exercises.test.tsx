@@ -67,6 +67,7 @@ describe('exercise catalog', () => {
 
     await user.type(await screen.findByLabelText('Name'), 'Goblet Squat');
     await user.selectOptions(screen.getByLabelText('Muscle group'), 'Legs');
+    expect(screen.getByRole('checkbox', { name: 'Disk' })).toBeInTheDocument();
     const kettlebell = screen.getByRole('checkbox', { name: 'Kettlebell' });
     // Until one is ticked the browser asks for at least one equipment.
     expect(kettlebell).toBeRequired();

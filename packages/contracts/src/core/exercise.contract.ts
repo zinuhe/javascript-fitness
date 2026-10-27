@@ -19,6 +19,8 @@ export enum Equipment {
   Bodyweight = 'bodyweight',
   Kettlebell = 'kettlebell',
   Bands = 'bands',
+  /** A single weight plate, like the ones loaded on a barbell. */
+  Disk = 'disk',
   Other = 'other',
 }
 
