@@ -323,9 +323,9 @@ describe('starting a routine day', () => {
     });
     const { user } = renderApp('/workouts/new');
 
-    fireEvent.change(await screen.findByLabelText('Date'), {
-      target: { value: '2026-09-02T18:30' },
-    });
+    const date = await screen.findByLabelText('Date');
+    expect(date).toHaveAttribute('type', 'date'); // the day only, no time
+    fireEvent.change(date, { target: { value: '2026-09-02' } });
     await user.selectOptions(screen.getByLabelText('Routine day'), 'Day 2 · Pull');
 
     expect(await screen.findByRole('heading', { name: 'Day 2 · Pull' })).toBeInTheDocument();
@@ -337,7 +337,8 @@ describe('starting a routine day', () => {
     await screen.findByRole('heading', { name: row.name });
     const saved = apiState.workouts.at(-1)!;
     expect(saved.routineDay).toMatchObject({ name: 'Pull' });
-    expect(saved.performedAt).toBe(new Date('2026-09-02T18:30').toISOString());
+    // A past day is stored at noon, safe from time-zone shifts.
+    expect(saved.performedAt).toBe(new Date('2026-09-02T12:00').toISOString());
   });
 
   it('saves a day with some exercises left empty, skipping them', async () => {

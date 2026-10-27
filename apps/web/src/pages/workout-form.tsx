@@ -120,7 +120,10 @@ interface ExerciseDraft {
 }
 
 interface WorkoutDraft {
+  /** Day only, `YYYY-MM-DD`: the time of day is not asked for. */
   performedAt: string;
+  /** The saved date and time, kept as is when an edit leaves the day unchanged. */
+  savedPerformedAt?: string;
   notes: string;
   entries: ExerciseDraft[];
 }
@@ -159,16 +162,28 @@ function lastSetsFor(
   return previous?.sets.length ? toSetDrafts(previous.sets, unit) : [emptySet()];
 }
 
-/** Local time of `date` in the `YYYY-MM-DDTHH:mm` shape `datetime-local` expects. */
+/** Local day of `date` in the `YYYY-MM-DD` shape a date input expects. */
 function toInputDate(date: Date): string {
   const local = new Date(date);
   local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
+  return local.toISOString().slice(0, 10);
+}
+
+/**
+ * The instant to store for a chosen day. Only the day matters, but the routine rotation
+ * orders workouts by it: today is now (after anything logged earlier today), an unchanged
+ * day keeps its saved time, and any other day is noon there (safe from time-zone shifts).
+ */
+function performedAtFor(day: string, saved?: string): string {
+  if (saved && toInputDate(new Date(saved)) === day) return saved;
+  if (day === toInputDate(new Date())) return new Date().toISOString();
+  return new Date(`${day}T12:00`).toISOString();
 }
 
 function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
   return {
     performedAt: toInputDate(new Date(workout.performedAt)),
+    savedPerformedAt: workout.performedAt,
     notes: workout.notes ?? '',
     entries: workout.exercises.map((entry) => ({
       key: nextKey++,
@@ -392,7 +407,7 @@ function WorkoutForm({
     setNothingDone(done.length === 0);
     if (done.length === 0) return;
     const request: UpdateWorkoutRequest = {
-      performedAt: new Date(performedAt).toISOString(),
+      performedAt: performedAtFor(performedAt, draft.savedPerformedAt),
       notes: notes.trim() || undefined,
       // null takes an edited workout out of its routine day.
       routineDayId: routineDayId || null,
@@ -441,7 +456,7 @@ function WorkoutForm({
         <label>
           Date
           <input
-            type="datetime-local"
+            type="date"
             value={performedAt}
             onChange={(e) => setPerformedAt(e.target.value)}
             required

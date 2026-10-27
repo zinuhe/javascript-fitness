@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Equipment, MuscleGroup } from '@fitness/contracts';
 import { apiState, expireAccessTokens, seedExercise, seedRoutine, seedWorkout } from '../test/api';
@@ -444,6 +444,28 @@ describe('editing a workout', () => {
 
     await screen.findByRole('link', { name: 'Edit' });
     expect(apiState.workouts[0].routineDay).toBeUndefined();
+  });
+
+  it('keeps the saved time unless the day changes', async () => {
+    const me = signedInAs();
+    const { squat } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      performedAt: '2026-10-18T07:45:00.000Z',
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+    });
+    const { user } = renderApp(`/workouts/${workout.id}/edit`);
+
+    const date = await screen.findByLabelText('Date');
+    expect(date).toHaveValue(new Date('2026-10-18T07:45:00.000Z').toLocaleDateString('sv'));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await screen.findByRole('link', { name: 'Edit' });
+    expect(apiState.workouts[0].performedAt).toBe('2026-10-18T07:45:00.000Z');
+
+    await user.click(screen.getByRole('link', { name: 'Edit' }));
+    fireEvent.change(await screen.findByLabelText('Date'), { target: { value: '2026-10-11' } });
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await screen.findByRole('link', { name: 'Edit' });
+    expect(apiState.workouts[0].performedAt).toBe(new Date('2026-10-11T12:00').toISOString());
   });
 
   it('leaves the workout untouched when cancelled', async () => {

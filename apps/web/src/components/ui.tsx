@@ -11,9 +11,6 @@ export function labelize(value: string): string {
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 export const formatDate = (iso: string) => dateFormat.format(new Date(iso));
 
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
-
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 /** Short calendar date: "Oct 20", with the year only when it isn't the current one. */

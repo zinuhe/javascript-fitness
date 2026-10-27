@@ -13,7 +13,6 @@ import {
   dayLabel,
   exerciseNames,
   formatDay,
-  formatTime,
   labelize,
   setsVolume,
 } from '../components/ui';
@@ -67,10 +66,7 @@ export function WorkoutsPage() {
                   params={{ workoutId: workout.id }}
                   className="card link-card"
                 >
-                  <div className="row between">
-                    <strong>{formatDay(workout.performedAt)}</strong>
-                    <span className="muted">{formatTime(workout.performedAt)}</span>
-                  </div>
+                  <strong>{formatDay(workout.performedAt)}</strong>
                   <p className="card-meta">
                     {workout.routineDay && (
                       <span className="day-chip">{dayLabel(workout.routineDay)}</span>
@@ -152,7 +148,7 @@ export function WorkoutDetailPage() {
           </Link>
           <h1>{formatDay(workout.performedAt)}</h1>
           <p className="muted">
-            {formatTime(workout.performedAt)} · {totalSets} sets · {formatWeight(volume, unit)}
+            {totalSets} sets · {formatWeight(volume, unit)}
           </p>
           {workout.routineDay && (
             <p>
