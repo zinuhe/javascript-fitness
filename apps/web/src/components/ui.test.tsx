@@ -43,13 +43,19 @@ describe('ErrorMessage', () => {
 describe('formatDay', () => {
   const now = new Date(2026, 9, 22, 20, 0); // Thu Oct 22, 2026, local time
 
-  it('says Today and Yesterday for the last two calendar days', () => {
-    expect(formatDay(new Date(2026, 9, 22, 7, 30).toISOString(), now)).toBe('Today');
-    expect(formatDay(new Date(2026, 9, 21, 23, 59).toISOString(), now)).toBe('Yesterday');
+  it('says Today and Yesterday for the last two calendar days, with the full date', () => {
+    expect(formatDay(new Date(2026, 9, 22, 7, 30).toISOString(), now)).toMatch(
+      /^Today · Thursday.*October.*22.*2026$/,
+    );
+    expect(formatDay(new Date(2026, 9, 21, 23, 59).toISOString(), now)).toMatch(
+      /^Yesterday · Wednesday.*October.*21.*2026$/,
+    );
   });
 
-  it('uses weekday and date otherwise, adding the year only for other years', () => {
-    expect(formatDay(new Date(2026, 9, 20, 18, 0).toISOString(), now)).toMatch(/Tue.*Oct.*20/);
+  it('spells out the weekday, month and year otherwise', () => {
+    expect(formatDay(new Date(2026, 6, 16, 12, 0).toISOString(), now)).toMatch(
+      /^Thursday.*July.*16.*2026$/,
+    );
     expect(formatDay(new Date(2025, 11, 31, 9, 0).toISOString(), now)).toMatch(/2025/);
     expect(formatShortDate(new Date(2026, 9, 3).toISOString(), now)).not.toMatch(/2026/);
   });

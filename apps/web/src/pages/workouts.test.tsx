@@ -56,7 +56,9 @@ describe('workouts list', () => {
     renderApp('/workouts');
 
     const card = (await screen.findByText('Felt strong')).closest('a')!;
-    expect(card).toHaveTextContent('Barbell Back Squat · Barbell Bench Press');
+    // Every exercise with its equipment, and the full date.
+    expect(card).toHaveTextContent('Barbell Back Squat (Barbell) · Barbell Bench Press (Barbell)');
+    expect(card).toHaveTextContent(/Sunday.*October.*18.*2026/);
     expect(card).toHaveTextContent('3 sets · Volume 1,530 kg'); // 500 + 550 + 480
   });
 

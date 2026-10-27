@@ -36,18 +36,22 @@ export function formatShortDate(iso: string, now = new Date()): string {
   });
 }
 
-/** Human day label for lists and titles: "Today", "Yesterday", or "Mon, Oct 20". */
+/**
+ * Full day label for workout lists and titles: "Thursday, July 16, 2026", prefixed with
+ * "Today · " or "Yesterday · " for the last two calendar days.
+ */
 export function formatDay(iso: string, now = new Date()): string {
   const date = new Date(iso);
-  const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  return date.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
+  const full = date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
     day: 'numeric',
-    ...(date.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+    year: 'numeric',
   });
+  const days = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  if (days === 0) return `Today · ${full}`;
+  if (days === 1) return `Yesterday · ${full}`;
+  return full;
 }
 
 /** Parses a typed number, accepting a decimal comma (iOS keypads in many locales). */

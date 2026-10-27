@@ -12,13 +12,11 @@ import { ErrorMessage, dayLabel, exerciseNames, formatDay, labelize } from '../c
 import { formatVolume, formatWeight, useWeightUnit } from '../components/units';
 import { NextUpCard } from './start';
 
-/** "Bench Press (Dumbbell)": the equipment only for exercises that have several. */
+/** "Bench Press (Dumbbell)": the exercise with the equipment it was done with. */
 function loggedExerciseLabel(entry: WorkoutExercise, catalog: Exercise[]): string {
   const exercise = catalog.find((e) => e.id === entry.exerciseId);
   if (!exercise) return 'Unknown exercise';
-  return entry.equipment && exercise.equipment.length > 1
-    ? `${exercise.name} (${labelize(entry.equipment)})`
-    : exercise.name;
+  return entry.equipment ? `${exercise.name} (${labelize(entry.equipment)})` : exercise.name;
 }
 
 const listRoute = getRouteApi('/_app/workouts');
