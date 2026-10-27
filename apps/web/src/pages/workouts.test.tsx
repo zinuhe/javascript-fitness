@@ -163,8 +163,10 @@ describe('logging a workout', () => {
     await user.type(screen.getByLabelText('Weight (kg)'), '30');
     await user.click(screen.getByRole('button', { name: 'Save workout' }));
 
-    const heading = await screen.findByRole('heading', { name: 'Bench Press Dumbbell' });
-    expect(within(heading).getByText('Dumbbell')).toHaveClass('tag');
+    const heading = await screen.findByRole('heading', { name: 'Bench Press' });
+    expect(within(heading.closest('article')!).getByLabelText('Equipment: Dumbbell')).toHaveClass(
+      'tag',
+    );
     expect(apiState.workouts[0].exercises[0]).toMatchObject({
       exerciseId: press.id,
       equipment: Equipment.Dumbbell,
@@ -301,6 +303,8 @@ describe('workout detail', () => {
       ['8', '830 kg volume'], // the Total row: reps and volume added up
     ]);
     expect(screen.getByRole('rowheader', { name: 'Total' })).toBeInTheDocument();
+    // Shown even when the exercise has a single equipment.
+    expect(screen.getByLabelText('Equipment: Barbell')).toBeInTheDocument();
     expect(screen.getByText('Volume 830 kg')).toBeInTheDocument();
   });
 

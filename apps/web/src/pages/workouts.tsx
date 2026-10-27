@@ -113,8 +113,6 @@ export function WorkoutDetailPage() {
   const { data: workout } = useSuspenseQuery(workoutQuery(workoutId));
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const names = exerciseNames(catalog.items);
-  const equipmentCount = (exerciseId: string) =>
-    catalog.items.find((e) => e.id === exerciseId)?.equipment.length ?? 0;
   const unit = useWeightUnit();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -181,15 +179,19 @@ export function WorkoutDetailPage() {
         return (
           <article key={entry.id} className="card">
             <div className="row between">
-              <h2>
-                <Link to="/exercises/$exerciseId" params={{ exerciseId: entry.exerciseId }}>
-                  {names.get(entry.exerciseId) ?? 'Unknown exercise'}
-                </Link>{' '}
-                {/* Which one, for exercises done with several. */}
-                {entry.equipment && equipmentCount(entry.exerciseId) > 1 && (
-                  <span className="tag">{labelize(entry.equipment)}</span>
+              <div className="row">
+                <h2>
+                  <Link to="/exercises/$exerciseId" params={{ exerciseId: entry.exerciseId }}>
+                    {names.get(entry.exerciseId) ?? 'Unknown exercise'}
+                  </Link>
+                </h2>
+                {/* What it was done with, for every exercise. */}
+                {entry.equipment && (
+                  <span className="tag" aria-label={`Equipment: ${labelize(entry.equipment)}`}>
+                    {labelize(entry.equipment)}
+                  </span>
                 )}
-              </h2>
+              </div>
               {/* Volume: reps × weight of every set, added up. */}
               <span className="muted">Volume {formatVolume(entry.sets, unit)}</span>
             </div>
