@@ -767,7 +767,7 @@ describe('in pounds', () => {
     await screen.findByRole('heading', { name: squat.name });
     expect(apiState.workouts[0].exercises[0].sets[0]).toMatchObject({ reps: 5, weightKg: 63.5 });
     expect(screen.getAllByText('140 lb').length).toBeGreaterThan(0); // the set
-    expect(screen.getAllByText(/700 lb \(317\.5 kg\)/).length).toBeGreaterThan(0); // the volume
+    expect(screen.getAllByText(/700 lb \(318 kg\)/).length).toBeGreaterThan(0); // the volume
   });
 
   it('edits in lb without drifting the stored kg', async () => {

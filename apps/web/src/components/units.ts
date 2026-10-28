@@ -41,10 +41,15 @@ export const formatWeight = (kg: number, unit: WeightUnit) =>
  */
 export const formatVolume = (sets: { reps: number; weightKg: number }[], unit: WeightUnit) => {
   const volume = sets.reduce((sum, set) => sum + set.reps * displayWeight(set.weightKg, unit), 0);
-  const other: WeightUnit = unit === 'lb' ? 'kg' : 'lb';
-  const converted = unit === 'lb' ? volume / LB_PER_KG : volume * LB_PER_KG;
-  return `${formats[unit].format(volume)} ${unit} (${volumeFormat.format(converted)} ${other})`;
+  const kg = unit === 'kg' ? volume : volume / LB_PER_KG;
+  const lb = unit === 'lb' ? volume : volume * LB_PER_KG;
+  // Kilograms of volume are always whole numbers; pounds keep one decimal.
+  const kgText = `${volumeKgFormat.format(kg)} kg`;
+  const lbText = `${volumeFormat.format(lb)} lb`;
+  return unit === 'lb' ? `${lbText} (${kgText})` : `${kgText} (${lbText})`;
 };
+
+const volumeKgFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
 const volumeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
