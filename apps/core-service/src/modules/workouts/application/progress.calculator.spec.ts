@@ -41,6 +41,11 @@ describe('buildProgressPoints', () => {
     expect(points[1].sets).toEqual([{ reps: 5, weightKg: 80 }]);
   });
 
+  it('keeps the bar of barbell sets', () => {
+    const points = buildProgressPoints([{ performedAt: d1, reps: 8, weightKg: 32.7, barKg: 12.7 }]);
+    expect(points[0].sets).toEqual([{ reps: 8, weightKg: 32.7, barKg: 12.7 }]);
+  });
+
   it('returns an empty array for no history', () => {
     expect(buildProgressPoints([])).toEqual([]);
   });

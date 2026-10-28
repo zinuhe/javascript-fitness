@@ -304,7 +304,11 @@ function progressFor(
             ...e.sets.map((s) => (s.reps <= 1 ? s.weightKg : s.weightKg * (1 + s.reps / 30))),
           ),
           bestSetWeightKg: Math.max(...e.sets.map((s) => s.weightKg)),
-          sets: e.sets.map(({ reps, weightKg }) => ({ reps, weightKg })),
+          sets: e.sets.map(({ reps, weightKg }) => ({
+            reps,
+            weightKg,
+            ...(e.barKg !== undefined ? { barKg: e.barKg } : {}),
+          })),
         })),
     )
     .sort((a, b) => a.performedAt.localeCompare(b.performedAt));

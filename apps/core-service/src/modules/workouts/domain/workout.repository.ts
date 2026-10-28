@@ -15,6 +15,8 @@ export interface SetHistoryRow {
   performedAt: Date;
   reps: number;
   weightKg: number;
+  /** The bar included in `weightKg`, for barbell sets. */
+  barKg?: number;
 }
 
 export interface WorkoutRepository {

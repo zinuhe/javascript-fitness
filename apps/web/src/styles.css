@@ -778,6 +778,11 @@ fieldset.card > legend {
   padding-left: 20px;
   color: var(--muted);
 }
+.chart-tip-note {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
 .chart-tip-same {
   margin: 4px 0 0;
   color: var(--muted);

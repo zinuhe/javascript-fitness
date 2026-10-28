@@ -597,6 +597,30 @@ describe('barbell exercises', () => {
     expect(await screen.findByLabelText('Plates (lb)')).toHaveValue('20');
   });
 
+  it('shows the plates, without the bar, when hovering the progress chart', async () => {
+    const me = signedInAs({ weightUnit: 'lb' });
+    const thrust = seedExercise({ name: 'Hip Thrust', equipment: [Equipment.Barbell] });
+    for (const performedAt of ['2026-10-01T12:00:00.000Z', '2026-10-08T12:00:00.000Z']) {
+      seedWorkout(me.id, {
+        performedAt,
+        // 20 lb of plates (9.07 kg) + the 12.7 kg (28 lb) bar, four times.
+        exercises: [
+          {
+            exerciseId: thrust.id,
+            barKg: 12.7,
+            sets: Array.from({ length: 4 }, () => ({ reps: 12, weightKg: 21.77 })),
+          },
+        ],
+      });
+    }
+    const { user } = renderApp(`/exercises/${thrust.id}`);
+
+    await user.hover(await screen.findByRole('button', { name: /^Thu 8 Oct 2026: / }));
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('Plates only, without the bar');
+    expect(tip).toHaveTextContent('4 × 12 — 20 lb');
+  });
+
   it('uses the bar weight set in Account, keeping the bar of past workouts', async () => {
     const me = signedInAs();
     const thrust = seedExercise({ name: 'Hip Thrust', equipment: [Equipment.Barbell] });

@@ -419,6 +419,11 @@ describe('core-service (e2e)', () => {
         const last = await as(token).get(`/workouts/last-sets?exerciseIds=${press.id}`).expect(200);
         expect(last.body).toEqual([expect.objectContaining({ equipment: 'barbell', barKg: 12.5 })]);
 
+        const progress = await as(token)
+          .get(`/workouts/progress/${press.id}?equipment=barbell`)
+          .expect(200);
+        expect(progress.body.points[0].sets).toEqual([{ reps: 8, weightKg: 32.5, barKg: 12.5 }]);
+
         const dumbbell = await as(token)
           .post('/workouts', {
             exercises: [

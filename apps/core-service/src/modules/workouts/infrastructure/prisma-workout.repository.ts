@@ -198,13 +198,16 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
       select: {
         reps: true,
         weightKg: true,
-        workoutExercise: { select: { workout: { select: { performedAt: true } } } },
+        workoutExercise: {
+          select: { barKg: true, workout: { select: { performedAt: true } } },
+        },
       },
     });
     return sets.map((s) => ({
       performedAt: s.workoutExercise.workout.performedAt,
       reps: s.reps,
       weightKg: s.weightKg.toNumber(),
+      ...(s.workoutExercise.barKg !== null ? { barKg: s.workoutExercise.barKg.toNumber() } : {}),
     }));
   }
 

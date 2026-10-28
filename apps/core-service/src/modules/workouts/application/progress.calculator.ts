@@ -12,6 +12,12 @@ export function estimateOneRepMax(weightKg: number, reps: number): number {
  * per workout date: total volume (Σ reps·weight), best estimated 1RM, the heaviest set, and
  * the sets themselves. Pure — trivially testable.
  */
+const setOf = (set: SetHistoryRow) => ({
+  reps: set.reps,
+  weightKg: set.weightKg,
+  ...(set.barKg !== undefined ? { barKg: set.barKg } : {}),
+});
+
 export function buildProgressPoints(history: SetHistoryRow[]): ExerciseProgressPoint[] {
   const byDate = new Map<string, ExerciseProgressPoint>();
 
@@ -25,14 +31,14 @@ export function buildProgressPoints(history: SetHistoryRow[]): ExerciseProgressP
       existing.totalVolumeKg += volume;
       existing.estimatedOneRepMaxKg = Math.max(existing.estimatedOneRepMaxKg, oneRm);
       existing.bestSetWeightKg = Math.max(existing.bestSetWeightKg, set.weightKg);
-      existing.sets.push({ reps: set.reps, weightKg: set.weightKg });
+      existing.sets.push(setOf(set));
     } else {
       byDate.set(key, {
         performedAt: key,
         totalVolumeKg: volume,
         estimatedOneRepMaxKg: oneRm,
         bestSetWeightKg: set.weightKg,
-        sets: [{ reps: set.reps, weightKg: set.weightKg }],
+        sets: [setOf(set)],
       });
     }
   }

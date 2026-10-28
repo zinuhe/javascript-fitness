@@ -83,8 +83,11 @@ export interface ExerciseProgressPoint {
   totalVolumeKg: number;
   estimatedOneRepMaxKg: number;
   bestSetWeightKg: number;
-  /** That session's sets of the exercise, in the order they were done. */
-  sets: { reps: number; weightKg: number }[];
+  /**
+   * That session's sets of the exercise, in the order they were done. `weightKg` is the
+   * total lifted; `barKg` is the bar included in it, for barbell sets.
+   */
+  sets: { reps: number; weightKg: number; barKg?: number }[];
 }
 
 export interface ExerciseProgress {

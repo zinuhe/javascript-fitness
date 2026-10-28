@@ -273,12 +273,14 @@ function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
   const x = (i: number) => pad + (i * (width - 2 * pad)) / (points.length - 1);
   const y = (v: number) => height - pad - ((v - min) / span) * (height - 2 * pad);
   const path = points.map((p, i) => `${x(i)},${y(p.estimatedOneRepMaxKg)}`).join(' ');
-  const setLine = (set: { reps: number; weightKg: number }) =>
-    `${set.reps} × ${formatWeight(set.weightKg, unit)}`;
+  // Barbell sets show the plates, as logged; the chart and table keep the total.
+  const plates = (set: ExerciseProgressPoint['sets'][number]) => set.weightKg - (set.barKg ?? 0);
+  const setLine = (set: ExerciseProgressPoint['sets'][number]) =>
+    `${set.reps} × ${formatWeight(plates(set), unit)}`;
   /** "4 × 12 — 50 lb" when every set of the session was the same, else null. */
   const sameSets = (sets: ExerciseProgressPoint['sets']) =>
-    sets.every((s) => s.reps === sets[0].reps && s.weightKg === sets[0].weightKg)
-      ? `${sets.length} × ${sets[0].reps} — ${formatWeight(sets[0].weightKg, unit)}`
+    sets.every((s) => s.reps === sets[0].reps && plates(s) === plates(sets[0]))
+      ? `${sets.length} × ${sets[0].reps} — ${formatWeight(plates(sets[0]), unit)}`
       : null;
   const setsSummary = (sets: ExerciseProgressPoint['sets']) =>
     sameSets(sets) ?? sets.map(setLine).join(', ');
@@ -333,6 +335,9 @@ function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
             }}
           >
             <strong>{formatSessionDate(shown.performedAt)}</strong>
+            {shown.sets.some((s) => s.barKg !== undefined) && (
+              <span className="chart-tip-note">Plates only, without the bar</span>
+            )}
             {sameSets(shown.sets) ? (
               <p className="chart-tip-same">{sameSets(shown.sets)}</p>
             ) : (
