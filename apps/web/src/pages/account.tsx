@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import type { ActivityEntry, WeightUnit } from '@fitness/contracts';
 import { activityQuery, logout, meQuery, updateProfile } from '../api/queries';
 import { ErrorMessage, formatDate, formatShortDate, parseDecimal } from '../components/ui';
@@ -70,6 +70,11 @@ export function AccountPage() {
 
       {/* Remounted when the unit or the saved bar changes, to show the new value. */}
       <BarWeightForm key={`${user.weightUnit}-${user.barWeightKg}`} />
+
+      <Link to="/help" className="card link-card help-link">
+        <strong>Help</strong>
+        <span className="muted">How the 1RM chart and volume are worked out · Ayuda</span>
+      </Link>
 
       <button type="button" className="button danger" onClick={signOut}>
         Sign out

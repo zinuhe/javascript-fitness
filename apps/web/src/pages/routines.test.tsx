@@ -468,6 +468,22 @@ describe('account', () => {
     expect(line).toHaveTextContent(/^Added workout · Day 1 · Push · Jul 16, 2026Web · /);
   });
 
+  it('opens Help, in English or Spanish, with worked examples', async () => {
+    signedInAs();
+    const { user, router } = renderApp('/account');
+
+    // The card in Account (the top bar also links Help on wide screens).
+    await user.click(within(await screen.findByRole('main')).getByRole('link', { name: /^Help/ }));
+    expect(await screen.findByRole('heading', { name: 'Help' })).toBeInTheDocument();
+    expect(currentUrl(router)).toBe('/help');
+    expect(screen.getByText('Estimated 1RM = weight × (1 + reps ÷ 30)')).toBeInTheDocument();
+    expect(screen.getByText('50 × (1 + 12 ÷ 30) = 50 × 1.4 = 70 lb')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Español' }));
+    expect(screen.getByRole('heading', { name: 'Ayuda' })).toBeInTheDocument();
+    expect(screen.getByText('1RM estimado = peso × (1 + reps ÷ 30)')).toBeInTheDocument();
+  });
+
   it('shows the profile and signs out', async () => {
     signedInAs({ displayName: 'Alex', email: 'alex@example.com' });
     const { user, router } = renderApp('/account');

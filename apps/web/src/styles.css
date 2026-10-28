@@ -648,6 +648,31 @@ fieldset.card > legend {
   grid-row: span 2;
 }
 
+/* Help page: collapsible topics with worked examples. */
+.help-topic summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.help-topic[open] summary {
+  margin-bottom: 8px;
+}
+.help-topic p,
+.help-topic ul {
+  margin: 0;
+}
+.help-topic ul {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.help-example {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
 .cell-note {
   display: block;
   font-size: 0.75rem;

@@ -30,6 +30,7 @@ import { EditExercisePage, ExerciseDetailPage, ExercisesPage } from './pages/exe
 import { EditRoutinePage, NewRoutinePage, RoutineDetailPage, RoutinesPage } from './pages/routines';
 import { StartWorkoutPage } from './pages/start';
 import { AccountPage } from './pages/account';
+import { HelpPage } from './pages/help';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -241,6 +242,12 @@ const accountRoute = createRoute({
   component: AccountPage,
 });
 
+const helpRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'help',
+  component: HelpPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   registerRoute,
@@ -259,6 +266,7 @@ const routeTree = rootRoute.addChildren([
     exerciseRoute,
     editExerciseRoute,
     accountRoute,
+    helpRoute,
   ]),
 ]);
 

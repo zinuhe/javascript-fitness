@@ -41,6 +41,9 @@ export function AppLayout() {
         </nav>
         {/* Wide screens only; on phones this lives in the Account tab. */}
         <div className="user">
+          <Link to="/help" className="user-name" activeProps={{ className: 'active' }}>
+            Help
+          </Link>
           <Link
             to="/account"
             className="user-name"
