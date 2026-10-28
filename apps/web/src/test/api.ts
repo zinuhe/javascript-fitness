@@ -442,10 +442,14 @@ export const handlers = [
   http.get('/api/workouts', ({ request }) => {
     const user = currentUser(request);
     if (!user) return problem(401, 'Unauthorized');
+    const url = new URL(request.url);
+    const from = url.searchParams.get('from');
+    const to = url.searchParams.get('to');
     const mine = state.workouts
       .filter((w) => w.userId === user.id)
+      .filter((w) => (!from || w.performedAt >= from) && (!to || w.performedAt < to))
       .sort((a, b) => b.performedAt.localeCompare(a.performedAt));
-    return HttpResponse.json(paginate(mine, new URL(request.url)));
+    return HttpResponse.json(paginate(mine, url));
   }),
 
   http.post('/api/workouts', async ({ request }) => {

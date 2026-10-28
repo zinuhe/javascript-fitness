@@ -30,10 +30,17 @@ export class WorkoutsService {
     return workout;
   }
 
-  async list(userId: string, page: number, pageSize: number): Promise<Paginated<Workout>> {
+  async list(
+    userId: string,
+    page: number,
+    pageSize: number,
+    range: { from?: string; to?: string } = {},
+  ): Promise<Paginated<Workout>> {
     const { items, total } = await this.workouts.findManyForUser(userId, {
       skip: (page - 1) * pageSize,
       take: pageSize,
+      ...(range.from ? { from: new Date(range.from) } : {}),
+      ...(range.to ? { to: new Date(range.to) } : {}),
     });
     return {
       items,

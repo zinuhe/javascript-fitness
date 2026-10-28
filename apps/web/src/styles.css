@@ -868,6 +868,15 @@ fieldset {
   overflow: hidden;
   background: var(--bg);
 }
+/* A problem with one field, shown right under it. */
+.field-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
 .stepper:has(input[aria-invalid='true']) {
   border-color: var(--danger);
 }

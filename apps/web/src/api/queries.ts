@@ -51,6 +51,23 @@ export const workoutsQuery = (page: number) =>
     queryFn: () => api<Paginated<Workout>>(`/workouts?page=${page}&pageSize=${WORKOUTS_PAGE_SIZE}`),
   });
 
+/**
+ * The workouts logged on a local day (`YYYY-MM-DD`), to keep it to one workout per date.
+ * The day's bounds are local midnights, so the time zone never shifts the day.
+ */
+export const workoutsOnDayQuery = (day: string) => {
+  const from = new Date(`${day}T00:00`);
+  const to = new Date(from);
+  to.setDate(to.getDate() + 1);
+  return queryOptions({
+    queryKey: ['workouts', 'day', day],
+    queryFn: () =>
+      api<Paginated<Workout>>(
+        `/workouts?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}&pageSize=5`,
+      ),
+  });
+};
+
 export const workoutQuery = (id: string) =>
   queryOptions({
     queryKey: ['workouts', id],

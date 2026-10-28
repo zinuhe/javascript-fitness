@@ -151,6 +151,16 @@ export class ListWorkoutsQueryDto {
   @IsPositive()
   @Max(100)
   pageSize = 20;
+
+  @ApiPropertyOptional({ format: 'date-time', description: 'Only workouts performed from then' })
+  @IsOptional()
+  @IsISO8601()
+  from?: string;
+
+  @ApiPropertyOptional({ format: 'date-time', description: 'Only workouts performed before then' })
+  @IsOptional()
+  @IsISO8601()
+  to?: string;
 }
 
 export class LastSetsQueryDto {

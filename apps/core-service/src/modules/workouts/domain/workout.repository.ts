@@ -22,9 +22,10 @@ export interface SetHistoryRow {
 export interface WorkoutRepository {
   create(data: CreateWorkoutData): Promise<Workout>;
   findByIdForUser(id: string, userId: string): Promise<Workout | null>;
+  /** Newest first; `from`/`to` keep only workouts performed in `[from, to)`. */
   findManyForUser(
     userId: string,
-    params: { skip: number; take: number },
+    params: { skip: number; take: number; from?: Date; to?: Date },
   ): Promise<{ items: Workout[]; total: number }>;
   /**
    * Replaces the workout's date, notes and exercises (with their sets) atomically.

@@ -200,6 +200,39 @@ describe('core-service (e2e)', () => {
         .expect(400);
     });
 
+    it('lists only the workouts of a date range', async () => {
+      const token = tokenFor();
+      const squat = await createExercise(token);
+      for (const performedAt of [
+        '2026-07-16T16:00:00.000Z',
+        '2026-07-17T16:00:00.000Z',
+        '2026-07-18T03:59:00.000Z', // still 17 Jul in UTC-4
+      ]) {
+        await as(token)
+          .post('/workouts', {
+            performedAt,
+            exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+          })
+          .expect(201);
+      }
+      await as(tokenFor())
+        .post('/workouts', {
+          performedAt: '2026-07-17T16:00:00.000Z',
+          exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+        })
+        .expect(201); // someone else's
+
+      // 17 Jul in UTC-4: [04:00Z, next day 04:00Z).
+      const res = await as(token)
+        .get('/workouts?from=2026-07-17T04:00:00.000Z&to=2026-07-18T04:00:00.000Z')
+        .expect(200);
+      expect((res.body.items as Workout[]).map((w) => w.performedAt)).toEqual([
+        '2026-07-18T03:59:00.000Z',
+        '2026-07-17T16:00:00.000Z',
+      ]);
+      await as(token).get('/workouts?from=yesterday').expect(400);
+    });
+
     it('keeps each user’s workouts private', async () => {
       const owner = tokenFor();
       const intruder = tokenFor();

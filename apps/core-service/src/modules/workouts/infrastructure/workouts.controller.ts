@@ -68,7 +68,10 @@ export class WorkoutsController {
     @CurrentUser() user: JwtAccessPayload,
     @Query() query: ListWorkoutsQueryDto,
   ): Promise<Paginated<Workout>> {
-    return this.workouts.list(user.sub, query.page, query.pageSize);
+    return this.workouts.list(user.sub, query.page, query.pageSize, {
+      from: query.from,
+      to: query.to,
+    });
   }
 
   // Declared before ':id' so "last-sets" is not parsed as a workout id.

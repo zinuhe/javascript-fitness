@@ -1,6 +1,7 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
   type UseMutationResult,
@@ -22,10 +23,17 @@ import {
   routinesQuery,
   updateWorkout,
   workoutQuery,
+  workoutsOnDayQuery,
 } from '../api/queries';
 import { BarWord } from '../components/bar';
 import { MuscleMap } from '../components/muscle-map';
-import { ErrorMessage, dayLabel, labelize, parseDecimal } from '../components/ui';
+import {
+  ErrorMessage,
+  dayLabel,
+  formatSessionDate,
+  labelize,
+  parseDecimal,
+} from '../components/ui';
 import {
   WEIGHT_STEP,
   displayWeight,
@@ -420,6 +428,7 @@ export function EditWorkoutPage() {
       submitLabel="Save changes"
       initial={() => draftFromWorkout(workout, unit)}
       initialRoutineDayId={workout.routineDay?.id}
+      editingId={workout.id}
       save={save}
       back={back}
       cancel={cancel}
@@ -438,6 +447,8 @@ interface WorkoutFormProps {
   dayFillsExercises?: boolean;
   /** Routine day the session follows; sent with the workout so the rotation advances. */
   initialRoutineDayId?: string;
+  /** The workout being edited, which may of course keep its own date. */
+  editingId?: string;
   /** Lazy initial state: read once, when the form mounts. */
   initial: () => WorkoutDraft;
   /** The last sets per exercise and equipment, to re-fill when the equipment changes. */
@@ -452,6 +463,7 @@ function WorkoutForm({
   submitLabel,
   dayFillsExercises = false,
   initialRoutineDayId,
+  editingId,
   initial,
   lastSets: initialLastSets = [],
   save,
@@ -547,8 +559,22 @@ function WorkoutForm({
       }),
     );
 
+  // One workout per date: warn as soon as the chosen day already has another one.
+  const dateRef = useRef<HTMLInputElement>(null);
+  const { data: sameDay } = useQuery({
+    ...workoutsOnDayQuery(performedAt),
+    enabled: /^\d{4}-\d{2}-\d{2}$/.test(performedAt),
+  });
+  const taken = sameDay?.items.find((w) => w.id !== editingId);
+
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (taken) {
+      // The warning is already under the date: take the user back to it.
+      dateRef.current?.focus();
+      dateRef.current?.scrollIntoView({ block: 'center' });
+      return;
+    }
     const done = entries.filter((e) => e.exerciseId !== '' && !isSkipped(e));
     setNothingDone(done.length === 0);
     if (done.length === 0) return;
@@ -612,11 +638,24 @@ function WorkoutForm({
         <label>
           Date
           <input
+            ref={dateRef}
             type="date"
             value={performedAt}
             onChange={(e) => setPerformedAt(e.target.value)}
+            aria-invalid={taken ? true : undefined}
+            aria-describedby={taken ? 'date-taken' : undefined}
             required
           />
+          {taken && (
+            <span id="date-taken" className="field-error" role="alert">
+              You already logged a workout on {formatSessionDate(taken.performedAt)}
+              {taken.routineDay ? ` (${dayLabel(taken.routineDay)})` : ''}.{' '}
+              <Link to="/workouts/$workoutId/edit" params={{ workoutId: taken.id }}>
+                Edit that one
+              </Link>{' '}
+              or pick another date.
+            </span>
+          )}
         </label>
         <label>
           Notes

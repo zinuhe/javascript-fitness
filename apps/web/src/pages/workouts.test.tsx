@@ -184,6 +184,64 @@ describe('logging a workout', () => {
     expect(await screen.findByText('Bench Press (Dumbbell ×1)')).toBeInTheDocument();
   });
 
+  it('allows one workout per date, warning as soon as a taken date is picked', async () => {
+    const me = signedInAs();
+    const { squat } = seedCatalog();
+    const existing = seedWorkout(me.id, {
+      performedAt: new Date('2026-09-02T12:00').toISOString(),
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+    });
+    const { user, router } = renderApp('/workouts/new');
+
+    const date = await screen.findByLabelText('Date');
+    fireEvent.change(date, { target: { value: '2026-09-02' } });
+    const warning = await screen.findByRole('alert');
+    expect(warning).toHaveTextContent(
+      'You already logged a workout on Wed 2 Sep 2026. Edit that one or pick another date.',
+    );
+    expect(within(warning).getByRole('link', { name: 'Edit that one' })).toHaveAttribute(
+      'href',
+      `/workouts/${existing.id}/edit`,
+    );
+    expect(date).toHaveAttribute('aria-invalid', 'true');
+
+    // Save does not go through while the date is taken.
+    await user.selectOptions(await exerciseSelect(1), squat.name);
+    await user.type(screen.getByLabelText('Reps'), '5');
+    await user.type(screen.getByLabelText('Weight (kg)'), '100');
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+    expect(apiState.workouts).toHaveLength(1);
+    expect(currentUrl(router)).toBe('/workouts/new');
+
+    // A free date clears the warning and saves.
+    fireEvent.change(date, { target: { value: '2026-09-03' } });
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+    await screen.findByRole('heading', { name: squat.name });
+    expect(apiState.workouts).toHaveLength(2);
+  });
+
+  it('lets a workout keep its own date when edited, but not move onto a taken one', async () => {
+    const me = signedInAs();
+    const { squat } = seedCatalog();
+    const sets = [{ reps: 5, weightKg: 100 }];
+    seedWorkout(me.id, {
+      performedAt: new Date('2026-09-02T12:00').toISOString(),
+      exercises: [{ exerciseId: squat.id, sets }],
+    });
+    const other = seedWorkout(me.id, {
+      performedAt: new Date('2026-09-05T12:00').toISOString(),
+      exercises: [{ exerciseId: squat.id, sets }],
+    });
+    renderApp(`/workouts/${other.id}/edit`);
+
+    const date = await screen.findByLabelText('Date');
+    await waitFor(() => expect(date).toHaveValue('2026-09-05'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.change(date, { target: { value: '2026-09-02' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('You already logged a workout');
+  });
+
   it('steps reps and weight with the −/+ buttons and accepts a decimal comma', async () => {
     signedInAs();
     const { squat } = seedCatalog();

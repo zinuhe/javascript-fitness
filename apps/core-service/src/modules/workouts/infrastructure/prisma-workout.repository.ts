@@ -103,17 +103,28 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
 
   async findManyForUser(
     userId: string,
-    params: { skip: number; take: number },
+    params: { skip: number; take: number; from?: Date; to?: Date },
   ): Promise<{ items: Workout[]; total: number }> {
+    const where = {
+      userId,
+      ...(params.from || params.to
+        ? {
+            performedAt: {
+              ...(params.from ? { gte: params.from } : {}),
+              ...(params.to ? { lt: params.to } : {}),
+            },
+          }
+        : {}),
+    };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.workout.findMany({
-        where: { userId },
+        where,
         include: workoutInclude,
         orderBy: { performedAt: 'desc' },
         skip: params.skip,
         take: params.take,
       }),
-      this.prisma.workout.count({ where: { userId } }),
+      this.prisma.workout.count({ where }),
     ]);
     return { items: rows.map((r) => this.toContract(r)), total };
   }
