@@ -261,6 +261,8 @@ export function ExercisesPage() {
  */
 function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
   const unit = useWeightUnit();
+  // The session whose sets are shown: hovered, focused or tapped.
+  const [active, setActive] = useState<number | null>(null);
   const width = 320;
   const height = 120;
   const pad = 12;
@@ -271,19 +273,78 @@ function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
   const x = (i: number) => pad + (i * (width - 2 * pad)) / (points.length - 1);
   const y = (v: number) => height - pad - ((v - min) / span) * (height - 2 * pad);
   const path = points.map((p, i) => `${x(i)},${y(p.estimatedOneRepMaxKg)}`).join(' ');
+  const setLine = (set: { reps: number; weightKg: number }) =>
+    `${set.reps} × ${formatWeight(set.weightKg, unit)}`;
+  /** "4 × 12 — 50 lb" when every set of the session was the same, else null. */
+  const sameSets = (sets: ExerciseProgressPoint['sets']) =>
+    sets.every((s) => s.reps === sets[0].reps && s.weightKg === sets[0].weightKg)
+      ? `${sets.length} × ${sets[0].reps} — ${formatWeight(sets[0].weightKg, unit)}`
+      : null;
+  const setsSummary = (sets: ExerciseProgressPoint['sets']) =>
+    sameSets(sets) ?? sets.map(setLine).join(', ');
+  const shown = active === null ? null : points[active];
 
   return (
     <figure className="chart">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label={`Estimated 1RM from ${formatWeight(values[0], unit)} to ${formatWeight(values[values.length - 1], unit)}`}
-      >
-        <polyline points={path} className="chart-line" />
-        {points.map((p, i) => (
-          <circle key={p.performedAt} cx={x(i)} cy={y(p.estimatedOneRepMaxKg)} r={3.5} />
-        ))}
-      </svg>
+      <div className="chart-plot">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={`Estimated 1RM from ${formatWeight(values[0], unit)} to ${formatWeight(values[values.length - 1], unit)}`}
+        >
+          <polyline points={path} className="chart-line" />
+          {points.map((p, i) => (
+            <circle
+              key={p.performedAt}
+              cx={x(i)}
+              cy={y(p.estimatedOneRepMaxKg)}
+              r={3.5}
+              className={i === active ? 'active' : undefined}
+            />
+          ))}
+          {/* Larger invisible targets, easy to hover, focus or tap. */}
+          {points.map((p, i) => (
+            <circle
+              key={`hit-${p.performedAt}`}
+              cx={x(i)}
+              cy={y(p.estimatedOneRepMaxKg)}
+              r={12}
+              className="chart-hit"
+              tabIndex={0}
+              role="button"
+              aria-label={`${formatSessionDate(p.performedAt)}: ${setsSummary(p.sets)}`}
+              onMouseEnter={() => setActive(i)}
+              onMouseLeave={() => setActive(null)}
+              onFocus={() => setActive(i)}
+              onBlur={() => setActive(null)}
+              onClick={() => setActive((current) => (current === i ? null : i))}
+            />
+          ))}
+        </svg>
+        {shown && active !== null && (
+          <div
+            className="chart-tip"
+            role="tooltip"
+            style={{
+              left: `${(x(active) / width) * 100}%`,
+              top: `${(y(shown.estimatedOneRepMaxKg) / height) * 100}%`,
+              // Kept inside the card near its edges.
+              translate: `${active === 0 ? '-12px' : active === points.length - 1 ? 'calc(-100% + 12px)' : '-50%'} calc(-100% - 12px)`,
+            }}
+          >
+            <strong>{formatSessionDate(shown.performedAt)}</strong>
+            {sameSets(shown.sets) ? (
+              <p className="chart-tip-same">{sameSets(shown.sets)}</p>
+            ) : (
+              <ol>
+                {shown.sets.map((set, i) => (
+                  <li key={i}>{setLine(set)}</li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+      </div>
       <figcaption className="chart-axis">
         <span>{formatShortDate(points[0].performedAt)}</span>
         <span>Est. 1RM</span>

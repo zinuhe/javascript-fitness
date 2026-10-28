@@ -83,6 +83,8 @@ export interface ExerciseProgressPoint {
   totalVolumeKg: number;
   estimatedOneRepMaxKg: number;
   bestSetWeightKg: number;
+  /** That session's sets of the exercise, in the order they were done. */
+  sets: { reps: number; weightKg: number }[];
 }
 
 export interface ExerciseProgress {

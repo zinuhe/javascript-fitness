@@ -189,6 +189,12 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
           ...(equipment ? { equipment: equipment as never } : {}),
         },
       },
+      // In the order they were done: by session, exercise position, then set.
+      orderBy: [
+        { workoutExercise: { workout: { performedAt: 'asc' } } },
+        { workoutExercise: { order: 'asc' } },
+        { order: 'asc' },
+      ],
       select: {
         reps: true,
         weightKg: true,

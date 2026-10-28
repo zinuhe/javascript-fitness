@@ -33,6 +33,12 @@ describe('buildProgressPoints', () => {
     // Day 2 comes after day 1 (sorted ascending)
     expect(points[1].performedAt).toBe(d2.toISOString());
     expect(points[1].totalVolumeKg).toBe(400);
+    // Each point keeps its sets, in the order they were done.
+    expect(points[0].sets).toEqual([
+      { reps: 10, weightKg: 60 },
+      { reps: 8, weightKg: 70 },
+    ]);
+    expect(points[1].sets).toEqual([{ reps: 5, weightKg: 80 }]);
   });
 
   it('returns an empty array for no history', () => {

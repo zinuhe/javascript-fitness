@@ -159,7 +159,7 @@ describe('exercise progress', () => {
       ],
     });
 
-    renderApp(`/exercises/${squat.id}`);
+    const { user } = renderApp(`/exercises/${squat.id}`);
 
     const rows = (await screen.findAllByRole('row')).slice(1);
     const cells = rows.map((r) =>
@@ -186,6 +186,21 @@ describe('exercise progress', () => {
     expect(
       screen.getByRole('img', { name: 'Estimated 1RM from 116.67 kg to 128.33 kg' }),
     ).toBeInTheDocument();
+    // Hovering a session's point shows its day and every set.
+    await user.hover(screen.getByRole('button', { name: /^Thu 8 Oct 2026: / }));
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('Thu 8 Oct 2026');
+    expect(
+      within(tip)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['5 × 100 kg', '5 × 110 kg']);
+    await user.unhover(screen.getByRole('button', { name: /^Thu 8 Oct 2026: / }));
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+    // A session whose sets were all the same shows as one line: sets × reps — weight.
+    await user.hover(screen.getByRole('button', { name: 'Thu 1 Oct 2026: 1 × 5 — 100 kg' }));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Thu 1 Oct 20261 × 5 — 100 kg');
   });
 });
 

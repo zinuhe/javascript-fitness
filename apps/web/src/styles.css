@@ -722,6 +722,41 @@ fieldset.card > legend {
   stroke: var(--accent);
   stroke-width: 2;
 }
+.chart circle.active {
+  fill: var(--accent);
+}
+.chart circle.chart-hit {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+  outline: none;
+}
+.chart-plot {
+  position: relative;
+}
+/* The hovered session's sets, above its point. */
+.chart-tip {
+  position: absolute;
+  z-index: 5;
+  min-width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+  font-size: 0.85rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.chart-tip ol {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+.chart-tip-same {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
 .chart-axis {
   display: flex;
   justify-content: space-between;

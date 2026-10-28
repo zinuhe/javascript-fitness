@@ -39,7 +39,10 @@ export interface WorkoutRepository {
    * for each exercise, the most recent entry comes first.
    */
   findLastSets(userId: string, exerciseIds: string[]): Promise<LastExerciseSets[]>;
-  /** All sets a user has logged for a given exercise (only with `equipment`, when given). */
+  /**
+   * All sets a user has logged for a given exercise (only with `equipment`, when given), in
+   * the order they were done.
+   */
   findSetHistory(
     userId: string,
     exerciseId: string,

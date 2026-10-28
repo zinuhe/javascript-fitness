@@ -323,12 +323,20 @@ describe('core-service (e2e)', () => {
             totalVolumeKg: 800,
             estimatedOneRepMaxKg: 116.67,
             bestSetWeightKg: 100,
+            sets: [
+              { reps: 5, weightKg: 100 },
+              { reps: 3, weightKg: 100 },
+            ],
           },
           {
             performedAt: '2026-10-08T09:00:00.000Z',
             totalVolumeKg: 880,
             estimatedOneRepMaxKg: 128.33,
             bestSetWeightKg: 110,
+            sets: [
+              { reps: 5, weightKg: 110 },
+              { reps: 3, weightKg: 110 },
+            ],
           },
         ],
       });
