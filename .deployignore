@@ -17,3 +17,6 @@ generated/
 # Solo para el Mac: Claude Code y los hooks de git que genera husky
 .claude/
 .husky/_/
+
+# Copias locales de las bases de la Pi (datos personales): se quedan en el Mac
+backup/

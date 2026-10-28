@@ -7,6 +7,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Local copies of the Pi's databases (personal data): never committed
+backup/
+
 # Env
 .env
 .env.*
