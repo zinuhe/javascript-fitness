@@ -966,6 +966,21 @@ table.compact th:last-child {
   text-align: right;
 }
 
+/* Phones: the session table wraps the date and puts the other unit under the volume,
+   so five columns fit the card; the weights stay on one line. */
+@media (max-width: 639px) {
+  table.compact td.wrap-on-phone {
+    white-space: normal;
+  }
+  table.compact .other-unit {
+    display: block;
+  }
+  table.compact .other-unit,
+  table.compact .nowrap {
+    white-space: nowrap;
+  }
+}
+
 .hide-on-phone {
   display: none;
 }

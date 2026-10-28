@@ -48,6 +48,25 @@ export const formatVolume = (sets: { reps: number; weightKg: number }[], unit: W
 
 const volumeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
+const plainFormats: Record<WeightUnit, Intl.NumberFormat> = {
+  kg: new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, useGrouping: false }),
+  lb: new Intl.NumberFormat(undefined, { maximumFractionDigits: 1, useGrouping: false }),
+};
+const wholeFormat = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 0,
+  useGrouping: false,
+});
+
+/**
+ * A session's volume for the progress table, without thousands separators: "2808 lb" and,
+ * in the unit the user does not use, a whole number: "1274 kg".
+ */
+export const formatTableVolume = (kg: number, unit: WeightUnit) => ({
+  main: `${plainFormats[unit].format(kgTo(kg, unit))} ${unit}`,
+  other:
+    unit === 'lb' ? `${wholeFormat.format(kg)} kg` : `${wholeFormat.format(kgTo(kg, 'lb'))} lb`,
+});
+
 /** The signed-in user's unit (the profile is loaded for every page of the app). */
 export function useWeightUnit(): WeightUnit {
   const { data: user } = useSuspenseQuery(meQuery);

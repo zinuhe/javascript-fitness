@@ -165,12 +165,19 @@ describe('exercise progress', () => {
     const cells = rows.map((r) =>
       within(r)
         .getAllByRole('cell')
-        .slice(1)
         .map((c) => c.textContent),
     );
+    // Session number (oldest is 1), the day with weekday and year, and the volume in the
+    // other unit too.
     expect(cells).toEqual([
-      ['1,050 kg', '110 kg', '128.33 kg'], // 110 × (1 + 5/30)
-      ['500 kg', '100 kg', '116.67 kg'],
+      [
+        '2',
+        'Thu 8 Oct 2026',
+        '1050 kg (2315 lb)',
+        '110 kg',
+        '128.33 kg', // 110 × (1 + 5/30)
+      ],
+      ['1', 'Thu 1 Oct 2026', '500 kg (1102 lb)', '100 kg', '116.67 kg'],
     ]);
     const stat = (label: string) => screen.getByText(label).closest('div');
     expect(stat('Best est. 1RM')).toHaveTextContent('128.33 kg');

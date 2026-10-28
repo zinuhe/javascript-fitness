@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatVolume, formatWeight, kgTo, toKg, weightInputValue } from './units';
+import {
+  formatTableVolume,
+  formatVolume,
+  formatWeight,
+  kgTo,
+  toKg,
+  weightInputValue,
+} from './units';
 
 describe('weight units', () => {
   it('leaves kilograms untouched', () => {
@@ -29,6 +36,11 @@ describe('weight units', () => {
     // 10 lb is stored as 4.54 kg (10.009 lb): 4 × 25 reps must still read 1,000 lb.
     const set = { reps: 25, weightKg: toKg(10, 'lb') };
     expect(formatVolume([set, set, set, set], 'lb')).toBe('1,000 lb (453.6 kg)');
+  });
+
+  it('formats table volumes without thousands separators, the other unit whole', () => {
+    expect(formatTableVolume(1273.7, 'lb')).toEqual({ main: '2808 lb', other: '1274 kg' });
+    expect(formatTableVolume(1050, 'kg')).toEqual({ main: '1050 kg', other: '2315 lb' });
   });
 
   it('keeps every typed pound value through the kg round trip', () => {

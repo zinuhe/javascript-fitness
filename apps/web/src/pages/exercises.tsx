@@ -21,11 +21,12 @@ import {
   ErrorMessage,
   defaultProgressEquipment,
   equipmentLabel,
+  formatSessionDate,
   formatShortDate,
   labelize,
 } from '../components/ui';
 import { MuscleMap } from '../components/muscle-map';
-import { formatWeight, useWeightUnit } from '../components/units';
+import { formatTableVolume, formatWeight, useWeightUnit } from '../components/units';
 
 /**
  * One or more pieces of equipment as toggle chips. While none is checked every box is
@@ -418,6 +419,7 @@ export function ExerciseDetailPage() {
             <table className="compact">
               <thead>
                 <tr>
+                  <th>#</th>
                   <th>Session</th>
                   <th>Volume</th>
                   <th>Top set</th>
@@ -425,10 +427,19 @@ export function ExerciseDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {points.map((point) => (
+                {points.map((point, index) => (
                   <tr key={point.performedAt}>
-                    <td>{formatShortDate(point.performedAt)}</td>
-                    <td>{formatWeight(point.totalVolumeKg, unit)}</td>
+                    {/* Session number: the oldest is 1 (rows are newest first). */}
+                    <td className="muted">{points.length - index}</td>
+                    <td className="wrap-on-phone">{formatSessionDate(point.performedAt)}</td>
+                    <td className="wrap-on-phone">
+                      <span className="nowrap">
+                        {formatTableVolume(point.totalVolumeKg, unit).main}
+                      </span>{' '}
+                      <span className="hint other-unit">
+                        ({formatTableVolume(point.totalVolumeKg, unit).other})
+                      </span>
+                    </td>
                     <td>{formatWeight(point.bestSetWeightKg, unit)}</td>
                     <td>{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
                   </tr>

@@ -27,6 +27,21 @@ export function equipmentLabel(equipment: string[]): string {
   return equipment.map(labelize).join(' · ');
 }
 
+const sessionDateParts = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+/** "Sun 18 Oct 2026": a session's day in tables, with weekday and year, no commas. */
+export function formatSessionDate(iso: string): string {
+  const parts = sessionDateParts.formatToParts(new Date(iso));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('weekday')} ${part('day')} ${part('month')} ${part('year')}`;
+}
+
 export function formatShortDate(iso: string, now = new Date()): string {
   const date = new Date(iso);
   return date.toLocaleDateString(undefined, {
