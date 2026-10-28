@@ -160,22 +160,28 @@ describe('logging a workout', () => {
     await user.selectOptions(await exerciseSelect(1), press.name);
     const equipment = screen.getByRole('radiogroup', { name: 'Equipment for exercise 1' });
     expect(within(equipment).getByRole('radio', { name: 'Barbell' })).toBeChecked();
+    // Only with dumbbells: how many, two unless changed.
+    expect(screen.queryByRole('radiogroup', { name: 'Dumbbells for exercise 1' })).toBeNull();
     await user.click(within(equipment).getByRole('radio', { name: 'Dumbbell' }));
+    const dumbbells = screen.getByRole('radiogroup', { name: 'Dumbbells for exercise 1' });
+    expect(within(dumbbells).getByRole('radio', { name: '2 dumbbells' })).toBeChecked();
+    await user.click(within(dumbbells).getByRole('radio', { name: '1 dumbbell' }));
     await user.type(screen.getByLabelText('Reps'), '10');
     await user.type(screen.getByLabelText('Weight (kg)'), '30');
     await user.click(screen.getByRole('button', { name: 'Save workout' }));
 
     const heading = await screen.findByRole('heading', { name: 'Bench Press' });
-    expect(within(heading.closest('article')!).getByLabelText('Equipment: Dumbbell')).toHaveClass(
-      'tag',
-    );
+    expect(
+      within(heading.closest('article')!).getByLabelText('Equipment: Dumbbell ×1'),
+    ).toHaveClass('tag');
     expect(apiState.workouts[0].exercises[0]).toMatchObject({
       exerciseId: press.id,
       equipment: Equipment.Dumbbell,
+      dumbbells: 1,
     });
 
     await user.click(screen.getByRole('link', { name: '← Workouts' }));
-    expect(await screen.findByText('Bench Press (Dumbbell)')).toBeInTheDocument();
+    expect(await screen.findByText('Bench Press (Dumbbell ×1)')).toBeInTheDocument();
   });
 
   it('steps reps and weight with the −/+ buttons and accepts a decimal comma', async () => {

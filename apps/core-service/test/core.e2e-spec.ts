@@ -439,6 +439,45 @@ describe('core-service (e2e)', () => {
         expect(dumbbell.body.title).toBe('workout.bar_without_barbell');
       });
 
+      it('keeps how many dumbbells were used, two by default', async () => {
+        const one = await as(token)
+          .post('/workouts', {
+            performedAt: '2026-10-01T09:00:00.000Z',
+            exercises: [
+              {
+                exerciseId: press.id,
+                equipment: Equipment.Dumbbell,
+                dumbbells: 1,
+                sets: [{ reps: 10, weightKg: 12 }],
+              },
+            ],
+          })
+          .expect(201);
+        expect((one.body as Workout).exercises[0].dumbbells).toBe(1);
+        const last = await as(token).get(`/workouts/last-sets?exerciseIds=${press.id}`).expect(200);
+        expect(last.body).toEqual([
+          expect.objectContaining({ equipment: 'dumbbell', dumbbells: 1 }),
+        ]);
+
+        const two = await log(token, '2026-10-08T09:00:00.000Z', Equipment.Dumbbell, 12).expect(
+          201,
+        );
+        expect((two.body as Workout).exercises[0].dumbbells).toBe(2);
+        const barbell = await log(token, '2026-10-09T09:00:00.000Z', Equipment.Barbell, 40).expect(
+          201,
+        );
+        expect((barbell.body as Workout).exercises[0].dumbbells).toBeUndefined();
+
+        const body = (dumbbells: unknown, equipment = Equipment.Dumbbell) => ({
+          exercises: [
+            { exerciseId: press.id, equipment, dumbbells, sets: [{ reps: 8, weightKg: 10 }] },
+          ],
+        });
+        await as(token).post('/workouts', body(3)).expect(400);
+        const wrong = await as(token).post('/workouts', body(2, Equipment.Barbell)).expect(422);
+        expect(wrong.body.title).toBe('workout.dumbbells_without_dumbbell');
+      });
+
       it('equipment used by logged workouts cannot be removed (409)', async () => {
         await log(token, '2026-10-01T09:00:00.000Z', Equipment.Dumbbell, 30).expect(201);
 

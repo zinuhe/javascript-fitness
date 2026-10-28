@@ -11,7 +11,11 @@ const input = {
   ],
 };
 const resolved = {
-  exercises: [{ ...input.exercises[0], equipment: Equipment.Barbell }, input.exercises[1]],
+  // ex-2 is done with dumbbells: two unless told otherwise.
+  exercises: [
+    { ...input.exercises[0], equipment: Equipment.Barbell },
+    { ...input.exercises[1], dumbbells: 2 },
+  ],
 };
 const catalog = () =>
   new Map([
@@ -91,6 +95,23 @@ describe('WorkoutsService.create', () => {
         ],
       }),
     ).rejects.toMatchObject({ httpStatus: 422, code: 'workout.bar_without_barbell' });
+  });
+
+  it('keeps how many dumbbells, only for dumbbell exercises (422 otherwise)', async () => {
+    const set = { reps: 10, weightKg: 12 };
+    await service.create('user-1', {
+      exercises: [{ exerciseId: 'ex-2', equipment: Equipment.Dumbbell, dumbbells: 1, sets: [set] }],
+    });
+    expect(repo.create).toHaveBeenCalledWith({
+      exercises: [{ exerciseId: 'ex-2', equipment: Equipment.Dumbbell, dumbbells: 1, sets: [set] }],
+      userId: 'user-1',
+    });
+
+    await expect(
+      service.create('user-1', {
+        exercises: [{ exerciseId: 'ex-1', dumbbells: 2, sets: [set] }],
+      }),
+    ).rejects.toMatchObject({ httpStatus: 422, code: 'workout.dumbbells_without_dumbbell' });
   });
 
   it('rejects equipment the exercise is not done with (422)', async () => {

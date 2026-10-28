@@ -17,6 +17,8 @@ export interface WorkoutExercise {
   equipment?: Equipment;
   /** Barbell weight included in each set's weightKg (sets hold the total lifted). */
   barKg?: number;
+  /** How many dumbbells were used (1 or 2), for dumbbell exercises. */
+  dumbbells?: number;
   order: number;
   sets: WorkoutSet[];
 }
@@ -57,6 +59,8 @@ export interface CreateWorkoutExerciseRequest {
   equipment?: Equipment;
   /** Barbell weight already included in each set's weightKg; only with barbell. */
   barKg?: number;
+  /** How many dumbbells (1 or 2); only with dumbbell, 2 when left out. */
+  dumbbells?: number;
   sets: CreateSetRequest[];
 }
 
@@ -104,6 +108,8 @@ export interface LastExerciseSets {
   equipment?: Equipment;
   /** Barbell weight included in the sets' weights, to show them as plates again. */
   barKg?: number;
+  /** How many dumbbells were used that time. */
+  dumbbells?: number;
   performedAt: string;
   sets: CreateSetRequest[];
 }

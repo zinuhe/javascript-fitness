@@ -272,6 +272,21 @@ describe('starting a routine day', () => {
     });
   });
 
+  it('starts a routine day with as many dumbbells as last time', async () => {
+    const me = signedInAs();
+    const row = seedExercise({ name: 'Single-Arm Row', equipment: [Equipment.Dumbbell] });
+    seedRoutine(me.id, { name: 'Pull', days: [{ name: 'Pull', exerciseIds: [row.id] }] });
+    seedWorkout(me.id, {
+      exercises: [{ exerciseId: row.id, dumbbells: 1, sets: [{ reps: 10, weightKg: 20 }] }],
+    });
+    const { user } = renderApp('/workouts/start');
+
+    await user.click(await screen.findByRole('link', { name: 'Start Day 1 · Pull of Pull' }));
+
+    const dumbbells = await screen.findByRole('radiogroup', { name: 'Dumbbells for exercise 1' });
+    expect(within(dumbbells).getByRole('radio', { name: '1 dumbbell' })).toBeChecked();
+  });
+
   it('pre-fills the last sets in pounds when that is the unit', async () => {
     const me = signedInAs({ weightUnit: 'lb' });
     const { bench } = seedCatalog();

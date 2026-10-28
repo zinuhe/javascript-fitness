@@ -124,8 +124,17 @@ export class WorkoutsService {
           { [entry.exerciseId]: [`equipment: ${equipment ?? 'none'}`] },
         );
       }
+      if (entry.dumbbells !== undefined && equipment !== Equipment.Dumbbell) {
+        throw new ValidationError(
+          'Only dumbbell exercises can say how many dumbbells were used',
+          'workout.dumbbells_without_dumbbell',
+          { [entry.exerciseId]: [`equipment: ${equipment ?? 'none'}`] },
+        );
+      }
+      // Two dumbbells unless told otherwise.
+      const dumbbells = equipment === Equipment.Dumbbell ? (entry.dumbbells ?? 2) : undefined;
       if (entry.equipment === undefined && options.length === 1) {
-        return { ...entry, equipment: options[0] };
+        return { ...entry, equipment: options[0], ...(dumbbells ? { dumbbells } : {}) };
       }
       if (entry.equipment === undefined || !options.includes(entry.equipment)) {
         throw new ValidationError(
@@ -136,7 +145,7 @@ export class WorkoutsService {
           { [entry.exerciseId]: options },
         );
       }
-      return entry;
+      return { ...entry, ...(dumbbells ? { dumbbells } : {}) };
     });
   }
 }

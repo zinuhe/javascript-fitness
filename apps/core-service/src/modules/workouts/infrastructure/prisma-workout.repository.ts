@@ -38,6 +38,7 @@ function exercisesCreate(
       exerciseId: we.exerciseId,
       equipment: we.equipment ?? null,
       barKg: we.barKg !== undefined ? new Prisma.Decimal(we.barKg) : null,
+      dumbbells: we.dumbbells ?? null,
       order: exIndex,
       sets: {
         create: we.sets.map((set, setIndex) => ({
@@ -166,6 +167,7 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         exerciseId: entry.exerciseId,
         ...(entry.equipment ? { equipment: entry.equipment as Equipment } : {}),
         ...(entry.barKg !== null ? { barKg: entry.barKg.toNumber() } : {}),
+        ...(entry.dumbbells !== null ? { dumbbells: entry.dumbbells } : {}),
         performedAt: entry.workout.performedAt.toISOString(),
         sets: entry.sets.map((s) => ({
           reps: s.reps,
@@ -232,6 +234,7 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         exerciseId: we.exerciseId,
         equipment: (we.equipment as Equipment | null) ?? undefined,
         barKg: we.barKg !== null ? we.barKg.toNumber() : undefined,
+        dumbbells: we.dumbbells ?? undefined,
         order: we.order,
         sets: we.sets.map((s): WorkoutSet => ({
           id: s.id,

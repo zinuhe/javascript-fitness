@@ -166,6 +166,8 @@ interface ExerciseDraft {
   equipment: Equipment | '';
   /** The bar saved with this exercise; new barbell entries use the user's bar. */
   barKg?: number;
+  /** How many dumbbells (1 or 2); used only while the equipment is dumbbell. */
+  dumbbells: number;
   sets: SetDraft[];
   /**
    * The sets are still as pre-filled (not typed over), so switching the equipment may swap
@@ -227,9 +229,14 @@ const emptyExercise = (): ExerciseDraft => ({
   key: nextKey++,
   exerciseId: '',
   equipment: '',
+  dumbbells: 2,
   sets: [emptySet()],
   pristine: true,
 });
+
+/** How many dumbbells the last time with this exercise and dumbbells, else two. */
+const lastDumbbells = (lastSets: LastExerciseSets[], exerciseId: string) =>
+  lastSets.find((e) => e.exerciseId === exerciseId && e.equipment === 'dumbbell')?.dumbbells ?? 2;
 
 /** Saved sets as form drafts; with a bar, the weight field shows the plates only. */
 const toSetDrafts = (sets: LastExerciseSets['sets'], unit: WeightUnit, barKg = 0): SetDraft[] =>
@@ -279,6 +286,7 @@ function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
       exerciseId: entry.exerciseId,
       equipment: entry.equipment ?? '',
       barKg: entry.barKg,
+      dumbbells: entry.dumbbells ?? 2,
       sets: toSetDrafts(entry.sets, unit, entry.barKg),
       // Logged sets are never swapped behind the user's back.
       pristine: false,
@@ -311,6 +319,7 @@ function draftFromRoutineDay(
         key: nextKey++,
         exerciseId,
         equipment,
+        dumbbells: lastDumbbells(lastSets, exerciseId),
         sets: lastSetsFor(lastSets, exerciseId, equipment, unit),
         pristine: true,
       };
@@ -558,6 +567,7 @@ function WorkoutForm({
           exerciseId: e.exerciseId,
           ...(e.equipment ? { equipment: e.equipment } : {}),
           ...(bar !== undefined ? { barKg: bar } : {}),
+          ...(e.equipment === 'dumbbell' ? { dumbbells: e.dumbbells } : {}),
           sets: e.sets
             .filter((s) => !isBlankSet(s))
             .map((s) => ({
@@ -670,6 +680,7 @@ function WorkoutForm({
                 ...d,
                 exerciseId: e.target.value,
                 equipment: equipmentOf(e.target.value)[0] ?? '',
+                dumbbells: lastDumbbells(lastSets, e.target.value),
               }))
             }
             // Only an exercise with sets needs choosing; an empty one is just skipped.
@@ -706,6 +717,26 @@ function WorkoutForm({
                     }
                   />
                   <span>{labelize(value)}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {entry.equipment === 'dumbbell' && (
+            <div
+              className="segmented"
+              role="radiogroup"
+              aria-label={`Dumbbells for exercise ${entryIndex + 1}`}
+            >
+              {[1, 2].map((count) => (
+                <label key={count}>
+                  <input
+                    type="radio"
+                    name={`dumbbells-${entry.key}`}
+                    value={count}
+                    checked={entry.dumbbells === count}
+                    onChange={() => updateEntry(entry.key, (d) => ({ ...d, dumbbells: count }))}
+                  />
+                  <span>{count === 1 ? '1 dumbbell' : '2 dumbbells'}</span>
                 </label>
               ))}
             </div>

@@ -5,6 +5,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
+  IsIn,
   IsInt,
   IsISO8601,
   IsNumber,
@@ -78,6 +79,14 @@ export class CreateWorkoutExerciseDto implements CreateWorkoutExerciseRequest {
   @Min(0)
   @Max(100)
   barKg?: number;
+
+  @ApiPropertyOptional({
+    enum: [1, 2],
+    description: 'How many dumbbells were used; dumbbell only, 2 when left out',
+  })
+  @IsOptional()
+  @IsIn([1, 2])
+  dumbbells?: number;
 
   @ApiProperty({ type: [CreateSetDto] })
   @IsArray()

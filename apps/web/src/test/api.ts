@@ -281,6 +281,10 @@ function buildWorkout(userId: string, input: CreateWorkoutRequest): Workout {
       // The only equipment of the exercise is filled in, as the API does.
       equipment: entry.equipment ?? onlyEquipment(entry.exerciseId),
       barKg: entry.barKg,
+      dumbbells:
+        (entry.equipment ?? onlyEquipment(entry.exerciseId)) === 'dumbbell'
+          ? (entry.dumbbells ?? 2)
+          : undefined,
       order,
       sets: entry.sets.map((set, setOrder) => ({ id: nextId('set'), order: setOrder, ...set })),
     })),
@@ -498,6 +502,7 @@ export const handlers = [
               exerciseId,
               ...(entry.equipment ? { equipment: entry.equipment } : {}),
               ...(entry.barKg !== undefined ? { barKg: entry.barKg } : {}),
+              ...(entry.dumbbells !== undefined ? { dumbbells: entry.dumbbells } : {}),
               performedAt: workout.performedAt,
               sets,
             };

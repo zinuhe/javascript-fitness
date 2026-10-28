@@ -13,11 +13,17 @@ import { BarWord } from '../components/bar';
 import { formatVolume, formatWeight, useWeightUnit } from '../components/units';
 import { NextUpCard } from './start';
 
-/** "Bench Press (Dumbbell)": the exercise with the equipment it was done with. */
+/** "Dumbbell ×2": the equipment, with how many dumbbells when it is dumbbells. */
+function equipmentTag(entry: WorkoutExercise): string {
+  const name = labelize(entry.equipment ?? '');
+  return entry.dumbbells ? `${name} ×${entry.dumbbells}` : name;
+}
+
+/** "Bench Press (Dumbbell ×2)": the exercise with the equipment it was done with. */
 function loggedExerciseLabel(entry: WorkoutExercise, catalog: Exercise[]): string {
   const exercise = catalog.find((e) => e.id === entry.exerciseId);
   if (!exercise) return 'Unknown exercise';
-  return entry.equipment ? `${exercise.name} (${labelize(entry.equipment)})` : exercise.name;
+  return entry.equipment ? `${exercise.name} (${equipmentTag(entry)})` : exercise.name;
 }
 
 const listRoute = getRouteApi('/_app/workouts');
@@ -186,8 +192,8 @@ export function WorkoutDetailPage() {
                 </h2>
                 {/* What it was done with, for every exercise. */}
                 {entry.equipment && (
-                  <span className="tag" aria-label={`Equipment: ${labelize(entry.equipment)}`}>
-                    {labelize(entry.equipment)}
+                  <span className="tag" aria-label={`Equipment: ${equipmentTag(entry)}`}>
+                    {equipmentTag(entry)}
                   </span>
                 )}
               </div>
