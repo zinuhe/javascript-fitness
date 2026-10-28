@@ -43,7 +43,7 @@ export enum Equipment {
   Kettlebell = 'kettlebell',
   Bands = 'bands',
   /** A single weight plate, like the ones loaded on a barbell. */
-  Disk = 'disk',
+  Plate = 'plate',
   Other = 'other',
 }
 

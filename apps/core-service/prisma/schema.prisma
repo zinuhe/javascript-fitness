@@ -55,7 +55,7 @@ enum Equipment {
   kettlebell
   bands
   // A single weight plate, like the ones loaded on a barbell.
-  disk
+  plate
   other
 }
 
