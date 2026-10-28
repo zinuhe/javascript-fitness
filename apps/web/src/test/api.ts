@@ -302,6 +302,7 @@ function progressFor(
       w.exercises
         .filter((e) => e.exerciseId === exerciseId && (!equipment || e.equipment === equipment))
         .map((e) => ({
+          workoutId: w.id,
           performedAt: w.performedAt,
           totalVolumeKg: e.sets.reduce((v, s) => v + s.reps * s.weightKg, 0),
           estimatedOneRepMaxKg: Math.max(

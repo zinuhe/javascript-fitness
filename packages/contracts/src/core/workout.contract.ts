@@ -83,6 +83,8 @@ export interface UpdateWorkoutRequest extends Omit<CreateWorkoutRequest, 'routin
 
 /** Derived progress metrics for a given exercise over time. */
 export interface ExerciseProgressPoint {
+  /** The workout of that session. */
+  workoutId: string;
   performedAt: string;
   totalVolumeKg: number;
   estimatedOneRepMaxKg: number;

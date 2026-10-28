@@ -352,6 +352,7 @@ describe('core-service (e2e)', () => {
         exerciseId: squat.id,
         points: [
           {
+            workoutId: expect.any(String),
             performedAt: '2026-10-01T09:00:00.000Z',
             totalVolumeKg: 800,
             estimatedOneRepMaxKg: 116.67,
@@ -362,6 +363,7 @@ describe('core-service (e2e)', () => {
             ],
           },
           {
+            workoutId: expect.any(String),
             performedAt: '2026-10-08T09:00:00.000Z',
             totalVolumeKg: 880,
             estimatedOneRepMaxKg: 128.33,

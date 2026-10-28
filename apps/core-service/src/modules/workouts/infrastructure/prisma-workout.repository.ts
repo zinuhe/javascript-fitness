@@ -212,11 +212,12 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         reps: true,
         weightKg: true,
         workoutExercise: {
-          select: { barKg: true, workout: { select: { performedAt: true } } },
+          select: { barKg: true, workout: { select: { id: true, performedAt: true } } },
         },
       },
     });
     return sets.map((s) => ({
+      workoutId: s.workoutExercise.workout.id,
       performedAt: s.workoutExercise.workout.performedAt,
       reps: s.reps,
       weightKg: s.weightKg.toNumber(),

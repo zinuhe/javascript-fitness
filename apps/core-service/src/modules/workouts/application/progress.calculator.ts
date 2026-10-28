@@ -34,6 +34,7 @@ export function buildProgressPoints(history: SetHistoryRow[]): ExerciseProgressP
       existing.sets.push(setOf(set));
     } else {
       byDate.set(key, {
+        workoutId: set.workoutId,
         performedAt: key,
         totalVolumeKg: volume,
         estimatedOneRepMaxKg: oneRm,

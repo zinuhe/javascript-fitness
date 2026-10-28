@@ -18,9 +18,9 @@ describe('buildProgressPoints', () => {
 
   it('aggregates sets per date with volume, best 1RM and heaviest set', () => {
     const history: SetHistoryRow[] = [
-      { performedAt: d1, reps: 10, weightKg: 60 },
-      { performedAt: d1, reps: 8, weightKg: 70 },
-      { performedAt: d2, reps: 5, weightKg: 80 },
+      { workoutId: 'w-1', performedAt: d1, reps: 10, weightKg: 60 },
+      { workoutId: 'w-1', performedAt: d1, reps: 8, weightKg: 70 },
+      { workoutId: 'w-2', performedAt: d2, reps: 5, weightKg: 80 },
     ];
 
     const points = buildProgressPoints(history);
@@ -28,6 +28,7 @@ describe('buildProgressPoints', () => {
     expect(points).toHaveLength(2);
     // Day 1: volume = 10*60 + 8*70 = 1160; best set = 70
     expect(points[0].performedAt).toBe(d1.toISOString());
+    expect(points.map((p) => p.workoutId)).toEqual(['w-1', 'w-2']);
     expect(points[0].totalVolumeKg).toBe(1160);
     expect(points[0].bestSetWeightKg).toBe(70);
     // Day 2 comes after day 1 (sorted ascending)
@@ -42,7 +43,9 @@ describe('buildProgressPoints', () => {
   });
 
   it('keeps the bar of barbell sets', () => {
-    const points = buildProgressPoints([{ performedAt: d1, reps: 8, weightKg: 32.7, barKg: 12.7 }]);
+    const points = buildProgressPoints([
+      { workoutId: 'w-1', performedAt: d1, reps: 8, weightKg: 32.7, barKg: 12.7 },
+    ]);
     expect(points[0].sets).toEqual([{ reps: 8, weightKg: 32.7, barKg: 12.7 }]);
   });
 

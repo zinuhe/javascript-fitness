@@ -186,6 +186,12 @@ describe('exercise progress', () => {
     expect(
       screen.getByRole('img', { name: 'Estimated 1RM from 116.67 kg to 128.33 kg' }),
     ).toBeInTheDocument();
+    // Each session's date links to its workout.
+    expect(screen.getByRole('link', { name: 'Thu 8 Oct 2026' })).toHaveAttribute(
+      'href',
+      `/workouts/${apiState.workouts[1].id}`,
+    );
+
     // Hovering a session's point shows its day and every set.
     await user.hover(screen.getByRole('button', { name: /^Thu 8 Oct 2026: / }));
     const tip = screen.getByRole('tooltip');

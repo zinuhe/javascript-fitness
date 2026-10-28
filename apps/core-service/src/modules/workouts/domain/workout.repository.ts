@@ -12,6 +12,7 @@ export interface CreateWorkoutData extends CreateWorkoutRequest {
 
 /** A single logged set joined with its performedAt date, used to compute progress. */
 export interface SetHistoryRow {
+  workoutId: string;
   performedAt: Date;
   reps: number;
   weightKg: number;

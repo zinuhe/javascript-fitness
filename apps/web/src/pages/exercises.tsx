@@ -497,7 +497,11 @@ export function ExerciseDetailPage() {
                   <tr key={point.performedAt}>
                     {/* Session number: the oldest is 1 (rows are newest first). */}
                     <td className="muted">{points.length - index}</td>
-                    <td className="wrap-on-phone">{formatSessionDate(point.performedAt)}</td>
+                    <td className="wrap-on-phone">
+                      <Link to="/workouts/$workoutId" params={{ workoutId: point.workoutId }}>
+                        {formatSessionDate(point.performedAt)}
+                      </Link>
+                    </td>
                     <td className="wrap-on-phone">
                       <span className="nowrap">
                         {formatTableVolume(point.totalVolumeKg, unit).main}
