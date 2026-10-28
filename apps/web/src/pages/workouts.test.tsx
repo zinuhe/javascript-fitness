@@ -374,6 +374,34 @@ describe('workout detail', () => {
     expect(screen.getByText('Volume 830 kg (1,829.8 lb)')).toBeInTheDocument();
   });
 
+  it('shows all-alike sets as one row that counts them', async () => {
+    const me = signedInAs();
+    const { squat } = seedCatalog();
+    const workout = seedWorkout(me.id, {
+      exercises: [
+        {
+          exerciseId: squat.id,
+          sets: Array.from({ length: 4 }, () => ({ reps: 10, weightKg: 100 })),
+        },
+      ],
+    });
+
+    renderApp(`/workouts/${workout.id}`);
+
+    expect(await screen.findByRole('columnheader', { name: 'Sets' })).toBeInTheDocument();
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(
+      rows.map((r) =>
+        within(r)
+          .getAllByRole('cell')
+          .map((c) => c.textContent),
+      ),
+    ).toEqual([
+      ['4', '10', '100 kg'],
+      ['40', '4,000 kg (8,818.5 lb) volume'], // the Total row
+    ]);
+  });
+
   it('deletes the workout after confirmation and returns to the list', async () => {
     const me = signedInAs();
     const { squat } = seedCatalog();

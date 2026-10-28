@@ -10,8 +10,10 @@ export const server = setupServer(...handlers);
 beforeAll(() => {
   // Any request without a handler is a bug in the test or the app: fail loudly.
   server.listen({ onUnhandledFrame: 'error' });
-  // jsdom doesn't implement scrolling; the router's scroll restoration calls it.
+  // jsdom doesn't implement scrolling; the router's scroll restoration calls it, and the
+  // workout form scrolls back to a taken date.
   window.scrollTo = () => undefined;
+  Element.prototype.scrollIntoView = () => undefined;
 });
 
 afterEach(() => {

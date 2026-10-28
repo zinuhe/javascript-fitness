@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
-import type { Exercise, WorkoutExercise } from '@fitness/contracts';
+import type { Exercise, WorkoutExercise, WorkoutSet } from '@fitness/contracts';
 import {
   deleteWorkout,
   exercisesQuery,
@@ -12,6 +12,21 @@ import { ErrorMessage, dayLabel, exerciseNames, formatDay, labelize } from '../c
 import { BarWord } from '../components/bar';
 import { formatVolume, formatWeight, useWeightUnit } from '../components/units';
 import { NextUpCard } from './start';
+
+/** Every set the same (reps, weight, RPE and rest): shown as one row, "4 × …". */
+function allAlike(sets: WorkoutSet[]): boolean {
+  const [first] = sets;
+  return (
+    sets.length > 1 &&
+    sets.every(
+      (s) =>
+        s.reps === first.reps &&
+        s.weightKg === first.weightKg &&
+        s.rpe === first.rpe &&
+        s.restSeconds === first.restSeconds,
+    )
+  );
+}
 
 /** "Dumbbell ×2": the equipment, with how many dumbbells when it is dumbbells. */
 function equipmentTag(entry: WorkoutExercise): string {
@@ -203,7 +218,8 @@ export function WorkoutDetailPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Set</th>
+                  {/* All sets alike: one row, the first column counts them. */}
+                  <th>{allAlike(entry.sets) ? 'Sets' : 'Set'}</th>
                   <th>Reps</th>
                   <th>Weight</th>
                   {showRpe && <th>RPE</th>}
@@ -211,9 +227,9 @@ export function WorkoutDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {entry.sets.map((set, index) => (
+                {(allAlike(entry.sets) ? entry.sets.slice(0, 1) : entry.sets).map((set, index) => (
                   <tr key={set.id}>
-                    <td>{index + 1}</td>
+                    <td>{allAlike(entry.sets) ? entry.sets.length : index + 1}</td>
                     <td>{set.reps}</td>
                     {/* Barbell sets store the total: show the plates as typed, the sum below. */}
                     {entry.barKg !== undefined ? (
