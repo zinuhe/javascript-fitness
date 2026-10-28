@@ -956,6 +956,15 @@ table.compact th,
 table.compact td {
   padding: 8px 6px;
 }
+/* Progress table headers: larger and in the text color, readable at a glance. */
+table.compact th {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+/* Its data a step softer than the headers. */
+table.compact td {
+  color: color-mix(in srgb, var(--text) 45%, var(--muted));
+}
 table.compact th:first-child,
 table.compact td:first-child {
   padding-left: 0;
