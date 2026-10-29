@@ -365,8 +365,8 @@ describe('workout detail', () => {
           .map((c) => c.textContent),
       ),
     ).toEqual([
-      ['1', '5', '100 kg', '8', '180s'],
-      ['2', '3', '110 kg', '—', '—'],
+      ['1', '5', '100 kg (220 lb)', '8', '180s'], // the other unit, whole, beside it
+      ['2', '3', '110 kg (243 lb)', '—', '—'],
       ['8', '830 kg (1,829.8 lb) volume'], // the Total row: reps and volume added up
     ]);
     expect(screen.getByRole('rowheader', { name: 'Total' })).toBeInTheDocument();
@@ -398,7 +398,7 @@ describe('workout detail', () => {
           .map((c) => c.textContent),
       ),
     ).toEqual([
-      ['4', '10', '100 kg'],
+      ['4', '10', '100 kg (220 lb)'],
       ['40', '4,000 kg (8,818.5 lb) volume'], // the Total row
     ]);
   });
@@ -683,7 +683,9 @@ describe('barbell exercises', () => {
     });
     const row = screen.getAllByRole('row')[1];
     // The plates as typed, and below them the sum with the bar.
-    expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('20 lb20 lb + bar = 47.6 lb');
+    expect(within(row).getAllByRole('cell')[2]).toHaveTextContent(
+      '20 lb (9 kg)20 lb + bar = 47.6 lb',
+    );
 
     // Editing shows the plates again.
     await user.click(screen.getByRole('link', { name: 'Edit' }));

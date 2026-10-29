@@ -10,7 +10,12 @@ import {
 } from '../api/queries';
 import { ErrorMessage, dayLabel, exerciseNames, formatDay, labelize } from '../components/ui';
 import { BarWord } from '../components/bar';
-import { formatVolume, formatWeight, useWeightUnit } from '../components/units';
+import {
+  formatVolume,
+  formatWeight,
+  formatWholeInOtherUnit,
+  useWeightUnit,
+} from '../components/units';
 import { NextUpCard } from './start';
 
 /** Every set the same (reps, weight, RPE and rest): shown as one row, "4 × …". */
@@ -234,14 +239,21 @@ export function WorkoutDetailPage() {
                     {/* Barbell sets store the total: show the plates as typed, the sum below. */}
                     {entry.barKg !== undefined ? (
                       <td>
-                        {formatWeight(set.weightKg - entry.barKg, unit)}
+                        {formatWeight(set.weightKg - entry.barKg, unit)}{' '}
+                        <span className="hint">
+                          ({formatWholeInOtherUnit(set.weightKg - entry.barKg, unit)})
+                        </span>
                         <span className="hint cell-note">
                           {formatWeight(set.weightKg - entry.barKg, unit)} +{' '}
                           <BarWord barKg={entry.barKg} /> = {formatWeight(set.weightKg, unit)}
                         </span>
                       </td>
                     ) : (
-                      <td>{formatWeight(set.weightKg, unit)}</td>
+                      <td>
+                        {formatWeight(set.weightKg, unit)}{' '}
+                        {/* The other unit, small: "40 lb (18 kg)". */}
+                        <span className="hint">({formatWholeInOtherUnit(set.weightKg, unit)})</span>
+                      </td>
                     )}
                     {showRpe && <td>{set.rpe ?? '—'}</td>}
                     {showRest && (

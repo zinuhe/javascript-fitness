@@ -72,6 +72,10 @@ export const formatTableVolume = (kg: number, unit: WeightUnit) => ({
     unit === 'lb' ? `${wholeFormat.format(kg)} kg` : `${wholeFormat.format(kgTo(kg, 'lb'))} lb`,
 });
 
+/** A stored kg value, rounded whole, in the unit the user does not use: "18 kg" for lb. */
+export const formatWholeInOtherUnit = (kg: number, unit: WeightUnit) =>
+  unit === 'lb' ? `${volumeKgFormat.format(kg)} kg` : `${volumeKgFormat.format(kg * LB_PER_KG)} lb`;
+
 /** The signed-in user's unit (the profile is loaded for every page of the app). */
 export function useWeightUnit(): WeightUnit {
   const { data: user } = useSuspenseQuery(meQuery);
