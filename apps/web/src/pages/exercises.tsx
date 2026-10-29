@@ -207,6 +207,10 @@ export function ExercisesPage() {
     'name',
     'sessions',
   ]);
+  const [unused, setUnused] = useStoredState<'show' | 'hide'>('fitness.exercises.unused', 'show', [
+    'show',
+    'hide',
+  ]);
   const sessions = (id: string) => counts.get(id) ?? 0;
 
   const create = useMutation({
@@ -222,12 +226,14 @@ export function ExercisesPage() {
         ),
       )
     : data.items;
-  // By name (A–Z), or most done first with name breaking ties.
-  const visible = [...matching].sort((a, b) =>
-    sort === 'sessions'
-      ? sessions(b.id) - sessions(a.id) || a.name.localeCompare(b.name)
-      : a.name.localeCompare(b.name),
-  );
+  // By name (A–Z), or most done first with name breaking ties; never-done ones hidden on demand.
+  const visible = matching
+    .filter((e) => unused === 'show' || sessions(e.id) > 0)
+    .sort((a, b) =>
+      sort === 'sessions'
+        ? sessions(b.id) - sessions(a.id) || a.name.localeCompare(b.name)
+        : a.name.localeCompare(b.name),
+    );
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -257,26 +263,42 @@ export function ExercisesPage() {
       )}
 
       {data.items.length > 1 && (
-        <div className="segmented" role="radiogroup" aria-label="Sort by">
-          {SORTS.map(({ value, label }) => (
-            <label key={value}>
+        <div className="catalog-tools">
+          <div className="segmented" role="radiogroup" aria-label="Sort by">
+            {SORTS.map(({ value, label }) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="catalogSort"
+                  value={value}
+                  checked={sort === value}
+                  onChange={() => setSort(value)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="chips">
+            <label>
               <input
-                type="radio"
-                name="catalogSort"
-                value={value}
-                checked={sort === value}
-                onChange={() => setSort(value)}
+                type="checkbox"
+                checked={unused === 'hide'}
+                onChange={(e) => setUnused(e.target.checked ? 'hide' : 'show')}
               />
-              <span>{label}</span>
+              <span>Hide 0 sessions</span>
             </label>
-          ))}
+          </div>
         </div>
       )}
 
       {data.items.length === 0 ? (
         <p className="card muted empty">No exercises yet.</p>
       ) : visible.length === 0 ? (
-        <p className="card muted empty">No exercises match “{query.trim()}”.</p>
+        <p className="card muted empty">
+          {matching.length > 0
+            ? 'No exercises with sessions yet.'
+            : `No exercises match “${query.trim()}”.`}
+        </p>
       ) : (
         <ul className="card list-rows" aria-label="Exercise catalog">
           {visible.map((exercise) => (

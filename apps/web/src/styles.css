@@ -647,6 +647,17 @@ fieldset.card > legend {
 .list-row.with-figure .muscle-map {
   grid-row: span 2;
 }
+/* Sort toggle and filters above the exercise catalog. */
+.catalog-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.catalog-tools .segmented {
+  flex: 1 1 200px;
+}
+
 /* Sessions with the exercise, at the right of its row. */
 .list-row-count {
   grid-column: 3;

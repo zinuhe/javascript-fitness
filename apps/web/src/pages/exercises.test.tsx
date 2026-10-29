@@ -84,6 +84,28 @@ describe('exercise catalog', () => {
     expect(names()).toEqual(['Squat', 'Plank', 'Bench']);
   });
 
+  it('hides the exercises never done, on demand', async () => {
+    const me = signedInAs();
+    const squat = seedExercise({ name: 'Squat' });
+    seedExercise({ name: 'Plank' });
+    seedWorkout(me.id, {
+      exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 50 }] }],
+    });
+    const { user } = renderApp('/exercises');
+
+    const list = await screen.findByRole('list', { name: 'Exercise catalog' });
+    expect(within(list).getAllByRole('link')).toHaveLength(2);
+    await user.click(screen.getByRole('checkbox', { name: 'Hide 0 sessions' }));
+    const left = within(screen.getByRole('list', { name: 'Exercise catalog' })).getAllByRole(
+      'link',
+    );
+    expect(left.map((l) => l.querySelector('.list-row-title')?.textContent)).toEqual(['Squat']);
+
+    // A search that only finds hidden ones says so.
+    await user.type(screen.getByRole('searchbox', { name: 'Search exercises' }), 'plank');
+    expect(screen.getByText('No exercises with sessions yet.')).toBeInTheDocument();
+  });
+
   it('filters the catalog by name, muscle group or equipment', async () => {
     signedInAs();
     seedExercise({
