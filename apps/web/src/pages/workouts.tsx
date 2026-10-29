@@ -245,7 +245,8 @@ export function WorkoutDetailPage() {
                         </span>
                         <span className="hint cell-note">
                           {formatWeight(set.weightKg - entry.barKg, unit)} +{' '}
-                          <BarWord barKg={entry.barKg} /> = {formatWeight(set.weightKg, unit)}
+                          <BarWord barKg={entry.barKg} /> = {formatWeight(set.weightKg, unit)} (
+                          {formatWholeInOtherUnit(set.weightKg, unit)})
                         </span>
                       </td>
                     ) : (

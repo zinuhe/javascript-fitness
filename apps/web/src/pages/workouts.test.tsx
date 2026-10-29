@@ -684,7 +684,7 @@ describe('barbell exercises', () => {
     const row = screen.getAllByRole('row')[1];
     // The plates as typed, and below them the sum with the bar.
     expect(within(row).getAllByRole('cell')[2]).toHaveTextContent(
-      '20 lb (9 kg)20 lb + bar = 47.6 lb',
+      '20 lb (9 kg)20 lb + bar = 47.6 lb (22 kg)',
     );
 
     // Editing shows the plates again.
