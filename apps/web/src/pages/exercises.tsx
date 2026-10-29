@@ -166,12 +166,21 @@ function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
   };
 }
 
-type CatalogSort = 'name' | 'sessions';
+type SortKey = 'name' | 'sessions';
+type CatalogSort = `${SortKey}-${'asc' | 'desc'}`;
+const CATALOG_SORTS: CatalogSort[] = ['name-asc', 'name-desc', 'sessions-asc', 'sessions-desc'];
 
-const SORTS: { value: CatalogSort; label: string }[] = [
-  { value: 'name', label: 'Name' },
-  { value: 'sessions', label: 'Sessions' },
-];
+/** Each key starts in its natural direction (A–Z, most done first); a second tap flips it. */
+const SORTS: { key: SortKey; label: string; first: CatalogSort; arrows: Record<string, string> }[] =
+  [
+    { key: 'name', label: 'Name', first: 'name-asc', arrows: { asc: '↓', desc: '↑' } },
+    {
+      key: 'sessions',
+      label: 'Sessions',
+      first: 'sessions-desc',
+      arrows: { asc: '↓', desc: '↑' },
+    },
+  ];
 
 /**
  * A view preference kept on this device (sort order, filters). Storage can be missing or
@@ -203,10 +212,12 @@ export function ExercisesPage() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [formKey, setFormKey] = useState(0);
-  const [sort, setSort] = useStoredState<CatalogSort>('fitness.exercises.sort', 'name', [
-    'name',
-    'sessions',
-  ]);
+  const [sort, setSort] = useStoredState<CatalogSort>(
+    'fitness.exercises.sort',
+    'name-asc',
+    CATALOG_SORTS,
+  );
+  const [sortKey, sortDir] = sort.split('-') as [SortKey, 'asc' | 'desc'];
   const [unused, setUnused] = useStoredState<'show' | 'hide'>('fitness.exercises.unused', 'show', [
     'show',
     'hide',
@@ -226,13 +237,14 @@ export function ExercisesPage() {
         ),
       )
     : data.items;
-  // By name (A–Z), or most done first with name breaking ties; never-done ones hidden on demand.
+  // By name or by sessions (name breaks ties), either way; never-done ones hidden on demand.
+  const order = sortDir === 'asc' ? 1 : -1;
   const visible = matching
     .filter((e) => unused === 'show' || sessions(e.id) > 0)
     .sort((a, b) =>
-      sort === 'sessions'
-        ? sessions(b.id) - sessions(a.id) || a.name.localeCompare(b.name)
-        : a.name.localeCompare(b.name),
+      sortKey === 'sessions'
+        ? order * (sessions(a.id) - sessions(b.id)) || a.name.localeCompare(b.name)
+        : order * a.name.localeCompare(b.name),
     );
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -265,16 +277,28 @@ export function ExercisesPage() {
       {data.items.length > 1 && (
         <div className="catalog-tools">
           <div className="segmented" role="radiogroup" aria-label="Sort by">
-            {SORTS.map(({ value, label }) => (
-              <label key={value}>
+            {SORTS.map(({ key, label, first, arrows }) => (
+              <label key={key}>
                 <input
                   type="radio"
                   name="catalogSort"
-                  value={value}
-                  checked={sort === value}
-                  onChange={() => setSort(value)}
+                  value={key}
+                  checked={sortKey === key}
+                  // A tap on the active option flips its direction (change doesn't fire then).
+                  onClick={() =>
+                    setSort(
+                      sortKey !== key ? first : `${key}-${sortDir === 'asc' ? 'desc' : 'asc'}`,
+                    )
+                  }
+                  onChange={() => undefined}
+                  aria-description={
+                    sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined
+                  }
                 />
-                <span>{label}</span>
+                <span>
+                  {label}
+                  {sortKey === key && <span aria-hidden="true"> {arrows[sortDir]}</span>}
+                </span>
               </label>
             ))}
           </div>

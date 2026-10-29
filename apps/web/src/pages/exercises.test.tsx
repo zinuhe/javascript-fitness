@@ -54,7 +54,7 @@ describe('exercise catalog', () => {
     expect(count('Plank')).toHaveAccessibleName('0 sessions');
   });
 
-  it('sorts by name or by sessions, and remembers the choice', async () => {
+  it('sorts by name or by sessions, either way, and remembers the choice', async () => {
     const me = signedInAs();
     const [, plank, squat] = ['Bench', 'Plank', 'Squat'].map((name) => seedExercise({ name }));
     const log = (day: string, ids: string[]) =>
@@ -73,8 +73,17 @@ describe('exercise catalog', () => {
 
     await screen.findByRole('list', { name: 'Exercise catalog' });
     expect(names()).toEqual(['Bench', 'Plank', 'Squat']); // by name by default
+    await user.click(screen.getByRole('radio', { name: 'Name' }));
+    expect(names()).toEqual(['Squat', 'Plank', 'Bench']); // a second tap: Z–A
+    await user.click(screen.getByRole('radio', { name: 'Name' }));
+    expect(names()).toEqual(['Bench', 'Plank', 'Squat']);
+
     await user.click(screen.getByRole('radio', { name: 'Sessions' }));
-    expect(names()).toEqual(['Squat', 'Plank', 'Bench']); // 2, 1, 0
+    expect(names()).toEqual(['Squat', 'Plank', 'Bench']); // most first: 2, 1, 0
+    await user.click(screen.getByRole('radio', { name: 'Sessions' }));
+    expect(names()).toEqual(['Bench', 'Plank', 'Squat']); // then fewest first
+    await user.click(screen.getByRole('radio', { name: 'Sessions' }));
+    expect(names()).toEqual(['Squat', 'Plank', 'Bench']);
 
     // Kept when coming back to the page.
     await router.navigate({ to: '/workouts' });
