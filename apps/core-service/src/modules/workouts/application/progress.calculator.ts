@@ -36,6 +36,8 @@ export function buildProgressPoints(history: SetHistoryRow[]): ExerciseProgressP
       byDate.set(key, {
         workoutId: set.workoutId,
         performedAt: key,
+        ...(set.equipment ? { equipment: set.equipment } : {}),
+        ...(set.dumbbells ? { dumbbells: set.dumbbells } : {}),
         totalVolumeKg: volume,
         estimatedOneRepMaxKg: oneRm,
         bestSetWeightKg: set.weightKg,

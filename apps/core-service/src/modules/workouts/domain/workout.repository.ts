@@ -19,6 +19,8 @@ export interface SetHistoryRow {
   weightKg: number;
   /** The bar included in `weightKg`, for barbell sets. */
   barKg?: number;
+  equipment?: Equipment;
+  dumbbells?: number;
 }
 
 export interface WorkoutRepository {

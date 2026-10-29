@@ -86,6 +86,9 @@ export interface ExerciseProgressPoint {
   /** The workout of that session. */
   workoutId: string;
   performedAt: string;
+  /** What the exercise was done with that session, and how many dumbbells. */
+  equipment?: Equipment;
+  dumbbells?: number;
   totalVolumeKg: number;
   estimatedOneRepMaxKg: number;
   bestSetWeightKg: number;

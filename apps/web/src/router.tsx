@@ -22,7 +22,7 @@ import {
   workoutQuery,
   workoutsQuery,
 } from './api/queries';
-import { ErrorView, NotFound, Pending, defaultProgressEquipment } from './components/ui';
+import { ErrorView, NotFound, Pending } from './components/ui';
 import { LoginPage, RegisterPage } from './pages/auth';
 import { AppLayout } from './pages/layout';
 import { WorkoutDetailPage, WorkoutsPage } from './pages/workouts';
@@ -186,12 +186,12 @@ const exercisesRoute = createRoute({
 const exerciseRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'exercises/$exerciseId',
-  loader: async ({ context, params }) => {
-    const exercise = await context.queryClient.ensureQueryData(exerciseQuery(params.exerciseId));
-    await context.queryClient.ensureQueryData(
-      progressQuery(params.exerciseId, defaultProgressEquipment(exercise)),
-    );
-  },
+  // Opens on "All": every session, whatever the equipment.
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(exerciseQuery(params.exerciseId)),
+      context.queryClient.ensureQueryData(progressQuery(params.exerciseId)),
+    ]),
   component: ExerciseDetailPage,
 });
 

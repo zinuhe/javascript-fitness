@@ -225,7 +225,12 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
         reps: true,
         weightKg: true,
         workoutExercise: {
-          select: { barKg: true, workout: { select: { id: true, performedAt: true } } },
+          select: {
+            barKg: true,
+            equipment: true,
+            dumbbells: true,
+            workout: { select: { id: true, performedAt: true } },
+          },
         },
       },
     });
@@ -235,6 +240,10 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
       reps: s.reps,
       weightKg: s.weightKg.toNumber(),
       ...(s.workoutExercise.barKg !== null ? { barKg: s.workoutExercise.barKg.toNumber() } : {}),
+      ...(s.workoutExercise.equipment !== null
+        ? { equipment: s.workoutExercise.equipment as Equipment }
+        : {}),
+      ...(s.workoutExercise.dumbbells !== null ? { dumbbells: s.workoutExercise.dumbbells } : {}),
     }));
   }
 

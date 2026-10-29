@@ -20,7 +20,6 @@ import {
 } from '../api/queries';
 import {
   ErrorMessage,
-  defaultProgressEquipment,
   equipmentLabel,
   formatSessionDate,
   formatShortDate,
@@ -371,7 +370,20 @@ export function ExercisesPage() {
  * Estimated 1RM over time as a small line chart. Pure SVG scaled to its container, so it
  * fits a phone as well as a desktop card; values are also listed in the table below it.
  */
-function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
+/** "Dumbbell ×2": what a session was done with. */
+function sessionEquipment(point: ExerciseProgressPoint): string {
+  const name = labelize(point.equipment ?? '');
+  return point.dumbbells ? `${name} ×${point.dumbbells}` : name;
+}
+
+function OneRepMaxChart({
+  points,
+  showEquipment = false,
+}: {
+  points: ExerciseProgressPoint[];
+  /** Name each session's equipment in the tooltip (the "All" view). */
+  showEquipment?: boolean;
+}) {
   const unit = useWeightUnit();
   // The session whose sets are shown: hovered, focused or tapped.
   const [active, setActive] = useState<number | null>(null);
@@ -447,6 +459,9 @@ function OneRepMaxChart({ points }: { points: ExerciseProgressPoint[] }) {
             }}
           >
             <strong>{formatSessionDate(shown.performedAt)}</strong>
+            {showEquipment && shown.equipment && (
+              <span className="chart-tip-note">{sessionEquipment(shown)}</span>
+            )}
             {shown.sets.some((s) => s.barKg !== undefined) && (
               <span className="chart-tip-note">Plates only, without the bar</span>
             )}
@@ -491,7 +506,9 @@ const detailRoute = getRouteApi('/_app/exercises/$exerciseId');
 export function ExerciseDetailPage() {
   const { exerciseId } = detailRoute.useParams();
   const { data: exercise } = useSuspenseQuery(exerciseQuery(exerciseId));
-  const [equipment, setEquipment] = useState(() => defaultProgressEquipment(exercise));
+  // undefined is "All": every session, whatever the equipment.
+  const [equipment, setEquipment] = useState<Equipment | undefined>(undefined);
+  const severalEquipment = exercise.equipment.length > 1;
   // A transition keeps the current numbers on screen while the other equipment loads.
   const [switching, startSwitch] = useTransition();
   const { data: progress } = useSuspenseQuery(progressQuery(exerciseId, equipment));
@@ -555,18 +572,18 @@ export function ExerciseDetailPage() {
 
       <div className="card stack" aria-busy={switching}>
         <h2>Your progress</h2>
-        {equipment && (
+        {severalEquipment && (
           <div className="segmented" role="radiogroup" aria-label="Progress with">
-            {exercise.equipment.map((value) => (
-              <label key={value}>
+            {[undefined, ...exercise.equipment].map((value) => (
+              <label key={value ?? 'all'}>
                 <input
                   type="radio"
                   name="progressEquipment"
-                  value={value}
+                  value={value ?? 'all'}
                   checked={equipment === value}
                   onChange={() => startSwitch(() => setEquipment(value))}
                 />
-                <span>{labelize(value)}</span>
+                <span>{value ? labelize(value) : 'All'}</span>
               </label>
             ))}
           </div>
@@ -593,7 +610,12 @@ export function ExerciseDetailPage() {
                 <dd>{points.length}</dd>
               </div>
             </dl>
-            {progress.points.length > 1 && <OneRepMaxChart points={progress.points} />}
+            {progress.points.length > 1 && (
+              <OneRepMaxChart
+                points={progress.points}
+                showEquipment={severalEquipment && !equipment}
+              />
+            )}
             <table className="compact">
               <thead>
                 <tr>
@@ -613,6 +635,10 @@ export function ExerciseDetailPage() {
                       <Link to="/workouts/$workoutId" params={{ workoutId: point.workoutId }}>
                         {formatSessionDate(point.performedAt)}
                       </Link>
+                      {/* On "All", what each session was done with. */}
+                      {severalEquipment && !equipment && point.equipment && (
+                        <span className="hint cell-note">{sessionEquipment(point)}</span>
+                      )}
                     </td>
                     <td className="wrap-on-phone">
                       <span className="nowrap">

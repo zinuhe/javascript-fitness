@@ -1,3 +1,4 @@
+import { Equipment } from '@fitness/contracts';
 import { buildProgressPoints, estimateOneRepMax } from './progress.calculator';
 import type { SetHistoryRow } from '../domain/workout.repository';
 
@@ -47,6 +48,20 @@ describe('buildProgressPoints', () => {
       { workoutId: 'w-1', performedAt: d1, reps: 8, weightKg: 32.7, barKg: 12.7 },
     ]);
     expect(points[0].sets).toEqual([{ reps: 8, weightKg: 32.7, barKg: 12.7 }]);
+  });
+
+  it('keeps what each session was done with', () => {
+    const [point] = buildProgressPoints([
+      {
+        workoutId: 'w-1',
+        performedAt: d1,
+        reps: 10,
+        weightKg: 12,
+        equipment: Equipment.Dumbbell,
+        dumbbells: 2,
+      },
+    ]);
+    expect(point).toMatchObject({ equipment: 'dumbbell', dumbbells: 2 });
   });
 
   it('returns an empty array for no history', () => {

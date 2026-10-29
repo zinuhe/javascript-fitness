@@ -429,7 +429,7 @@ describe('editing and deleting exercises', () => {
 });
 
 describe('progress with several pieces of equipment', () => {
-  it('shows one equipment at a time, switching with the tabs', async () => {
+  it('opens on All, every session with its equipment, and filters with the tabs', async () => {
     const me = signedInAs();
     const press = seedExercise({
       name: 'Bench Press',
@@ -451,9 +451,25 @@ describe('progress with several pieces of equipment', () => {
 
     const tabs = await screen.findByRole('radiogroup', { name: 'Progress with' });
     const stat = (label: string) => screen.getByText(label).closest('div');
-    expect(within(tabs).getByRole('radio', { name: 'Barbell' })).toBeChecked();
+    expect(
+      within(tabs)
+        .getAllByRole('radio')
+        .map((r) => r.closest('label')?.textContent),
+    ).toEqual(['All', 'Barbell', 'Dumbbell']);
+    expect(within(tabs).getByRole('radio', { name: 'All' })).toBeChecked();
+    expect(stat('Sessions')).toHaveTextContent('2');
     expect(stat('Heaviest set')).toHaveTextContent('80 kg');
-    expect(stat('Sessions')).toHaveTextContent('1');
+    // Each session says what it was done with.
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows.map((r) => r.querySelector('.cell-note')?.textContent)).toEqual([
+      'Dumbbell ×2',
+      'Barbell',
+    ]);
+
+    await user.click(within(tabs).getByRole('radio', { name: 'Barbell' }));
+    await waitFor(() => expect(stat('Sessions')).toHaveTextContent('1'));
+    expect(stat('Heaviest set')).toHaveTextContent('80 kg');
+    expect(screen.queryByText('Dumbbell ×2')).not.toBeInTheDocument();
 
     await user.click(within(tabs).getByRole('radio', { name: 'Dumbbell' }));
 
