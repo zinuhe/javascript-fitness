@@ -12,6 +12,7 @@ import {
 import {
   createExercise,
   deleteExercise,
+  exerciseCountsQuery,
   exerciseQuery,
   exercisesQuery,
   progressQuery,
@@ -167,6 +168,7 @@ function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
 
 export function ExercisesPage() {
   const { data } = useSuspenseQuery(exercisesQuery);
+  const { data: counts } = useSuspenseQuery(exerciseCountsQuery);
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [formKey, setFormKey] = useState(0);
@@ -234,6 +236,14 @@ export function ExercisesPage() {
                 <span className="list-row-title">{exercise.name}</span>
                 <span className="list-row-meta">
                   {labelize(exercise.muscleGroup)} · {equipmentLabel(exercise.equipment)}
+                </span>
+                {/* How many of your workouts include it. */}
+                <span
+                  className="list-row-count"
+                  aria-label={`${counts.get(exercise.id) ?? 0} sessions`}
+                >
+                  <strong>{counts.get(exercise.id) ?? 0}</strong>
+                  <span>{(counts.get(exercise.id) ?? 0) === 1 ? 'session' : 'sessions'}</span>
                 </span>
               </Link>
             </li>

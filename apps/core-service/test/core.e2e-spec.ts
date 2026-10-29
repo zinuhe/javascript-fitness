@@ -233,6 +233,44 @@ describe('core-service (e2e)', () => {
       await as(token).get('/workouts?from=yesterday').expect(400);
     });
 
+    it('counts in how many workouts each exercise was done', async () => {
+      const token = tokenFor();
+      const [squat, bench, never] = await Promise.all([
+        createExercise(token),
+        createExercise(token),
+        createExercise(token),
+      ]);
+      const sets = [{ reps: 5, weightKg: 100 }];
+      for (const performedAt of ['2026-07-01T16:00:00.000Z', '2026-07-02T16:00:00.000Z']) {
+        await as(token)
+          .post('/workouts', { performedAt, exercises: [{ exerciseId: squat.id, sets }] })
+          .expect(201);
+      }
+      // Listed twice in one workout: still one session.
+      await as(token)
+        .post('/workouts', {
+          performedAt: '2026-07-03T16:00:00.000Z',
+          exercises: [
+            { exerciseId: bench.id, sets },
+            { exerciseId: bench.id, sets },
+          ],
+        })
+        .expect(201);
+      await as(tokenFor())
+        .post('/workouts', { exercises: [{ exerciseId: never.id, sets }] })
+        .expect(201); // someone else's
+
+      const res = await as(token).get('/workouts/exercise-counts').expect(200);
+      expect(
+        Object.fromEntries(
+          (res.body as { exerciseId: string; sessions: number }[]).map((c) => [
+            c.exerciseId,
+            c.sessions,
+          ]),
+        ),
+      ).toEqual({ [squat.id]: 2, [bench.id]: 1 });
+    });
+
     it('keeps each user’s workouts private', async () => {
       const owner = tokenFor();
       const intruder = tokenFor();

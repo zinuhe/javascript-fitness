@@ -101,6 +101,12 @@ export interface ExerciseProgress {
   points: ExerciseProgressPoint[];
 }
 
+/** How many of the user's workouts include an exercise (`GET /workouts/exercise-counts`). */
+export interface ExerciseSessionCount {
+  exerciseId: string;
+  sessions: number;
+}
+
 /**
  * The sets of the most recent workout where the user did an exercise with a given equipment
  * (`GET /workouts/last-sets`): one entry per exercise and equipment used.

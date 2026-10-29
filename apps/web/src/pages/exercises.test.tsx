@@ -32,6 +32,28 @@ describe('exercise catalog', () => {
     ]);
   });
 
+  it('shows in how many of your workouts each exercise was done', async () => {
+    const me = signedInAs();
+    const squat = seedExercise({ name: 'Squat' });
+    seedExercise({ name: 'Plank' });
+    for (const day of ['01', '02']) {
+      seedWorkout(me.id, {
+        performedAt: `2026-07-${day}T16:00:00.000Z`,
+        exercises: [{ exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] }],
+      });
+    }
+
+    renderApp('/exercises');
+
+    const list = await screen.findByRole('list', { name: 'Exercise catalog' });
+    const count = (name: string) =>
+      within(within(list).getByRole('link', { name: new RegExp(`^${name}`) })).getByLabelText(
+        /sessions$/,
+      );
+    expect(count('Squat')).toHaveAccessibleName('2 sessions');
+    expect(count('Plank')).toHaveAccessibleName('0 sessions');
+  });
+
   it('filters the catalog by name, muscle group or equipment', async () => {
     signedInAs();
     seedExercise({

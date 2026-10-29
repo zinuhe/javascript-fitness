@@ -36,6 +36,7 @@ beforeEach(() => {
     findExerciseEquipment: jest.fn().mockImplementation(() => Promise.resolve(catalog())),
     routineDayBelongsToUser: jest.fn().mockResolvedValue(true),
     findLastSets: jest.fn().mockResolvedValue([]),
+    countSessionsByExercise: jest.fn().mockResolvedValue([]),
     findSetHistory: jest.fn(),
   };
   service = new WorkoutsService(repo);

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma';
 import type {
   Equipment,
+  ExerciseSessionCount,
   LastExerciseSets,
   UpdateWorkoutRequest,
   Workout,
@@ -187,6 +188,18 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
           ...(s.restSeconds !== null ? { restSeconds: s.restSeconds } : {}),
         })),
       }));
+  }
+
+  async countSessionsByExercise(userId: string): Promise<ExerciseSessionCount[]> {
+    // Distinct (exercise, workout) pairs: an exercise listed twice in a workout counts once.
+    const pairs = await this.prisma.workoutExercise.findMany({
+      where: { workout: { userId } },
+      distinct: ['exerciseId', 'workoutId'],
+      select: { exerciseId: true },
+    });
+    const counts = new Map<string, number>();
+    for (const { exerciseId } of pairs) counts.set(exerciseId, (counts.get(exerciseId) ?? 0) + 1);
+    return [...counts].map(([exerciseId, sessions]) => ({ exerciseId, sessions }));
   }
 
   async findSetHistory(

@@ -1,5 +1,6 @@
 import type {
   CreateWorkoutRequest,
+  ExerciseSessionCount,
   Equipment,
   LastExerciseSets,
   UpdateWorkoutRequest,
@@ -43,6 +44,8 @@ export interface WorkoutRepository {
    * for each exercise, the most recent entry comes first.
    */
   findLastSets(userId: string, exerciseIds: string[]): Promise<LastExerciseSets[]>;
+  /** For each exercise the user has logged, in how many of their workouts. */
+  countSessionsByExercise(userId: string): Promise<ExerciseSessionCount[]>;
   /**
    * All sets a user has logged for a given exercise (only with `equipment`, when given), in
    * the order they were done.

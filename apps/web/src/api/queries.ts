@@ -12,6 +12,7 @@ import type {
   Equipment,
   Exercise,
   ExerciseProgress,
+  ExerciseSessionCount,
   LastExerciseSets,
   LoginRequest,
   NextRoutineDay,
@@ -37,6 +38,18 @@ export const meQuery = queryOptions({
 export const exercisesQuery = queryOptions({
   queryKey: ['exercises'],
   queryFn: () => api<Paginated<Exercise>>(`/exercises?pageSize=${CATALOG_PAGE_SIZE}`),
+});
+
+/** In how many of the user's workouts each exercise appears (refreshed with workouts). */
+export const exerciseCountsQuery = queryOptions({
+  queryKey: ['workouts', 'exercise-counts'],
+  queryFn: async () =>
+    new Map(
+      (await api<ExerciseSessionCount[]>('/workouts/exercise-counts')).map((c) => [
+        c.exerciseId,
+        c.sessions,
+      ]),
+    ),
 });
 
 export const exerciseQuery = (id: string) =>

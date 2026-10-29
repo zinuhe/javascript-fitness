@@ -3,6 +3,7 @@ import { NotFoundError, ValidationError } from '@fitness/common';
 import {
   Equipment,
   type CreateWorkoutRequest,
+  type ExerciseSessionCount,
   type ExerciseProgress,
   type LastExerciseSets,
   type Paginated,
@@ -64,6 +65,10 @@ export class WorkoutsService {
     if (!deleted) {
       throw new NotFoundError('Workout not found', 'workout.not_found');
     }
+  }
+
+  exerciseCounts(userId: string): Promise<ExerciseSessionCount[]> {
+    return this.workouts.countSessionsByExercise(userId);
   }
 
   lastSets(userId: string, exerciseIds: string[]): Promise<LastExerciseSets[]> {

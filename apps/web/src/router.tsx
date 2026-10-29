@@ -18,6 +18,7 @@ import {
   routineQuery,
   routinesQuery,
   activityQuery,
+  exerciseCountsQuery,
   workoutQuery,
   workoutsQuery,
 } from './api/queries';
@@ -174,7 +175,11 @@ const editWorkoutRoute = createRoute({
 const exercisesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'exercises',
-  loader: ({ context }) => context.queryClient.ensureQueryData(exercisesQuery),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(exercisesQuery),
+      context.queryClient.ensureQueryData(exerciseCountsQuery),
+    ]),
   component: ExercisesPage,
 });
 

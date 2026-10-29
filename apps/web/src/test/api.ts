@@ -473,6 +473,20 @@ export const handlers = [
     return HttpResponse.json(workout, { status: 201 });
   }),
 
+  http.get('/api/workouts/exercise-counts', ({ request }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const counts = new Map<string, number>();
+    for (const w of state.workouts.filter((w) => w.userId === user.id)) {
+      for (const id of new Set(w.exercises.map((e) => e.exerciseId))) {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+    }
+    return HttpResponse.json(
+      [...counts].map(([exerciseId, sessions]) => ({ exerciseId, sessions })),
+    );
+  }),
+
   http.get('/api/workouts/progress/:exerciseId', ({ request, params }) => {
     const user = currentUser(request);
     if (!user) return problem(401, 'Unauthorized');

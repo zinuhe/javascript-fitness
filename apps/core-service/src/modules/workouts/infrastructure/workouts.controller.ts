@@ -16,6 +16,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type {
   ExerciseProgress,
+  ExerciseSessionCount,
   JwtAccessPayload,
   LastExerciseSets,
   Paginated,
@@ -75,6 +76,13 @@ export class WorkoutsController {
   }
 
   // Declared before ':id' so "last-sets" is not parsed as a workout id.
+  // Declared before ':id' like last-sets.
+  @Get('exercise-counts')
+  @ApiOperation({ summary: 'In how many of the user workouts each exercise appears' })
+  exerciseCounts(@CurrentUser() user: JwtAccessPayload): Promise<ExerciseSessionCount[]> {
+    return this.workouts.exerciseCounts(user.sub);
+  }
+
   @Get('last-sets')
   @ApiOperation({
     summary: 'Sets from the most recent workout of each given exercise, per equipment used',
