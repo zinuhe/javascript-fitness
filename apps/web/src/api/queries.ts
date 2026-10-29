@@ -25,7 +25,7 @@ import { api, tokenStore } from './client';
 
 /** API maximum page size; the catalog is small enough to load in one page for now. */
 export const CATALOG_PAGE_SIZE = 100;
-export const WORKOUTS_PAGE_SIZE = 10;
+export const WORKOUTS_PAGE_SIZE = 20;
 
 // ── Queries (shared by route loaders and components) ────────────────────────────
 export const meQuery = queryOptions({

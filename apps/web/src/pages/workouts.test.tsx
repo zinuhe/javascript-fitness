@@ -83,7 +83,7 @@ describe('workouts list', () => {
   it('paginates with newer/older links', async () => {
     const me = signedInAs();
     const { squat } = seedCatalog();
-    for (let day = 1; day <= 12; day++) {
+    for (let day = 1; day <= 22; day++) {
       seedWorkout(me.id, {
         performedAt: `2026-10-${String(day).padStart(2, '0')}T09:00:00.000Z`,
         notes: `Session ${day}`,
@@ -93,7 +93,8 @@ describe('workouts list', () => {
     const { user, router } = renderApp('/workouts');
 
     expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument();
-    expect(screen.getByText('Session 12')).toBeInTheDocument(); // newest first
+    expect(screen.getByText('Session 22')).toBeInTheDocument(); // newest first, 20 a page
+    expect(screen.queryByText('Session 2')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('link', { name: 'Older →' }));
 
