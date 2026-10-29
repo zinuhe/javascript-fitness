@@ -21,6 +21,7 @@ afterEach(() => {
   server.resetHandlers();
   resetApi();
   tokenStore.clear();
+  localStorage.clear(); // view preferences (catalog sort, filters)
 });
 
 afterAll(() => server.close());

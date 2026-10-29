@@ -166,12 +166,48 @@ function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
   };
 }
 
+type CatalogSort = 'name' | 'sessions';
+
+const SORTS: { value: CatalogSort; label: string }[] = [
+  { value: 'name', label: 'Name' },
+  { value: 'sessions', label: 'Sessions' },
+];
+
+/**
+ * A view preference kept on this device (sort order, filters). Storage can be missing or
+ * throw (private mode); the page then just starts from the default.
+ */
+function useStoredState<T extends string>(key: string, fallback: T, allowed: readonly T[]) {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const saved = localStorage.getItem(key) as T | null;
+      return saved && allowed.includes(saved) ? saved : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+  const update = (next: T) => {
+    setValue(next);
+    try {
+      localStorage.setItem(key, next);
+    } catch {
+      // Not remembered on this device; still applied now.
+    }
+  };
+  return [value, update] as const;
+}
+
 export function ExercisesPage() {
   const { data } = useSuspenseQuery(exercisesQuery);
   const { data: counts } = useSuspenseQuery(exerciseCountsQuery);
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [formKey, setFormKey] = useState(0);
+  const [sort, setSort] = useStoredState<CatalogSort>('fitness.exercises.sort', 'name', [
+    'name',
+    'sessions',
+  ]);
+  const sessions = (id: string) => counts.get(id) ?? 0;
 
   const create = useMutation({
     mutationFn: createExercise,
@@ -179,13 +215,19 @@ export function ExercisesPage() {
   });
 
   const needle = query.trim().toLowerCase();
-  const visible = needle
+  const matching = needle
     ? data.items.filter((e) =>
         [e.name, labelize(e.muscleGroup), ...e.equipment.map(labelize)].some((text) =>
           text.toLowerCase().includes(needle),
         ),
       )
     : data.items;
+  // By name (A–Z), or most done first with name breaking ties.
+  const visible = [...matching].sort((a, b) =>
+    sort === 'sessions'
+      ? sessions(b.id) - sessions(a.id) || a.name.localeCompare(b.name)
+      : a.name.localeCompare(b.name),
+  );
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -214,6 +256,23 @@ export function ExercisesPage() {
         />
       )}
 
+      {data.items.length > 1 && (
+        <div className="segmented" role="radiogroup" aria-label="Sort by">
+          {SORTS.map(({ value, label }) => (
+            <label key={value}>
+              <input
+                type="radio"
+                name="catalogSort"
+                value={value}
+                checked={sort === value}
+                onChange={() => setSort(value)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
       {data.items.length === 0 ? (
         <p className="card muted empty">No exercises yet.</p>
       ) : visible.length === 0 ? (
@@ -238,12 +297,9 @@ export function ExercisesPage() {
                   {labelize(exercise.muscleGroup)} · {equipmentLabel(exercise.equipment)}
                 </span>
                 {/* How many of your workouts include it. */}
-                <span
-                  className="list-row-count"
-                  aria-label={`${counts.get(exercise.id) ?? 0} sessions`}
-                >
-                  <strong>{counts.get(exercise.id) ?? 0}</strong>
-                  <span>{(counts.get(exercise.id) ?? 0) === 1 ? 'session' : 'sessions'}</span>
+                <span className="list-row-count" aria-label={`${sessions(exercise.id)} sessions`}>
+                  <strong>{sessions(exercise.id)}</strong>
+                  <span>{sessions(exercise.id) === 1 ? 'session' : 'sessions'}</span>
                 </span>
               </Link>
             </li>

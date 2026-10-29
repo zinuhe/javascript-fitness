@@ -54,6 +54,36 @@ describe('exercise catalog', () => {
     expect(count('Plank')).toHaveAccessibleName('0 sessions');
   });
 
+  it('sorts by name or by sessions, and remembers the choice', async () => {
+    const me = signedInAs();
+    const [, plank, squat] = ['Bench', 'Plank', 'Squat'].map((name) => seedExercise({ name }));
+    const log = (day: string, ids: string[]) =>
+      seedWorkout(me.id, {
+        performedAt: `2026-07-${day}T16:00:00.000Z`,
+        exercises: ids.map((exerciseId) => ({ exerciseId, sets: [{ reps: 5, weightKg: 50 }] })),
+      });
+    log('01', [squat.id, plank.id]);
+    log('02', [squat.id]);
+    const { user, router } = renderApp('/exercises');
+
+    const names = () =>
+      [...within(screen.getByRole('list', { name: 'Exercise catalog' })).getAllByRole('link')].map(
+        (link) => link.querySelector('.list-row-title')?.textContent,
+      );
+
+    await screen.findByRole('list', { name: 'Exercise catalog' });
+    expect(names()).toEqual(['Bench', 'Plank', 'Squat']); // by name by default
+    await user.click(screen.getByRole('radio', { name: 'Sessions' }));
+    expect(names()).toEqual(['Squat', 'Plank', 'Bench']); // 2, 1, 0
+
+    // Kept when coming back to the page.
+    await router.navigate({ to: '/workouts' });
+    await router.navigate({ to: '/exercises' });
+    await screen.findByRole('list', { name: 'Exercise catalog' });
+    expect(screen.getByRole('radio', { name: 'Sessions' })).toBeChecked();
+    expect(names()).toEqual(['Squat', 'Plank', 'Bench']);
+  });
+
   it('filters the catalog by name, muscle group or equipment', async () => {
     signedInAs();
     seedExercise({
