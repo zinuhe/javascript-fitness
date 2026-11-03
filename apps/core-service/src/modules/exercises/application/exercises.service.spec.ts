@@ -10,6 +10,7 @@ const bench: Exercise = {
   primaryMuscles: [],
   secondaryMuscles: [],
   equipment: [Equipment.Barbell],
+  images: [],
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 

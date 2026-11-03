@@ -11,6 +11,7 @@ import type {
   UpdateWorkoutRequest,
   Equipment,
   Exercise,
+  ExerciseImageSlot,
   ExerciseProgress,
   ExerciseSessionCount,
   LastExerciseSets,
@@ -170,6 +171,21 @@ export const updateExercise = (id: string, input: UpdateExerciseRequest) =>
   api<Exercise>(`/exercises/${id}`, { method: 'PATCH', body: input });
 
 export const deleteExercise = (id: string) => api<void>(`/exercises/${id}`, { method: 'DELETE' });
+
+/** Sets the start (1) or end (2) picture, as its two renditions (already resized). */
+export function uploadExerciseImage(
+  id: string,
+  slot: ExerciseImageSlot,
+  files: { thumb: Blob; large: Blob },
+) {
+  const body = new FormData();
+  body.append('thumb', files.thumb, 'thumb');
+  body.append('large', files.large, 'large');
+  return api<Exercise>(`/exercises/${id}/images/${slot}`, { method: 'PUT', body });
+}
+
+export const deleteExerciseImage = (id: string, slot: ExerciseImageSlot) =>
+  api<Exercise>(`/exercises/${id}/images/${slot}`, { method: 'DELETE' });
 
 export const createWorkout = (input: CreateWorkoutRequest) =>
   api<Workout>('/workouts', { method: 'POST', body: input });

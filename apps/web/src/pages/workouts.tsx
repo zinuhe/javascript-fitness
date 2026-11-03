@@ -17,6 +17,7 @@ import {
   useScrollToOnOpen,
 } from '../components/ui';
 import { PencilIcon } from '../components/icons';
+import { ExercisePreview } from '../components/exercise-images';
 import { BarWord } from '../components/bar';
 import {
   formatVolume,
@@ -221,6 +222,10 @@ export function WorkoutDetailPage() {
           >
             <div className="row between">
               <div className="row">
+                <ExercisePreview
+                  exercise={catalog.items.find((e) => e.id === entry.exerciseId)}
+                  size="small"
+                />
                 <h2>
                   <Link to="/exercises/$exerciseId" params={{ exerciseId: entry.exerciseId }}>
                     {names.get(entry.exerciseId) ?? 'Unknown exercise'}

@@ -34,5 +34,10 @@ README "Deploying to the Raspberry Pi" has the details.
 - An exercise has one or more pieces of equipment (`Exercise.equipment` is a list, names are
   unique); each logged exercise records which one was used, and last sets and progress are kept
   apart per equipment.
+- Exercise pictures: up to two per exercise (slot 1 start, 2 end), each stored in Postgres
+  (`exercise_images`) as a thumb and a large rendition that the browser resizes before
+  uploading (`apps/web/src/components/image-resize.ts`). They are served without a token at
+  `/api/media/exercises/{id}/{slot}/{size}?v={version}` (cached for good, outside the
+  gateway rate limit); uploads and removals go through the JWT-protected exercise routes.
 - The web app is used mostly on an iPhone: design mobile-first (16px inputs, 44px targets,
   safe areas) and check it at 393×852 as well as on desktop.

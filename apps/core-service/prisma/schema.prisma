@@ -74,9 +74,30 @@ model Exercise {
 
   workoutExercises    WorkoutExercise[]
   routineDayExercises RoutineDayExercise[]
+  images              ExerciseImage[]
 
   @@unique([name])
   @@map("exercises")
+}
+
+// Pictures of an exercise, uploaded already resized by the browser. Kept in the database so
+// the regular pg_dump backups include them; the catalog is small (two per exercise).
+model ExerciseImage {
+  exerciseId String   @db.Uuid
+  // 1 = start position, 2 = end position.
+  slot       Int
+  thumb      Bytes
+  thumbType  String
+  large      Bytes
+  largeType  String
+  // Content hash; part of the image URL so browsers can cache it forever.
+  version    String
+  updatedAt  DateTime @updatedAt
+
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([exerciseId, slot])
+  @@map("exercise_images")
 }
 
 model Workout {

@@ -1,5 +1,6 @@
 import { HttpResponse, http } from 'msw';
 import type {
+  ExerciseImageSlot,
   ActivityEntry,
   AuthResponse,
   CreateExerciseRequest,
@@ -45,7 +46,11 @@ interface State {
 
 let state: State;
 
+/** Pictures uploaded through the fake API: the files' sizes, by exercise and slot. */
+export const uploads: { exerciseId: string; slot: number; thumb: number; large: number }[] = [];
+
 export function resetApi(): void {
+  uploads.length = 0;
   state = {
     users: [],
     exercises: [],
@@ -89,10 +94,17 @@ export function seedExercise(over: Partial<Exercise> = {}): Exercise {
     primaryMuscles: [],
     secondaryMuscles: [],
     equipment: [Equipment.Machine],
+    images: [],
     createdAt: now(),
     ...over,
   };
   state.exercises.push(exercise);
+  return exercise;
+}
+
+/** Gives a seeded exercise pictures (only their refs: the fake serves any bytes for them). */
+export function seedExerciseImages(exercise: Exercise, slots: ExerciseImageSlot[] = [1, 2]) {
+  exercise.images = slots.map((slot) => ({ slot, version: nextId('v') }));
   return exercise;
 }
 
@@ -321,6 +333,25 @@ function progressFor(
     .sort((a, b) => a.performedAt.localeCompare(b.performedAt));
 }
 
+/**
+ * Byte size of each file in a multipart body, by field name. Read by hand: undici's
+ * `request.formData()` builds Node File objects, which clash with jsdom's File global.
+ */
+async function multipartFileSizes(request: Request): Promise<Record<string, number>> {
+  const boundary = request.headers.get('content-type')?.match(/boundary=(.+)$/)?.[1];
+  if (!boundary) return {};
+  // latin1 keeps one character per byte, so lengths are byte counts.
+  const body = Buffer.from(await request.arrayBuffer()).toString('latin1');
+  const sizes: Record<string, number> = {};
+  for (const part of body.split(`--${boundary}`)) {
+    const name = part.match(/name="([^"]+)"/)?.[1];
+    const start = part.indexOf('\r\n\r\n');
+    if (!name || start === -1) continue;
+    sizes[name] = part.length - (start + 4) - 2; // minus the CRLF before the next boundary
+  }
+  return sizes;
+}
+
 // ── Handlers ────────────────────────────────────────────────────────────────────
 type Credentials = { email: string; password: string; displayName?: string };
 
@@ -422,6 +453,39 @@ export const handlers = [
     logActivity(currentUser(request)!.id, 'exercise.update', `Edited exercise ${exercise.name}`);
     return HttpResponse.json(exercise);
   }),
+
+  http.put('/api/exercises/:id/images/:slot', async ({ request, params }) => {
+    const user = currentUser(request);
+    if (!user) return problem(401, 'Unauthorized');
+    const exercise = state.exercises.find((e) => e.id === params.id);
+    if (!exercise) return problem(404, 'Exercise not found');
+    const slot = Number(params.slot) as ExerciseImageSlot;
+    const files = await multipartFileSizes(request);
+    if (files.thumb === undefined || files.large === undefined) {
+      return problem(422, 'The large image is missing');
+    }
+    uploads.push({ exerciseId: exercise.id, slot, thumb: files.thumb, large: files.large });
+    exercise.images = [
+      ...exercise.images.filter((i) => i.slot !== slot),
+      { slot, version: nextId('v') },
+    ].sort((a, b) => a.slot - b.slot);
+    return HttpResponse.json(exercise);
+  }),
+
+  http.delete('/api/exercises/:id/images/:slot', ({ request, params }) => {
+    if (!currentUser(request)) return problem(401, 'Unauthorized');
+    const exercise = state.exercises.find((e) => e.id === params.id);
+    if (!exercise) return problem(404, 'Exercise not found');
+    exercise.images = exercise.images.filter((i) => i.slot !== Number(params.slot));
+    return HttpResponse.json(exercise);
+  }),
+
+  // Public, like the real one; any bytes do for jsdom, which never decodes them.
+  http.get('/api/media/exercises/:id/:slot/:size', () =>
+    HttpResponse.arrayBuffer(new Uint8Array([0xff, 0xd8, 0xff]).buffer, {
+      headers: { 'content-type': 'image/jpeg' },
+    }),
+  ),
 
   http.delete('/api/exercises/:id', ({ request, params }) => {
     if (!currentUser(request)) return problem(401, 'Unauthorized');

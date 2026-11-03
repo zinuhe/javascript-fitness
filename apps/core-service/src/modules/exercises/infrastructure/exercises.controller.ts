@@ -7,18 +7,28 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Exercise, JwtAccessPayload, Paginated } from '@fitness/contracts';
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/current-user.decorator';
 import { ActivityService } from '../../activity/application/activity.service';
 import { ExercisesService } from '../application/exercises.service';
+import {
+  ExerciseImagesService,
+  MAX_LARGE_BYTES,
+  type UploadedImage,
+} from '../application/exercise-images.service';
 import { CreateExerciseDto, ListExercisesQueryDto, UpdateExerciseDto } from './dto/exercise.dto';
 
 @ApiTags('exercises')
@@ -28,6 +38,7 @@ import { CreateExerciseDto, ListExercisesQueryDto, UpdateExerciseDto } from './d
 export class ExercisesController {
   constructor(
     private readonly exercises: ExercisesService,
+    private readonly images: ExerciseImagesService,
     private readonly activity: ActivityService,
   ) {}
 
@@ -83,5 +94,55 @@ export class ExercisesController {
     const exercise = await this.exercises.getById(id);
     await this.exercises.remove(id);
     await this.log(user.sub, 'exercise.delete', `Deleted exercise ${exercise.name}`, userAgent);
+  }
+
+  @Put(':id/images/:slot')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Set the start (1) or end (2) image: multipart with `thumb` and `large` files',
+  })
+  // Kept in memory (they are small, and go straight into the database).
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'thumb', maxCount: 1 },
+        { name: 'large', maxCount: 1 },
+      ],
+      { limits: { fileSize: MAX_LARGE_BYTES, files: 2, fields: 0 } },
+    ),
+  )
+  async setImage(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('slot', ParseIntPipe) slot: number,
+    @UploadedFiles() files: { thumb?: UploadedImage[]; large?: UploadedImage[] } = {},
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<Exercise> {
+    const exercise = await this.images.set(id, slot, {
+      thumb: files.thumb?.[0],
+      large: files.large?.[0],
+    });
+    const what = ExerciseImagesService.describeSlot(slot);
+    await this.log(user.sub, 'exercise.image', `Set the ${what} of ${exercise.name}`, userAgent);
+    return exercise;
+  }
+
+  @Delete(':id/images/:slot')
+  @ApiOperation({ summary: 'Remove the start (1) or end (2) image' })
+  async removeImage(
+    @CurrentUser() user: JwtAccessPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('slot', ParseIntPipe) slot: number,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<Exercise> {
+    const exercise = await this.images.remove(id, slot);
+    const what = ExerciseImagesService.describeSlot(slot);
+    await this.log(
+      user.sub,
+      'exercise.image',
+      `Removed the ${what} of ${exercise.name}`,
+      userAgent,
+    );
+    return exercise;
   }
 }

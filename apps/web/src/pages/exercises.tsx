@@ -1,22 +1,27 @@
-import { useState, useTransition, type FormEvent } from 'react';
+import { useState, useTransition, type ChangeEvent, type FormEvent } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import {
+  EXERCISE_IMAGE_SLOTS,
   Equipment,
   Muscle,
   MuscleGroup,
   type CreateExerciseRequest,
   type Exercise,
+  type ExerciseImageSlot,
   type ExerciseProgressPoint,
 } from '@fitness/contracts';
+import { ApiError } from '../api/client';
 import {
   createExercise,
   deleteExercise,
+  deleteExerciseImage,
   exerciseCountsQuery,
   exerciseQuery,
   exercisesQuery,
   progressQuery,
   updateExercise,
+  uploadExerciseImage,
 } from '../api/queries';
 import {
   ErrorMessage,
@@ -25,7 +30,14 @@ import {
   formatShortDate,
   labelize,
 } from '../components/ui';
-import { MuscleMap } from '../components/muscle-map';
+import { MuscleMap, MusclesWorked } from '../components/muscle-map';
+import {
+  ExerciseGallery,
+  ExerciseThumb,
+  SLOT_LABELS,
+  exerciseImageUrl,
+} from '../components/exercise-images';
+import { prepareExerciseImage } from '../components/image-resize';
 import { formatTableVolume, formatWeight, useWeightUnit } from '../components/units';
 
 /**
@@ -331,12 +343,16 @@ export function ExercisesPage() {
                 params={{ exerciseId: exercise.id }}
                 className="list-row with-figure"
               >
-                <MuscleMap
-                  primary={exercise.primaryMuscles}
-                  secondary={exercise.secondaryMuscles}
-                  size="small"
-                  decorative
-                />
+                {exercise.images.length > 0 ? (
+                  <ExerciseThumb exercise={exercise} />
+                ) : (
+                  <MuscleMap
+                    primary={exercise.primaryMuscles}
+                    secondary={exercise.secondaryMuscles}
+                    size="small"
+                    decorative
+                  />
+                )}
                 <span className="list-row-title">{exercise.name}</span>
                 <span className="list-row-meta">
                   {labelize(exercise.muscleGroup)} · {equipmentLabel(exercise.equipment)}
@@ -486,21 +502,6 @@ function OneRepMaxChart({
   );
 }
 
-/** The muscle map of an exercise with the muscles named under it. */
-function MusclesWorked({ exercise }: { exercise: Exercise }) {
-  const { primaryMuscles: primary, secondaryMuscles: secondary } = exercise;
-  if (primary.length + secondary.length === 0) return null;
-  return (
-    <div className="stack-tight">
-      <MuscleMap primary={primary} secondary={secondary} />
-      <p className="muscle-legend">
-        {primary.length > 0 && <span>{primary.map(labelize).join(', ')}</span>}
-        {secondary.length > 0 && <span className="also">{secondary.map(labelize).join(', ')}</span>}
-      </p>
-    </div>
-  );
-}
-
 const detailRoute = getRouteApi('/_app/exercises/$exerciseId');
 
 export function ExerciseDetailPage() {
@@ -544,6 +545,7 @@ export function ExerciseDetailPage() {
               </span>
             ))}
           </p>
+          <ExerciseGallery exercise={exercise} />
           {exercise.description && <p>{exercise.description}</p>}
           <MusclesWorked exercise={exercise} />
         </div>
@@ -661,6 +663,108 @@ export function ExerciseDetailPage() {
   );
 }
 
+/**
+ * The start and end pictures. Each one is saved as soon as it is picked or removed (it
+ * doesn't wait for "Save changes"): the photo is shrunk in the browser, then uploaded.
+ */
+function ExercisePictures({ exercise }: { exercise: Exercise }) {
+  return (
+    <section className="card stack" aria-labelledby="pictures-title">
+      <div>
+        <h2 id="pictures-title">Pictures</h2>
+        <p className="muted">
+          Start and end position. Shown small while logging a workout; tap one to see it large.
+          Saved as soon as you pick it.
+        </p>
+      </div>
+      <div className="image-slots">
+        {EXERCISE_IMAGE_SLOTS.map((slot) => (
+          <PictureSlot key={slot} exercise={exercise} slot={slot} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PictureSlot({ exercise, slot }: { exercise: Exercise; slot: ExerciseImageSlot }) {
+  const queryClient = useQueryClient();
+  const image = exercise.images.find((i) => i.slot === slot);
+  const label = SLOT_LABELS[slot];
+
+  const saved = async (updated: Exercise) => {
+    queryClient.setQueryData(exerciseQuery(exercise.id).queryKey, updated);
+    await queryClient.invalidateQueries({ queryKey: exercisesQuery.queryKey });
+  };
+  const upload = useMutation({
+    mutationFn: async (file: File) =>
+      uploadExerciseImage(exercise.id, slot, await prepareExerciseImage(file)),
+    onSuccess: saved,
+  });
+  const remove = useMutation({
+    mutationFn: () => deleteExerciseImage(exercise.id, slot),
+    onSuccess: saved,
+  });
+  const busy = upload.isPending || remove.isPending;
+  const error = upload.error ?? remove.error;
+
+  const onPick = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Cleared so picking the same photo again still counts as a change.
+    event.target.value = '';
+    if (file) upload.mutate(file);
+  };
+
+  return (
+    <div className="image-slot">
+      <span className="image-slot-label">{label}</span>
+      {image ? (
+        <img
+          className="image-slot-preview"
+          src={exerciseImageUrl(exercise.id, image, 'thumb')}
+          alt={`${label} picture`}
+        />
+      ) : (
+        <span className="image-slot-preview empty">No picture</span>
+      )}
+      {upload.isPending && <span className="hint">Uploading…</span>}
+      <div className="row">
+        <label className={`button secondary small${busy ? ' disabled' : ''}`}>
+          {image ? 'Replace' : 'Choose…'}
+          <input
+            type="file"
+            accept="image/*"
+            className="visually-hidden"
+            aria-label={`${label} picture`}
+            disabled={busy}
+            onChange={onPick}
+          />
+        </label>
+        {image && (
+          <button
+            type="button"
+            className="button secondary small"
+            aria-label={`Remove ${label.toLowerCase()} picture`}
+            disabled={busy}
+            onClick={() => {
+              if (confirm(`Remove the ${label.toLowerCase()} picture?`)) remove.mutate();
+            }}
+          >
+            Remove
+          </button>
+        )}
+      </div>
+      {/* Errors from resizing are plain messages, not API problems. */}
+      {error instanceof ApiError || !error ? (
+        <ErrorMessage error={error} />
+      ) : (
+        <div className="alert" role="alert">
+          <p>{error.message}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const editRoute = getRouteApi('/_app/exercises/$exerciseId/edit');
 
 export function EditExercisePage() {
@@ -694,6 +798,7 @@ export function EditExercisePage() {
       <div className="card stack">
         <ExerciseFields initial={exercise} />
       </div>
+      <ExercisePictures exercise={exercise} />
       <p className="muted">
         Changes apply everywhere the exercise is used: past workouts, routines and progress.
       </p>

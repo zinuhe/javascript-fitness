@@ -1,4 +1,4 @@
-import { Muscle } from '@fitness/contracts';
+import { Muscle, type Exercise } from '@fitness/contracts';
 import { BACK, FRONT, type BodyRegion } from './body-outline';
 import { labelize } from './ui';
 
@@ -100,5 +100,20 @@ export function MuscleMap({
       <Figure regions={FRONT} levels={levels} />
       <Figure regions={BACK} levels={levels} />
     </figure>
+  );
+}
+
+/** The muscle map of an exercise with the muscles named under it. */
+export function MusclesWorked({ exercise }: { exercise: Exercise }) {
+  const { primaryMuscles: primary, secondaryMuscles: secondary } = exercise;
+  if (primary.length + secondary.length === 0) return null;
+  return (
+    <div className="stack-tight">
+      <MuscleMap primary={primary} secondary={secondary} />
+      <p className="muscle-legend">
+        {primary.length > 0 && <span>{primary.map(labelize).join(', ')}</span>}
+        {secondary.length > 0 && <span className="also">{secondary.map(labelize).join(', ')}</span>}
+      </p>
+    </div>
   );
 }

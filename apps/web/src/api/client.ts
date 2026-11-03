@@ -88,14 +88,16 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
 function send(path: string, { method = 'GET', body, auth = true }: RequestOptions) {
   const headers: Record<string, string> = { accept: 'application/json' };
-  if (body !== undefined) headers['content-type'] = 'application/json';
+  // Files go as multipart: the browser sets that content type, with its boundary.
+  const multipart = body instanceof FormData;
+  if (body !== undefined && !multipart) headers['content-type'] = 'application/json';
   const tokens = auth ? tokenStore.get() : null;
   if (tokens) headers.authorization = `Bearer ${tokens.accessToken}`;
 
   return fetch(`/api${path}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
   });
 }
 

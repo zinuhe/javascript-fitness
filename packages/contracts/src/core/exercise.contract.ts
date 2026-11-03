@@ -58,7 +58,26 @@ export interface Exercise {
   /** What it can be done with, at least one (e.g. barbell and dumbbell). */
   equipment: Equipment[];
   description?: string;
+  /** Pictures of the exercise, by slot; empty when it has none. */
+  images: ExerciseImageRef[];
   createdAt: string;
+}
+
+/** Image slots of an exercise: 1 is the start position, 2 the end position. */
+export const EXERCISE_IMAGE_SLOTS = [1, 2] as const;
+export type ExerciseImageSlot = (typeof EXERCISE_IMAGE_SLOTS)[number];
+
+/** Each image is kept in two renditions: a small one for lists and forms, a large one. */
+export const EXERCISE_IMAGE_SIZES = ['thumb', 'large'] as const;
+export type ExerciseImageSize = (typeof EXERCISE_IMAGE_SIZES)[number];
+
+export interface ExerciseImageRef {
+  slot: ExerciseImageSlot;
+  /**
+   * Changes whenever the image does. Image URLs carry it, so a browser may cache one
+   * forever: `/api/media/exercises/{exerciseId}/{slot}/{size}?v={version}`.
+   */
+  version: string;
 }
 
 export interface CreateExerciseRequest {

@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { Equipment, Exercise, Muscle, MuscleGroup } from '@fitness/contracts';
+import type {
+  Equipment,
+  Exercise,
+  ExerciseImageSlot,
+  Muscle,
+  MuscleGroup,
+} from '@fitness/contracts';
 import { PrismaService } from '../../../prisma/prisma.service';
 import type {
   CreateExerciseData,
@@ -16,7 +22,13 @@ type ExerciseRow = {
   equipment: string[];
   description: string | null;
   createdAt: Date;
+  images: { slot: number; version: string }[];
 };
+
+// Which images an exercise has, never their bytes: those are fetched one by one.
+const withImages = {
+  images: { select: { slot: true, version: true }, orderBy: { slot: 'asc' } },
+} as const;
 
 /** Prisma adapter for {@link ExerciseRepository}. */
 @Injectable()
@@ -31,12 +43,13 @@ export class PrismaExerciseRepository implements ExerciseRepository {
         primaryMuscles: data.primaryMuscles as never,
         secondaryMuscles: data.secondaryMuscles as never,
       },
+      include: withImages,
     });
     return this.toContract(row);
   }
 
   async findById(id: string): Promise<Exercise | null> {
-    const row = await this.prisma.exercise.findUnique({ where: { id } });
+    const row = await this.prisma.exercise.findUnique({ where: { id }, include: withImages });
     return row ? this.toContract(row) : null;
   }
 
@@ -49,6 +62,7 @@ export class PrismaExerciseRepository implements ExerciseRepository {
         skip: params.skip,
         take: params.take,
         orderBy: { name: 'asc' },
+        include: withImages,
       }),
       this.prisma.exercise.count(),
     ]);
@@ -64,6 +78,7 @@ export class PrismaExerciseRepository implements ExerciseRepository {
         primaryMuscles: data.primaryMuscles as never,
         secondaryMuscles: data.secondaryMuscles as never,
       },
+      include: withImages,
     });
     return this.toContract(row);
   }
@@ -110,6 +125,10 @@ export class PrismaExerciseRepository implements ExerciseRepository {
       secondaryMuscles: row.secondaryMuscles as Muscle[],
       equipment: row.equipment as Equipment[],
       description: row.description ?? undefined,
+      images: row.images.map((image) => ({
+        slot: image.slot as ExerciseImageSlot,
+        version: image.version,
+      })),
       createdAt: row.createdAt.toISOString(),
     };
   }

@@ -26,7 +26,7 @@ import {
   workoutsOnDayQuery,
 } from '../api/queries';
 import { BarWord } from '../components/bar';
-import { MuscleMap } from '../components/muscle-map';
+import { ExercisePreview } from '../components/exercise-images';
 import {
   ErrorMessage,
   dayLabel,
@@ -116,22 +116,6 @@ function Stepper({
         </button>
       </div>
     </div>
-  );
-}
-
-/** The chosen exercise's muscle map, small, next to its card title. */
-function ExerciseFigure({ exerciseId, catalog }: { exerciseId: string; catalog: Exercise[] }) {
-  const exercise = catalog.find((e) => e.id === exerciseId);
-  if (!exercise || exercise.primaryMuscles.length + exercise.secondaryMuscles.length === 0) {
-    return null;
-  }
-  return (
-    <MuscleMap
-      primary={exercise.primaryMuscles}
-      secondary={exercise.secondaryMuscles}
-      size="small"
-      decorative
-    />
   );
 }
 
@@ -731,7 +715,8 @@ function WorkoutForm({
         >
           <div className="row between">
             <div className="row">
-              <ExerciseFigure exerciseId={entry.exerciseId} catalog={catalog.items} />
+              {/* The chosen exercise's picture (tap: large); its muscle figure without one. */}
+              <ExercisePreview exercise={catalog.items.find((e) => e.id === entry.exerciseId)} />
               <span id={`exercise-${entry.key}-title`} className="legend">
                 Exercise {entryIndex + 1}
               </span>

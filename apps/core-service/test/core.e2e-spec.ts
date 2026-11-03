@@ -148,6 +148,92 @@ describe('core-service (e2e)', () => {
     });
   });
 
+  describe('exercise images', () => {
+    const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from('thumb')]);
+    const PNG = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from('large'),
+    ]);
+
+    const upload = (token: string, id: string, slot: number, thumb: Buffer, large: Buffer) =>
+      request(http)
+        .put(`/exercises/${id}/images/${slot}`)
+        .set('authorization', `Bearer ${token}`)
+        .attach('thumb', thumb, 'thumb.jpg')
+        .attach('large', large, 'large.png');
+
+    it('stores both renditions and serves them publicly, cached by version', async () => {
+      const token = tokenFor();
+      const exercise = await createExercise(token);
+      expect(exercise.images).toEqual([]);
+
+      const res = await upload(token, exercise.id, 1, JPEG, PNG).expect(200);
+      const [image] = res.body.images;
+      expect(res.body.images).toEqual([{ slot: 1, version: expect.any(String) }]);
+      // Listed exercises say which images they have (never the bytes).
+      const list = await as(token).get('/exercises?pageSize=100').expect(200);
+      const listed = list.body.items.find((e: Exercise) => e.id === exercise.id);
+      expect(listed.images).toEqual([image]);
+
+      // No token needed: <img> tags can't send one.
+      const url = `/media/exercises/${exercise.id}/1`;
+      const thumb = await request(http).get(`${url}/thumb?v=${image.version}`).expect(200);
+      expect(thumb.headers['content-type']).toBe('image/jpeg');
+      expect(thumb.headers['cache-control']).toContain('immutable');
+      expect(Buffer.from(thumb.body)).toEqual(JPEG);
+      const large = await request(http).get(`${url}/large`).expect(200);
+      expect(large.headers['content-type']).toBe('image/png');
+      expect(large.headers['cache-control']).toBe('no-cache');
+      await request(http).get(`${url}/large`).set('if-none-match', large.headers.etag).expect(304);
+    });
+
+    it('replaces an image with a new version, and removes it', async () => {
+      const token = tokenFor();
+      const exercise = await createExercise(token);
+      const first = (await upload(token, exercise.id, 2, JPEG, JPEG).expect(200)).body.images[0];
+      const second = (await upload(token, exercise.id, 2, JPEG, PNG).expect(200)).body.images[0];
+      expect(second.slot).toBe(2);
+      expect(second.version).not.toBe(first.version);
+
+      const removed = await as(token).delete(`/exercises/${exercise.id}/images/2`).expect(200);
+      expect(removed.body.images).toEqual([]);
+      await request(http).get(`/media/exercises/${exercise.id}/2/thumb`).expect(404);
+    });
+
+    it('only accepts JPEG, PNG or WebP files in slots 1 and 2, from signed-in users', async () => {
+      const token = tokenFor();
+      const exercise = await createExercise(token);
+      const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>');
+
+      const bad = await upload(token, exercise.id, 1, JPEG, svg).expect(422);
+      expect(bad.body.title).toBe('exercise.image_type');
+      await upload(token, exercise.id, 3, JPEG, JPEG).expect(404);
+      await request(http)
+        .put(`/exercises/${exercise.id}/images/1`)
+        .attach('thumb', JPEG, 'thumb.jpg')
+        .attach('large', JPEG, 'large.jpg')
+        .expect(401);
+      const missing = await request(http)
+        .put(`/exercises/${exercise.id}/images/1`)
+        .set('authorization', `Bearer ${token}`)
+        .attach('thumb', JPEG, 'thumb.jpg')
+        .expect(422);
+      expect(missing.body.title).toBe('exercise.image_missing');
+      // Over the 1 MB per file limit: rejected before reaching the service.
+      const huge = Buffer.concat([JPEG, Buffer.alloc(1024 * 1024)]);
+      await upload(token, exercise.id, 1, JPEG, huge).expect(413);
+    });
+
+    it('goes away with its exercise', async () => {
+      const token = tokenFor();
+      const exercise = await createExercise(token);
+      await upload(token, exercise.id, 1, JPEG, JPEG).expect(200);
+
+      await as(token).delete(`/exercises/${exercise.id}`).expect(204);
+      await request(http).get(`/media/exercises/${exercise.id}/1/thumb`).expect(404);
+    });
+  });
+
   describe('workouts', () => {
     it('logs a workout keeping exercise and set order and decimal values', async () => {
       const token = tokenFor();

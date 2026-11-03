@@ -12,6 +12,9 @@ import { AppModule } from './app.module';
 import { parseCorsOrigins, type GatewayEnv } from './config/env';
 import { createJwtMiddleware } from './proxy/jwt.middleware';
 
+/** Exercise images, served by core-service without authentication. */
+const isMediaPath = (path: string): boolean => path.startsWith('/api/media/');
+
 async function bootstrap(): Promise<void> {
   // Body parsing is disabled so proxied requests stream their raw body upstream untouched.
   const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
@@ -39,6 +42,9 @@ async function bootstrap(): Promise<void> {
       limit: 120,
       standardHeaders: 'draft-7',
       legacyHeaders: false,
+      // A page full of exercise thumbnails must not eat the budget of API calls; images are
+      // cheap, read-only and cached by the browser for good.
+      skip: (req) => isMediaPath(req.originalUrl),
     }),
   );
 
@@ -54,6 +60,17 @@ async function bootstrap(): Promise<void> {
       changeOrigin: true,
       pathFilter: (path: string) => path.startsWith('/api/auth'),
       pathRewrite: { '^/api/auth': '/auth' },
+    }),
+  );
+
+  // Public exercise images: /api/media/* → core-service /media/* (GET only, no token: an
+  // <img> tag can't send one). Uploads go through the protected /api/exercises routes.
+  app.use(
+    createProxyMiddleware({
+      target: coreUrl,
+      changeOrigin: true,
+      pathFilter: (path: string, req) => isMediaPath(path) && req.method === 'GET',
+      pathRewrite: { '^/api': '' },
     }),
   );
 
