@@ -1159,3 +1159,27 @@ table.compact th:last-child {
     max-width: 480px;
   }
 }
+
+/* Cards a page can open scrolled to (?exercise=): clear of the sticky top bar. */
+.scroll-target {
+  scroll-margin-top: calc(64px + var(--safe-top));
+}
+/* Brief highlight on the card the page opened at. */
+.flash {
+  animation: flash 1.6s ease-out;
+}
+@keyframes flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+}

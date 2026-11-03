@@ -33,6 +33,7 @@ import {
   formatSessionDate,
   labelize,
   parseDecimal,
+  useScrollToOnOpen,
 } from '../components/ui';
 import {
   WEIGHT_STEP,
@@ -169,6 +170,8 @@ interface SetDraft {
 
 interface ExerciseDraft {
   key: number;
+  /** When editing: the saved workout exercise this entry came from. */
+  savedId?: string;
   exerciseId: string;
   /** Which of the exercise's equipment is used; '' until an exercise is chosen. */
   equipment: Equipment | '';
@@ -291,6 +294,7 @@ function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
     notes: workout.notes ?? '',
     entries: workout.exercises.map((entry) => ({
       key: nextKey++,
+      savedId: entry.id,
       exerciseId: entry.exerciseId,
       equipment: entry.equipment ?? '',
       barKg: entry.barKg,
@@ -337,7 +341,6 @@ function draftFromRoutineDay(
 
 function useSaveWorkout(mutationFn: (input: UpdateWorkoutRequest) => Promise<Workout>) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   return useMutation({
     mutationFn,
     onSuccess: async (workout) => {
@@ -347,7 +350,8 @@ function useSaveWorkout(mutationFn: (input: UpdateWorkoutRequest) => Promise<Wor
       // The routine rotation and the "last time" pre-fill both moved on.
       await queryClient.invalidateQueries({ queryKey: ['routines'] });
       await queryClient.invalidateQueries({ queryKey: ['last-sets'] });
-      await navigate({ to: '/workouts/$workoutId', params: { workoutId: workout.id } });
+      // The form then opens the saved workout (see onSubmit): only it knows which exercise
+      // to land on.
     },
   });
 }
@@ -408,16 +412,28 @@ const editRoute = getRouteApi('/_app/workouts/$workoutId/edit');
 
 export function EditWorkoutPage() {
   const { workoutId } = editRoute.useParams();
+  // Opened from an exercise's pencil: start there, and go back there when leaving.
+  const { exercise: openAt } = editRoute.useSearch();
   const { data: workout } = useSuspenseQuery(workoutQuery(workoutId));
   const save = useSaveWorkout((input) => updateWorkout(workoutId, input));
   const unit = useWeightUnit();
   const back = (
-    <Link to="/workouts/$workoutId" params={{ workoutId }} className="muted">
+    <Link
+      to="/workouts/$workoutId"
+      params={{ workoutId }}
+      search={{ exercise: openAt }}
+      className="muted"
+    >
       ← Workout
     </Link>
   );
   const cancel = (
-    <Link to="/workouts/$workoutId" params={{ workoutId }} className="button secondary">
+    <Link
+      to="/workouts/$workoutId"
+      params={{ workoutId }}
+      search={{ exercise: openAt }}
+      className="button secondary"
+    >
       Cancel
     </Link>
   );
@@ -429,6 +445,7 @@ export function EditWorkoutPage() {
       initial={() => draftFromWorkout(workout, unit)}
       initialRoutineDayId={workout.routineDay?.id}
       editingId={workout.id}
+      openAt={openAt}
       save={save}
       back={back}
       cancel={cancel}
@@ -449,6 +466,8 @@ interface WorkoutFormProps {
   initialRoutineDayId?: string;
   /** The workout being edited, which may of course keep its own date. */
   editingId?: string;
+  /** Saved workout exercise to open the form at (and return to after saving). */
+  openAt?: string;
   /** Lazy initial state: read once, when the form mounts. */
   initial: () => WorkoutDraft;
   /** The last sets per exercise and equipment, to re-fill when the equipment changes. */
@@ -464,6 +483,7 @@ function WorkoutForm({
   dayFillsExercises = false,
   initialRoutineDayId,
   editingId,
+  openAt,
   initial,
   lastSets: initialLastSets = [],
   save,
@@ -478,7 +498,11 @@ function WorkoutForm({
   /** The bar added to the plates of a barbell exercise; undefined without a barbell. */
   const barOf = (entry: ExerciseDraft) =>
     entry.equipment === 'barbell' ? (entry.barKg ?? me.barWeightKg) : undefined;
+  const navigate = useNavigate();
   const [draft] = useState(initial);
+  /** The entry the form opened at; followed by key, so it survives reordering/removals. */
+  const openKey = draft.entries.find((e) => e.savedId !== undefined && e.savedId === openAt)?.key;
+  useScrollToOnOpen(openKey !== undefined ? `entry-${openKey}` : undefined);
   const [performedAt, setPerformedAt] = useState(draft.performedAt);
   const [notes, setNotes] = useState(draft.notes);
   const [entries, setEntries] = useState<ExerciseDraft[]>(draft.entries);
@@ -606,7 +630,18 @@ function WorkoutForm({
         };
       }),
     };
-    save.mutate(request);
+    save.mutate(request, {
+      // Saved exercises get new ids: find the one the form opened at by its position.
+      onSuccess: (workout) => {
+        const index = done.findIndex((e) => e.key === openKey);
+        const exercise = index === -1 ? undefined : workout.exercises[index]?.id;
+        void navigate({
+          to: '/workouts/$workoutId',
+          params: { workoutId: workout.id },
+          search: { exercise },
+        });
+      },
+    });
   };
 
   if (catalog.items.length === 0) {
@@ -690,7 +725,8 @@ function WorkoutForm({
         // and here the title shares a row with the remove button.
         <fieldset
           key={entry.key}
-          className="card stack"
+          id={`entry-${entry.key}`}
+          className="card stack scroll-target"
           aria-labelledby={`exercise-${entry.key}-title`}
         >
           <div className="row between">

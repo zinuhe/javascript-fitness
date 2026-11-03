@@ -791,3 +791,92 @@ describe('in pounds', () => {
     expect(apiState.workouts[0].exercises[0].sets[0].weightKg).toBe(20.41);
   });
 });
+
+describe('editing from an exercise card', () => {
+  /** A workout with three exercises, so the middle one is neither first nor last. */
+  function seedLongWorkout() {
+    const me = signedInAs();
+    const { squat, bench } = seedCatalog();
+    const row = seedExercise({ name: 'Cable Row', muscleGroup: MuscleGroup.Back });
+    const workout = seedWorkout(me.id, {
+      exercises: [
+        { exerciseId: squat.id, sets: [{ reps: 5, weightKg: 100 }] },
+        { exerciseId: bench.id, sets: [{ reps: 8, weightKg: 60 }] },
+        { exerciseId: row.id, sets: [{ reps: 10, weightKg: 50 }] },
+      ],
+    });
+    return { workout, middle: workout.exercises[1] };
+  }
+
+  /** The elements scrolled into view so far, in order. */
+  function scrolledTo() {
+    const spy = vi.spyOn(Element.prototype, 'scrollIntoView');
+    return () => spy.mock.contexts as Element[];
+  }
+
+  it('has a pencil on each exercise that opens the form at that exercise', async () => {
+    const { workout, middle } = seedLongWorkout();
+    const scrolled = scrolledTo();
+    const { user, router } = renderApp(`/workouts/${workout.id}`);
+
+    // One pencil per exercise, named after it.
+    await screen.findByRole('link', { name: 'Edit Barbell Bench Press' });
+    expect(screen.getAllByRole('link', { name: /^Edit / })).toHaveLength(3);
+    await user.click(screen.getByRole('link', { name: 'Edit Barbell Bench Press' }));
+
+    const group = await screen.findByRole('group', { name: 'Exercise 2' });
+    expect(currentUrl(router)).toBe(`/workouts/${workout.id}/edit?exercise=${middle.id}`);
+    await waitFor(() => expect(scrolled()).toContain(group));
+    expect(group).toHaveClass('flash');
+  });
+
+  it('returns to the same exercise after saving, although saving renews its id', async () => {
+    const { workout, middle } = seedLongWorkout();
+    const { user, router } = renderApp(`/workouts/${workout.id}/edit?exercise=${middle.id}`);
+
+    const group = await screen.findByRole('group', { name: 'Exercise 2' });
+    const reps = within(group).getByLabelText('Reps');
+    await user.clear(reps);
+    await user.type(reps, '6');
+    const scrolled = scrolledTo();
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    const saved = apiState.workouts[0].exercises[1];
+    expect(saved.id).not.toBe(middle.id);
+    expect(saved.sets[0]).toMatchObject({ reps: 6 });
+    await waitFor(() =>
+      expect(currentUrl(router)).toBe(`/workouts/${workout.id}?exercise=${saved.id}`),
+    );
+    const card = document.getElementById(`workout-exercise-${saved.id}`);
+    expect(card).toHaveTextContent('Barbell Bench Press');
+    await waitFor(() => expect(scrolled()).toContain(card));
+  });
+
+  it('goes back to that exercise on Cancel, and to the top when the exercise was removed', async () => {
+    const { workout, middle } = seedLongWorkout();
+    const { user, router } = renderApp(`/workouts/${workout.id}/edit?exercise=${middle.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Cancel' }));
+    await screen.findByRole('link', { name: 'Edit Barbell Bench Press' });
+    expect(currentUrl(router)).toBe(`/workouts/${workout.id}?exercise=${middle.id}`);
+
+    await user.click(screen.getByRole('link', { name: 'Edit Barbell Bench Press' }));
+    await user.click(await screen.findByRole('button', { name: 'Remove exercise 2' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => expect(currentUrl(router)).toBe(`/workouts/${workout.id}`));
+    expect(apiState.workouts[0].exercises).toHaveLength(2);
+  });
+
+  it('opens at the top when coming from the main Edit button', async () => {
+    const { workout } = seedLongWorkout();
+    const scrolled = scrolledTo();
+    const { user } = renderApp(`/workouts/${workout.id}`);
+
+    await user.click(await screen.findByRole('link', { name: 'Edit' }));
+    await screen.findByRole('group', { name: 'Exercise 3' });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(scrolled()).toHaveLength(0);
+  });
+});

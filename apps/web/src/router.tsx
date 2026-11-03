@@ -149,9 +149,18 @@ const newWorkoutRoute = createRoute({
   component: NewWorkoutPage,
 });
 
+/**
+ * `?exercise=` is one of the workout's exercises (its id in the workout): the detail page
+ * and the edit form open scrolled to it, so editing from a card far down lands on that card.
+ */
+const exerciseSearch = (search: Record<string, unknown>): { exercise?: string } => ({
+  exercise: typeof search.exercise === 'string' ? search.exercise : undefined,
+});
+
 const workoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'workouts/$workoutId',
+  validateSearch: exerciseSearch,
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(workoutQuery(params.workoutId)),
@@ -163,6 +172,7 @@ const workoutRoute = createRoute({
 const editWorkoutRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'workouts/$workoutId/edit',
+  validateSearch: exerciseSearch,
   loader: ({ context, params }) =>
     Promise.all([
       context.queryClient.ensureQueryData(workoutQuery(params.workoutId)),

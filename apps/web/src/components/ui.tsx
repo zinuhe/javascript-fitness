@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, type ErrorComponentProps } from '@tanstack/react-router';
 import type { Exercise } from '@fitness/contracts';
 import { ApiError } from '../api/client';
@@ -139,4 +140,27 @@ export function Pending() {
 /** "Day 2 · Pull" (or just "Day 2" for an unnamed day); positions are zero-based. */
 export function dayLabel(day: { position: number; name?: string }): string {
   return day.name ? `Day ${day.position + 1} · ${day.name}` : `Day ${day.position + 1}`;
+}
+
+/**
+ * When the page opens, scrolls the element with `id` to the top (below the sticky bar) and
+ * flashes it, so the user sees where they landed. Runs a frame after mounting, once the
+ * router's own scroll restoration (back to the top on navigation) is done.
+ */
+export function useScrollToOnOpen(id: string | undefined) {
+  useEffect(() => {
+    if (!id) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const frame = requestAnimationFrame(() => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.scrollIntoView({ block: 'start' });
+      element.classList.add('flash');
+      timer = setTimeout(() => element.classList.remove('flash'), 1600);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [id]);
 }

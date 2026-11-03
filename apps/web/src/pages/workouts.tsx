@@ -8,7 +8,15 @@ import {
   workoutQuery,
   workoutsQuery,
 } from '../api/queries';
-import { ErrorMessage, dayLabel, exerciseNames, formatDay, labelize } from '../components/ui';
+import {
+  ErrorMessage,
+  dayLabel,
+  exerciseNames,
+  formatDay,
+  labelize,
+  useScrollToOnOpen,
+} from '../components/ui';
+import { PencilIcon } from '../components/icons';
 import { BarWord } from '../components/bar';
 import {
   formatVolume,
@@ -135,6 +143,7 @@ const detailRoute = getRouteApi('/_app/workouts/$workoutId');
 
 export function WorkoutDetailPage() {
   const { workoutId } = detailRoute.useParams();
+  const { exercise: openAt } = detailRoute.useSearch();
   const { data: workout } = useSuspenseQuery(workoutQuery(workoutId));
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const names = exerciseNames(catalog.items);
@@ -151,6 +160,9 @@ export function WorkoutDetailPage() {
       await navigate({ to: '/workouts' });
     },
   });
+
+  // Back from editing an exercise further down: open at that exercise, not at the top.
+  useScrollToOnOpen(openAt && `workout-exercise-${openAt}`);
 
   const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0);
   const allSets = workout.exercises.flatMap((e) => e.sets);
@@ -202,7 +214,11 @@ export function WorkoutDetailPage() {
         const showRpe = entry.sets.some((set) => set.rpe !== undefined);
         const showRest = entry.sets.some((set) => set.restSeconds !== undefined);
         return (
-          <article key={entry.id} className="card">
+          <article
+            key={entry.id}
+            id={`workout-exercise-${entry.id}`}
+            className="card scroll-target"
+          >
             <div className="row between">
               <div className="row">
                 <h2>
@@ -217,8 +233,21 @@ export function WorkoutDetailPage() {
                   </span>
                 )}
               </div>
-              {/* Volume: reps × weight of every set, added up. */}
-              <span className="muted">Volume {formatVolume(entry.sets, unit)}</span>
+              <div className="row">
+                {/* Volume: reps × weight of every set, added up. */}
+                <span className="muted">Volume {formatVolume(entry.sets, unit)}</span>
+                {/* Edit right here, without scrolling back up to the top Edit button. */}
+                <Link
+                  to="/workouts/$workoutId/edit"
+                  params={{ workoutId }}
+                  search={{ exercise: entry.id }}
+                  className="icon-button"
+                  aria-label={`Edit ${names.get(entry.exerciseId) ?? 'exercise'}`}
+                  title="Edit this exercise"
+                >
+                  <PencilIcon />
+                </Link>
+              </div>
             </div>
             <table>
               <thead>

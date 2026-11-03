@@ -46,3 +46,11 @@ export const UserIcon = () => (
     <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
   </svg>
 );
+
+/** A pencil: edit. Small enough to sit next to each exercise. */
+export const PencilIcon = () => (
+  <svg {...base} width={18} height={18}>
+    <path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </svg>
+);
