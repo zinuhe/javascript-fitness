@@ -84,7 +84,7 @@ model Exercise {
 // the regular pg_dump backups include them; the catalog is small (two per exercise).
 model ExerciseImage {
   exerciseId String   @db.Uuid
-  // 1 = start position, 2 = end position.
+  // 1 = shown small in forms and lists, 2 = an extra one (e.g. a variant).
   slot       Int
   thumb      Bytes
   thumbType  String

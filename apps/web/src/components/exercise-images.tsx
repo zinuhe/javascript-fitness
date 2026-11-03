@@ -8,8 +8,11 @@ import type {
 } from '@fitness/contracts';
 import { MuscleMap, MusclesWorked } from './muscle-map';
 
-/** "Start" / "End": what each image slot shows. */
-export const SLOT_LABELS: Record<ExerciseImageSlot, string> = { 1: 'Start', 2: 'End' };
+/**
+ * Picture 1 is the one shown small (forms, lists); picture 2 is an extra one, such as a
+ * variant. Many pictures already show the whole movement, so slots don't mean start/end.
+ */
+export const SLOT_LABELS: Record<ExerciseImageSlot, string> = { 1: 'Picture 1', 2: 'Picture 2' };
 
 /** Versioned, so the browser can keep it for good and refetches only when it changes. */
 export function exerciseImageUrl(
@@ -87,7 +90,7 @@ export function ExerciseGallery({ exercise }: { exercise: Exercise }) {
           key={image.slot}
           type="button"
           className="gallery-item"
-          aria-label={`Show the ${SLOT_LABELS[image.slot].toLowerCase()} picture large`}
+          aria-label={`Show ${SLOT_LABELS[image.slot].toLowerCase()} large`}
           aria-haspopup="dialog"
           onClick={() => setOpenAt(index)}
         >
@@ -175,14 +178,18 @@ export function ExerciseImageViewer({
           if (track.clientWidth > 0) setIndex(Math.round(track.scrollLeft / track.clientWidth));
         }}
       >
-        {images.map((image) => (
+        {images.map((image, i) => (
           <figure key={image.slot} className="viewer-slide">
             <img
               src={exerciseImageUrl(exercise.id, image, 'large')}
-              alt={`${exercise.name}: ${SLOT_LABELS[image.slot].toLowerCase()} position`}
+              alt={`${exercise.name}, ${SLOT_LABELS[image.slot].toLowerCase()}`}
               decoding="async"
             />
-            <figcaption>{SLOT_LABELS[image.slot]}</figcaption>
+            {images.length > 1 && (
+              <figcaption>
+                {i + 1} of {images.length}
+              </figcaption>
+            )}
           </figure>
         ))}
       </div>
@@ -193,14 +200,14 @@ export function ExerciseImageViewer({
               <button
                 key={image.slot}
                 type="button"
-                aria-label={`Show ${SLOT_LABELS[image.slot].toLowerCase()} position`}
+                aria-label={`Show ${SLOT_LABELS[image.slot].toLowerCase()}`}
                 aria-current={i === index}
                 onClick={() => show(i)}
               />
             ))}
           </div>
           <p className="viewer-hint">
-            {index === 0 ? 'Swipe to see the end position' : 'Swipe back to the start position'}
+            {index === 0 ? 'Swipe to see the next picture' : 'Swipe back to the first picture'}
           </p>
         </>
       )}

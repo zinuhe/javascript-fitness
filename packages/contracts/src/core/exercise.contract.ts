@@ -63,7 +63,7 @@ export interface Exercise {
   createdAt: string;
 }
 
-/** Image slots of an exercise: 1 is the start position, 2 the end position. */
+/** Picture slots of an exercise: 1 is the one shown small (forms, lists), 2 an extra one. */
 export const EXERCISE_IMAGE_SLOTS = [1, 2] as const;
 export type ExerciseImageSlot = (typeof EXERCISE_IMAGE_SLOTS)[number];
 

@@ -24,8 +24,6 @@ export interface UploadedImage {
 export const MAX_THUMB_BYTES = 200 * 1024;
 export const MAX_LARGE_BYTES = 1024 * 1024;
 
-const SLOT_NAMES: Record<ExerciseImageSlot, string> = { 1: 'start', 2: 'end' };
-
 @Injectable()
 export class ExerciseImagesService {
   constructor(
@@ -75,18 +73,15 @@ export class ExerciseImagesService {
     return image;
   }
 
-  /** "start image" / "end image", for the activity log. */
+  /** "picture 1" / "picture 2", for the activity log. */
   static describeSlot(slot: number): string {
-    return `${SLOT_NAMES[slot as ExerciseImageSlot] ?? `#${slot}`} image`;
+    return `picture ${slot}`;
   }
 }
 
 function parseSlot(slot: number): ExerciseImageSlot {
   if (!(EXERCISE_IMAGE_SLOTS as readonly number[]).includes(slot)) {
-    throw new NotFoundError(
-      'Exercise images are slots 1 (start) and 2 (end)',
-      'exercise.image_slot',
-    );
+    throw new NotFoundError('Exercise pictures are slots 1 and 2', 'exercise.image_slot');
   }
   return slot as ExerciseImageSlot;
 }

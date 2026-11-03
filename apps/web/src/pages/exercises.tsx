@@ -664,7 +664,7 @@ export function ExerciseDetailPage() {
 }
 
 /**
- * The start and end pictures. Each one is saved as soon as it is picked or removed (it
+ * Up to two pictures. Each one is saved as soon as it is picked or removed (it
  * doesn't wait for "Save changes"): the photo is shrunk in the browser, then uploaded.
  */
 function ExercisePictures({ exercise }: { exercise: Exercise }) {
@@ -673,8 +673,8 @@ function ExercisePictures({ exercise }: { exercise: Exercise }) {
       <div>
         <h2 id="pictures-title">Pictures</h2>
         <p className="muted">
-          Start and end position. Shown small while logging a workout; tap one to see it large.
-          Saved as soon as you pick it.
+          Up to two. Picture 1 is shown small while logging a workout; tap it to see them large.
+          Saved as soon as you pick one.
         </p>
       </div>
       <div className="image-slots">
@@ -721,7 +721,7 @@ function PictureSlot({ exercise, slot }: { exercise: Exercise; slot: ExerciseIma
         <img
           className="image-slot-preview"
           src={exerciseImageUrl(exercise.id, image, 'thumb')}
-          alt={`${label} picture`}
+          alt={label}
         />
       ) : (
         <span className="image-slot-preview empty">No picture</span>
@@ -734,7 +734,7 @@ function PictureSlot({ exercise, slot }: { exercise: Exercise; slot: ExerciseIma
             type="file"
             accept="image/*"
             className="visually-hidden"
-            aria-label={`${label} picture`}
+            aria-label={label}
             disabled={busy}
             onChange={onPick}
           />
@@ -743,10 +743,10 @@ function PictureSlot({ exercise, slot }: { exercise: Exercise; slot: ExerciseIma
           <button
             type="button"
             className="button secondary small"
-            aria-label={`Remove ${label.toLowerCase()} picture`}
+            aria-label={`Remove ${label.toLowerCase()}`}
             disabled={busy}
             onClick={() => {
-              if (confirm(`Remove the ${label.toLowerCase()} picture?`)) remove.mutate();
+              if (confirm(`Remove ${label.toLowerCase()}?`)) remove.mutate();
             }}
           >
             Remove

@@ -99,7 +99,7 @@ export class ExercisesController {
   @Put(':id/images/:slot')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Set the start (1) or end (2) image: multipart with `thumb` and `large` files',
+    summary: 'Set picture 1 (the one shown small) or 2: multipart with `thumb` and `large` files',
   })
   // Kept in memory (they are small, and go straight into the database).
   @UseInterceptors(
@@ -123,12 +123,12 @@ export class ExercisesController {
       large: files.large?.[0],
     });
     const what = ExerciseImagesService.describeSlot(slot);
-    await this.log(user.sub, 'exercise.image', `Set the ${what} of ${exercise.name}`, userAgent);
+    await this.log(user.sub, 'exercise.image', `Set ${what} of ${exercise.name}`, userAgent);
     return exercise;
   }
 
   @Delete(':id/images/:slot')
-  @ApiOperation({ summary: 'Remove the start (1) or end (2) image' })
+  @ApiOperation({ summary: 'Remove picture 1 or 2' })
   async removeImage(
     @CurrentUser() user: JwtAccessPayload,
     @Param('id', ParseUUIDPipe) id: string,
@@ -137,12 +137,7 @@ export class ExercisesController {
   ): Promise<Exercise> {
     const exercise = await this.images.remove(id, slot);
     const what = ExerciseImagesService.describeSlot(slot);
-    await this.log(
-      user.sub,
-      'exercise.image',
-      `Removed the ${what} of ${exercise.name}`,
-      userAgent,
-    );
+    await this.log(user.sub, 'exercise.image', `Removed ${what} of ${exercise.name}`, userAgent);
     return exercise;
   }
 }

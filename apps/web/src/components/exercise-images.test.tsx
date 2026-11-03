@@ -40,9 +40,9 @@ describe('pictures in Edit exercise', () => {
     const { user } = renderApp(`/exercises/${bench.id}/edit`);
 
     expect(await screen.findAllByText('No picture')).toHaveLength(2);
-    await user.upload(screen.getByLabelText('Start picture'), photo());
+    await user.upload(screen.getByLabelText('Picture 1'), photo());
 
-    expect(await screen.findByAltText('Start picture')).toHaveAttribute(
+    expect(await screen.findByAltText('Picture 1')).toHaveAttribute(
       'src',
       expect.stringContaining(`/api/media/exercises/${bench.id}/1/thumb?v=`),
     );
@@ -61,11 +61,11 @@ describe('pictures in Edit exercise', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = renderApp(`/exercises/${bench.id}/edit`);
 
-    await user.click(await screen.findByRole('button', { name: 'Remove end picture' }));
+    await user.click(await screen.findByRole('button', { name: 'Remove picture 2' }));
 
     await waitFor(() => expect(apiState.exercises[0].images.map((i) => i.slot)).toEqual([1]));
     expect(await screen.findByText('No picture')).toBeInTheDocument();
-    expect(screen.getByAltText('Start picture')).toBeInTheDocument();
+    expect(screen.getByAltText('Picture 1')).toBeInTheDocument();
   });
 
   it('explains a photo that could not be read, without uploading anything', async () => {
@@ -76,7 +76,7 @@ describe('pictures in Edit exercise', () => {
     );
     const { user } = renderApp(`/exercises/${bench.id}/edit`);
 
-    await user.upload(await screen.findByLabelText('End picture'), photo());
+    await user.upload(await screen.findByLabelText('Picture 2'), photo());
 
     expect(await screen.findByRole('alert')).toHaveTextContent('could not be read');
     expect(uploads).toEqual([]);
@@ -99,12 +99,13 @@ describe('the picture while logging (option A)', () => {
     await user.click(thumb);
 
     const viewer = screen.getByRole('dialog', { name: 'Barbell Bench Press' });
-    expect(within(viewer).getByAltText('Barbell Bench Press: start position')).toHaveAttribute(
+    expect(within(viewer).getByAltText('Barbell Bench Press, picture 1')).toHaveAttribute(
       'src',
       exerciseImageUrl(bench.id, bench.images[0], 'large'),
     );
-    expect(within(viewer).getByAltText('Barbell Bench Press: end position')).toBeInTheDocument();
-    expect(within(viewer).getByText('Swipe to see the end position')).toBeInTheDocument();
+    expect(within(viewer).getByAltText('Barbell Bench Press, picture 2')).toBeInTheDocument();
+    expect(within(viewer).getByText('1 of 2')).toBeInTheDocument();
+    expect(within(viewer).getByText('Swipe to see the next picture')).toBeInTheDocument();
     expect(within(viewer).getByText(bench.description!)).toBeInTheDocument();
     expect(within(viewer).getByRole('button', { name: 'Close' })).toHaveFocus();
 
@@ -147,7 +148,7 @@ describe('the picture while logging (option A)', () => {
 });
 
 describe('pictures in the catalog and on the exercise page', () => {
-  it('lists the start picture in place of the muscle figure', async () => {
+  it('lists picture 1 in place of the muscle figure', async () => {
     signedInAs();
     seedExerciseImages(seedBench(), [1]);
     seedExercise({ name: 'Pull-up', muscleGroup: MuscleGroup.Back, primaryMuscles: [Muscle.Lats] });
@@ -164,11 +165,11 @@ describe('pictures in the catalog and on the exercise page', () => {
     const bench = seedExerciseImages(seedBench(), [1, 2]);
     const { user } = renderApp(`/exercises/${bench.id}`);
 
-    await user.click(await screen.findByRole('button', { name: 'Show the end picture large' }));
+    await user.click(await screen.findByRole('button', { name: 'Show picture 2 large' }));
 
     const viewer = screen.getByRole('dialog', { name: 'Barbell Bench Press' });
-    expect(within(viewer).getByText('Swipe back to the start position')).toBeInTheDocument();
-    expect(within(viewer).getByRole('button', { name: 'Show end position' })).toHaveAttribute(
+    expect(within(viewer).getByText('Swipe back to the first picture')).toBeInTheDocument();
+    expect(within(viewer).getByRole('button', { name: 'Show picture 2' })).toHaveAttribute(
       'aria-current',
       'true',
     );
