@@ -7,6 +7,7 @@ export interface UserEntity {
   displayName: string;
   weightUnit: WeightUnit;
   barWeightKg: number;
+  dumbbellHandleKg: number;
   passwordHash: string;
   createdAt: Date;
 }

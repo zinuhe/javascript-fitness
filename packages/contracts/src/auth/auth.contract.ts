@@ -32,6 +32,11 @@ export interface UserProfile {
   weightUnit: WeightUnit;
   /** Weight of the user's barbell, added to the plates typed for barbell exercises. */
   barWeightKg: number;
+  /**
+   * Weight of one heavy dumbbell's handle with its collars, added to the plates typed for
+   * heavy dumbbell exercises (per dumbbell).
+   */
+  dumbbellHandleKg: number;
   createdAt: string;
 }
 
@@ -40,6 +45,7 @@ export interface UpdateProfileRequest {
   displayName?: string;
   weightUnit?: WeightUnit;
   barWeightKg?: number;
+  dumbbellHandleKg?: number;
 }
 
 export interface AuthResponse {

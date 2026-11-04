@@ -58,7 +58,9 @@ export class AuthController {
   @Patch('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update the profile (display name, weight unit)' })
+  @ApiOperation({
+    summary: 'Update the profile (display name, weight unit, bar and heavy dumbbell handle)',
+  })
   updateMe(
     @CurrentUser() user: JwtAccessPayload,
     @Body() dto: UpdateProfileDto,

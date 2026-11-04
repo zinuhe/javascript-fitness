@@ -179,11 +179,11 @@ describe('exercise catalog', () => {
     await user.type(await screen.findByLabelText('Name'), 'Bench Press');
     await user.selectOptions(screen.getByLabelText('Muscle group'), 'Chest');
     // Ticked out of order; saved in catalog order.
-    await user.click(screen.getByRole('checkbox', { name: 'Dumbbell' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Light dumbbell' }));
     await user.click(screen.getByRole('checkbox', { name: 'Barbell' }));
     await user.click(screen.getByRole('button', { name: 'Add exercise' }));
 
-    expect(await screen.findByText('Chest · Barbell · Dumbbell')).toBeInTheDocument();
+    expect(await screen.findByText('Chest · Barbell · Light dumbbell')).toBeInTheDocument();
     expect(apiState.exercises[0].equipment).toEqual([Equipment.Barbell, Equipment.Dumbbell]);
   });
 
@@ -307,7 +307,7 @@ describe('editing and deleting exercises', () => {
     await user.type(name, 'Lying Dumbbell Biceps Curl');
     expect(screen.getByRole('checkbox', { name: 'Machine' })).toBeChecked();
     await user.click(screen.getByRole('checkbox', { name: 'Machine' }));
-    await user.click(screen.getByRole('checkbox', { name: 'Dumbbell' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Light dumbbell' }));
     await user.type(screen.getByLabelText('Description'), 'Curl tumbado');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
@@ -378,7 +378,7 @@ describe('editing and deleting exercises', () => {
     });
     const { user } = renderApp(`/exercises/${press.id}/edit`);
 
-    await user.click(await screen.findByRole('checkbox', { name: 'Dumbbell' }));
+    await user.click(await screen.findByRole('checkbox', { name: 'Light dumbbell' }));
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -455,23 +455,23 @@ describe('progress with several pieces of equipment', () => {
       within(tabs)
         .getAllByRole('radio')
         .map((r) => r.closest('label')?.textContent),
-    ).toEqual(['All', 'Barbell', 'Dumbbell']);
+    ).toEqual(['All', 'Barbell', 'Light dumbbell']);
     expect(within(tabs).getByRole('radio', { name: 'All' })).toBeChecked();
     expect(stat('Sessions')).toHaveTextContent('2');
     expect(stat('Heaviest set')).toHaveTextContent('80 kg');
     // Each session says what it was done with.
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows.map((r) => r.querySelector('.cell-note')?.textContent)).toEqual([
-      'Dumbbell ×2',
+      'Light dumbbell ×2',
       'Barbell',
     ]);
 
     await user.click(within(tabs).getByRole('radio', { name: 'Barbell' }));
     await waitFor(() => expect(stat('Sessions')).toHaveTextContent('1'));
     expect(stat('Heaviest set')).toHaveTextContent('80 kg');
-    expect(screen.queryByText('Dumbbell ×2')).not.toBeInTheDocument();
+    expect(screen.queryByText('Light dumbbell ×2')).not.toBeInTheDocument();
 
-    await user.click(within(tabs).getByRole('radio', { name: 'Dumbbell' }));
+    await user.click(within(tabs).getByRole('radio', { name: 'Light dumbbell' }));
 
     await waitFor(() => expect(stat('Heaviest set')).toHaveTextContent('30 kg'));
     expect(stat('Sessions')).toHaveTextContent('1');

@@ -36,7 +36,13 @@ export enum Muscle {
 
 export enum Equipment {
   Barbell = 'barbell',
+  /** Fixed-weight dumbbells, shown as "Light dumbbell": the weight typed is the dumbbell's. */
   Dumbbell = 'dumbbell',
+  /**
+   * Adjustable dumbbells: a heavy handle plus plates. The plates are typed and the handle
+   * (from the profile) is added, like the bar of a barbell.
+   */
+  HeavyDumbbell = 'heavy_dumbbell',
   Machine = 'machine',
   Cable = 'cable',
   Bodyweight = 'bodyweight',

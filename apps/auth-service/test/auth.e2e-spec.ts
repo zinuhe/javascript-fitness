@@ -178,6 +178,26 @@ describe('auth-service (e2e)', () => {
         .expect(400);
     });
 
+    it('keeps the heavy dumbbell handle, 12 lb (5.44 kg) by default, and validates it', async () => {
+      const { tokens, user } = (await register().expect(201)).body as AuthResponse;
+      expect(user.dumbbellHandleKg).toBe(5.44);
+      const auth = `Bearer ${tokens.accessToken}`;
+
+      const patched = await request(http)
+        .patch('/auth/me')
+        .set('authorization', auth)
+        .send({ dumbbellHandleKg: 6 })
+        .expect(200);
+      expect(patched.body).toMatchObject({ dumbbellHandleKg: 6, barWeightKg: 12.5 });
+      for (const bad of [-1, 51]) {
+        await request(http)
+          .patch('/auth/me')
+          .set('authorization', auth)
+          .send({ dumbbellHandleKg: bad })
+          .expect(400);
+      }
+    });
+
     it('validates the unit and requires a token', async () => {
       const { tokens } = (await register().expect(201)).body as AuthResponse;
 

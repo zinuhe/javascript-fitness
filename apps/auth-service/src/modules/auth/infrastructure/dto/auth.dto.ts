@@ -74,4 +74,16 @@ export class UpdateProfileDto implements UpdateProfileRequest {
   @Min(0)
   @Max(100)
   barWeightKg?: number;
+
+  @ApiPropertyOptional({
+    example: 5.44,
+    minimum: 0,
+    maximum: 50,
+    description: 'Heavy (adjustable) dumbbell handle with its collars, per dumbbell',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(50)
+  dumbbellHandleKg?: number;
 }

@@ -15,9 +15,12 @@ export interface WorkoutExercise {
   exercise?: Exercise;
   /** Which of the exercise's equipment was used this time. */
   equipment?: Equipment;
-  /** Barbell weight included in each set's weightKg (sets hold the total lifted). */
+  /**
+   * Bar (barbell) or handle (heavy dumbbell) weight included in each set's weightKg: sets
+   * hold the total lifted.
+   */
   barKg?: number;
-  /** How many dumbbells were used (1 or 2), for dumbbell exercises. */
+  /** How many dumbbells were used (1 or 2), for light or heavy dumbbell exercises. */
   dumbbells?: number;
   order: number;
   sets: WorkoutSet[];
@@ -57,9 +60,12 @@ export interface CreateWorkoutExerciseRequest {
    * one; filled in when it has only one.
    */
   equipment?: Equipment;
-  /** Barbell weight already included in each set's weightKg; only with barbell. */
+  /**
+   * Bar or handle weight already included in each set's weightKg; only with a barbell or
+   * a heavy dumbbell.
+   */
   barKg?: number;
-  /** How many dumbbells (1 or 2); only with dumbbell, 2 when left out. */
+  /** How many dumbbells (1 or 2); only with a light or heavy dumbbell, 2 when left out. */
   dumbbells?: number;
   sets: CreateSetRequest[];
 }
@@ -94,7 +100,7 @@ export interface ExerciseProgressPoint {
   bestSetWeightKg: number;
   /**
    * That session's sets of the exercise, in the order they were done. `weightKg` is the
-   * total lifted; `barKg` is the bar included in it, for barbell sets.
+   * total lifted; `barKg` is the bar or handle included in it (barbell, heavy dumbbell).
    */
   sets: { reps: number; weightKg: number; barKg?: number }[];
 }
@@ -117,7 +123,7 @@ export interface ExerciseSessionCount {
 export interface LastExerciseSets {
   exerciseId: string;
   equipment?: Equipment;
-  /** Barbell weight included in the sets' weights, to show them as plates again. */
+  /** Bar or handle weight included in the sets' weights, to show them as plates again. */
   barKg?: number;
   /** How many dumbbells were used that time. */
   dumbbells?: number;

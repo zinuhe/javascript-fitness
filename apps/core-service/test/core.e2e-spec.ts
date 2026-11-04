@@ -600,6 +600,57 @@ describe('core-service (e2e)', () => {
         expect(dumbbell.body.title).toBe('workout.bar_without_barbell');
       });
 
+      it('keeps the handle of heavy dumbbells apart from light ones', async () => {
+        const curl = await createExercise(token, {
+          muscleGroup: MuscleGroup.Biceps,
+          equipment: [Equipment.Dumbbell, Equipment.HeavyDumbbell],
+        });
+        const heavy = await as(token)
+          .post('/workouts', {
+            performedAt: '2026-10-02T09:00:00.000Z',
+            exercises: [
+              {
+                exerciseId: curl.id,
+                equipment: Equipment.HeavyDumbbell,
+                barKg: 5.44,
+                dumbbells: 1,
+                sets: [{ reps: 10, weightKg: 14.51 }], // 20 lb of plates + the 12 lb handle
+              },
+            ],
+          })
+          .expect(201);
+        expect((heavy.body as Workout).exercises[0]).toMatchObject({
+          equipment: 'heavy_dumbbell',
+          barKg: 5.44,
+          dumbbells: 1,
+        });
+        await as(token)
+          .post('/workouts', {
+            performedAt: '2026-10-03T09:00:00.000Z',
+            exercises: [
+              {
+                exerciseId: curl.id,
+                equipment: Equipment.Dumbbell,
+                sets: [{ reps: 10, weightKg: 10 }],
+              },
+            ],
+          })
+          .expect(201);
+
+        // Pre-fill and progress keep each kind of dumbbell apart; heavy keeps its handle.
+        const last = await as(token).get(`/workouts/last-sets?exerciseIds=${curl.id}`).expect(200);
+        expect(last.body).toEqual([
+          expect.objectContaining({ equipment: 'dumbbell', dumbbells: 2 }),
+          expect.objectContaining({ equipment: 'heavy_dumbbell', barKg: 5.44, dumbbells: 1 }),
+        ]);
+        expect(last.body[0].barKg).toBeUndefined();
+        const progress = await as(token)
+          .get(`/workouts/progress/${curl.id}?equipment=heavy_dumbbell`)
+          .expect(200);
+        expect(progress.body.points).toHaveLength(1);
+        expect(progress.body.points[0].sets).toEqual([{ reps: 10, weightKg: 14.51, barKg: 5.44 }]);
+      });
+
       it('keeps how many dumbbells were used, two by default', async () => {
         const one = await as(token)
           .post('/workouts', {

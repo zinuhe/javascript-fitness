@@ -96,6 +96,7 @@ export class AuthService {
       ...(input.displayName !== undefined ? { displayName: input.displayName.trim() } : {}),
       ...(input.weightUnit !== undefined ? { weightUnit: input.weightUnit } : {}),
       ...(input.barWeightKg !== undefined ? { barWeightKg: input.barWeightKg } : {}),
+      ...(input.dumbbellHandleKg !== undefined ? { dumbbellHandleKg: input.dumbbellHandleKg } : {}),
     });
     if (!user) {
       throw new UnauthorizedError('User not found', 'auth.user_not_found');
@@ -125,6 +126,7 @@ export class AuthService {
       displayName: user.displayName,
       weightUnit: user.weightUnit,
       barWeightKg: user.barWeightKg,
+      dumbbellHandleKg: user.dumbbellHandleKg,
       createdAt: user.createdAt.toISOString(),
     };
   }

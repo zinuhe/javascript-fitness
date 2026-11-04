@@ -14,10 +14,29 @@ export const formatDate = (iso: string) => dateFormat.format(new Date(iso));
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-/** "Barbell · Dumbbell". */
-export function equipmentLabel(equipment: string[]): string {
-  return equipment.map(labelize).join(' · ');
+/**
+ * How a piece of equipment is named in the UI. Fixed dumbbells keep the stored value
+ * `dumbbell` but read "Light dumbbell", next to the plate-loaded "Heavy dumbbell".
+ */
+export function equipmentName(value: string): string {
+  return value === 'dumbbell' ? 'Light dumbbell' : labelize(value);
 }
+
+/** "Barbell · Light dumbbell". */
+export function equipmentLabel(equipment: string[]): string {
+  return equipment.map(equipmentName).join(' · ');
+}
+
+/** Equipment whose sets include a fixed weight on top of the plates typed. */
+export function fixedPartOf(equipment: string | undefined): 'bar' | 'handle' | undefined {
+  if (equipment === 'barbell') return 'bar';
+  if (equipment === 'heavy_dumbbell') return 'handle';
+  return undefined;
+}
+
+/** Equipment that comes in ones or twos. */
+export const isDumbbell = (equipment: string | undefined) =>
+  equipment === 'dumbbell' || equipment === 'heavy_dumbbell';
 
 const sessionDateParts = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',

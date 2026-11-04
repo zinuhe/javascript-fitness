@@ -21,6 +21,7 @@ const catalog = () =>
   new Map([
     ['ex-1', [Equipment.Barbell]],
     ['ex-2', [Equipment.Barbell, Equipment.Dumbbell]],
+    ['ex-3', [Equipment.Dumbbell, Equipment.HeavyDumbbell]],
   ]);
 
 let repo: jest.Mocked<WorkoutRepository>;
@@ -113,6 +114,37 @@ describe('WorkoutsService.create', () => {
         exercises: [{ exerciseId: 'ex-1', dumbbells: 2, sets: [set] }],
       }),
     ).rejects.toMatchObject({ httpStatus: 422, code: 'workout.dumbbells_without_dumbbell' });
+  });
+
+  it('a heavy dumbbell includes its handle like a bar, and comes in ones or twos', async () => {
+    // 20 kg of plates + a 5.44 kg handle.
+    const set = { reps: 8, weightKg: 25.44 };
+    await service.create('user-1', {
+      exercises: [
+        { exerciseId: 'ex-3', equipment: Equipment.HeavyDumbbell, barKg: 5.44, sets: [set] },
+      ],
+    });
+    expect(repo.create).toHaveBeenCalledWith({
+      exercises: [
+        {
+          exerciseId: 'ex-3',
+          equipment: Equipment.HeavyDumbbell,
+          barKg: 5.44,
+          dumbbells: 2,
+          sets: [set],
+        },
+      ],
+      userId: 'user-1',
+    });
+
+    // A light (fixed) dumbbell has no handle to add.
+    await expect(
+      service.create('user-1', {
+        exercises: [
+          { exerciseId: 'ex-3', equipment: Equipment.Dumbbell, barKg: 5.44, sets: [set] },
+        ],
+      }),
+    ).rejects.toMatchObject({ httpStatus: 422, code: 'workout.bar_without_barbell' });
   });
 
   it('rejects equipment the exercise is not done with (422)', async () => {

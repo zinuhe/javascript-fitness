@@ -48,7 +48,10 @@ enum Muscle {
 
 enum Equipment {
   barbell
+  // Fixed-weight dumbbells (shown as "Light dumbbell").
   dumbbell
+  // Adjustable dumbbells: a heavy handle plus plates; the handle is added like a bar.
+  heavy_dumbbell
   machine
   cable
   bodyweight
@@ -126,10 +129,12 @@ model WorkoutExercise {
   order      Int
   // Which of the exercise's equipment was used this time (barbell, dumbbell…).
   equipment  Equipment?
-  // Barbell weight included in every set's weightKg (sets store the total lifted); null
-  // when no bar. Kept per exercise so later bar changes don't alter past workouts.
+  // Bar (barbell) or handle (heavy dumbbell) weight included in every set's weightKg (sets
+  // store the total lifted); null when none. Kept per exercise so later changes to the
+  // user's bar or handle don't alter past workouts.
   barKg      Decimal?   @db.Decimal(5, 2)
-  // How many dumbbells were used (1 or 2), for dumbbell exercises; informative only.
+  // How many dumbbells were used (1 or 2), for light or heavy dumbbell exercises;
+  // informative only.
   dumbbells  Int?
 
   workout  Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)

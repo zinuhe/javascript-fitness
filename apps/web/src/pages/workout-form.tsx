@@ -30,8 +30,10 @@ import { ExercisePreview } from '../components/exercise-images';
 import {
   ErrorMessage,
   dayLabel,
+  equipmentName,
+  fixedPartOf,
   formatSessionDate,
-  labelize,
+  isDumbbell,
   parseDecimal,
   useScrollToOnOpen,
 } from '../components/ui';
@@ -119,14 +121,19 @@ function Stepper({
   );
 }
 
-/** "+ bar 27.6 lb = 47.6 lb" under a barbell set, once plates are typed. */
+/**
+ * "+ bar 27.6 lb = 47.6 lb" under a barbell set ("+ handle 12 lb = …" for a heavy dumbbell),
+ * once plates are typed.
+ */
 function BarTotal({
   plates,
   barKg,
+  kind,
   unit,
 }: {
   plates: string;
   barKg: number | undefined;
+  kind: 'bar' | 'handle';
   unit: WeightUnit;
 }) {
   if (barKg === undefined) return null;
@@ -134,7 +141,7 @@ function BarTotal({
   const bar = displayWeight(barKg, unit);
   return (
     <p className="hint">
-      + <BarWord barKg={barKg} /> {formatWeight(barKg, unit)}
+      + <BarWord barKg={barKg} kind={kind} /> {formatWeight(barKg, unit)}
       {plates.trim() !== '' && Number.isFinite(typed)
         ? ` = ${formatWeight(toKg(typed + bar, unit), unit)}`
         : ''}
@@ -146,7 +153,9 @@ function BarTotal({
 // not editable in this form, but are carried through so editing a workout keeps them.
 interface SetDraft {
   reps: string;
-  /** In the user's unit (kg or lb), as typed; for barbell exercises, the plates only. */
+  /**
+   * In the user's unit (kg or lb), as typed; for a barbell or heavy dumbbell, the plates only.
+   */
   weight: string;
   rpe?: number;
   restSeconds?: number;
@@ -159,8 +168,12 @@ interface ExerciseDraft {
   exerciseId: string;
   /** Which of the exercise's equipment is used; '' until an exercise is chosen. */
   equipment: Equipment | '';
-  /** The bar saved with this exercise; new barbell entries use the user's bar. */
+  /**
+   * The bar or handle saved with this exercise, and the equipment it belongs to: it applies
+   * only while that equipment is chosen. Otherwise the user's current bar or handle is used.
+   */
   barKg?: number;
+  barFor?: Equipment | '';
   /** How many dumbbells (1 or 2); used only while the equipment is dumbbell. */
   dumbbells: number;
   sets: SetDraft[];
@@ -229,9 +242,15 @@ const emptyExercise = (): ExerciseDraft => ({
   pristine: true,
 });
 
-/** How many dumbbells the last time with this exercise and dumbbells, else two. */
-const lastDumbbells = (lastSets: LastExerciseSets[], exerciseId: string) =>
-  lastSets.find((e) => e.exerciseId === exerciseId && e.equipment === 'dumbbell')?.dumbbells ?? 2;
+/** How many dumbbells the last time with this exercise and kind of dumbbell, else two. */
+const lastDumbbells = (
+  lastSets: LastExerciseSets[],
+  exerciseId: string,
+  equipment: Equipment | '' | undefined,
+) =>
+  (isDumbbell(equipment)
+    ? lastSets.find((e) => e.exerciseId === exerciseId && e.equipment === equipment)?.dumbbells
+    : undefined) ?? 2;
 
 /** Saved sets as form drafts; with a bar, the weight field shows the plates only. */
 const toSetDrafts = (sets: LastExerciseSets['sets'], unit: WeightUnit, barKg = 0): SetDraft[] =>
@@ -282,6 +301,7 @@ function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
       exerciseId: entry.exerciseId,
       equipment: entry.equipment ?? '',
       barKg: entry.barKg,
+      barFor: entry.equipment ?? '',
       dumbbells: entry.dumbbells ?? 2,
       sets: toSetDrafts(entry.sets, unit, entry.barKg),
       // Logged sets are never swapped behind the user's back.
@@ -315,7 +335,7 @@ function draftFromRoutineDay(
         key: nextKey++,
         exerciseId,
         equipment,
-        dumbbells: lastDumbbells(lastSets, exerciseId),
+        dumbbells: lastDumbbells(lastSets, exerciseId, equipment),
         sets: lastSetsFor(lastSets, exerciseId, equipment, unit),
         pristine: true,
       };
@@ -479,9 +499,16 @@ function WorkoutForm({
   const { data: me } = useSuspenseQuery(meQuery);
   const queryClient = useQueryClient();
   const unit = useWeightUnit();
-  /** The bar added to the plates of a barbell exercise; undefined without a barbell. */
-  const barOf = (entry: ExerciseDraft) =>
-    entry.equipment === 'barbell' ? (entry.barKg ?? me.barWeightKg) : undefined;
+  /**
+   * What is added to the plates: the bar of a barbell, the handle of a heavy dumbbell;
+   * undefined for other equipment. A saved workout keeps its own bar or handle.
+   */
+  const barOf = (entry: ExerciseDraft) => {
+    const part = fixedPartOf(entry.equipment);
+    if (!part) return undefined;
+    if (entry.barKg !== undefined && entry.barFor === entry.equipment) return entry.barKg;
+    return part === 'bar' ? me.barWeightKg : me.dumbbellHandleKg;
+  };
   const navigate = useNavigate();
   const [draft] = useState(initial);
   /** The entry the form opened at; followed by key, so it survives reordering/removals. */
@@ -533,7 +560,7 @@ function WorkoutForm({
     const index = entries.findIndex((e) => e.key === entry.key);
     const equipment =
       entry.equipment && (exercise?.equipment.length ?? 0) > 1
-        ? ` (${labelize(entry.equipment)})`
+        ? ` (${equipmentName(entry.equipment)})`
         : '';
     return `Exercise ${index + 1} · ${exercise?.name ?? 'Unknown exercise'}${equipment}`;
   };
@@ -601,7 +628,7 @@ function WorkoutForm({
           exerciseId: e.exerciseId,
           ...(e.equipment ? { equipment: e.equipment } : {}),
           ...(bar !== undefined ? { barKg: bar } : {}),
-          ...(e.equipment === 'dumbbell' ? { dumbbells: e.dumbbells } : {}),
+          ...(isDumbbell(e.equipment) ? { dumbbells: e.dumbbells } : {}),
           sets: e.sets
             .filter((s) => !isBlankSet(s))
             .map((s) => ({
@@ -740,7 +767,7 @@ function WorkoutForm({
                 ...d,
                 exerciseId: e.target.value,
                 equipment: equipmentOf(e.target.value)[0] ?? '',
-                dumbbells: lastDumbbells(lastSets, e.target.value),
+                dumbbells: lastDumbbells(lastSets, e.target.value, equipmentOf(e.target.value)[0]),
               }))
             }
             // Only an exercise with sets needs choosing; an empty one is just skipped.
@@ -773,15 +800,18 @@ function WorkoutForm({
                         sets: d.pristine
                           ? lastSetsFor(lastSets, d.exerciseId, value, unit)
                           : d.sets,
+                        dumbbells: d.pristine
+                          ? lastDumbbells(lastSets, d.exerciseId, value)
+                          : d.dumbbells,
                       }))
                     }
                   />
-                  <span>{labelize(value)}</span>
+                  <span>{equipmentName(value)}</span>
                 </label>
               ))}
             </div>
           )}
-          {entry.equipment === 'dumbbell' && (
+          {isDumbbell(entry.equipment) && (
             <div
               className="segmented"
               role="radiogroup"
@@ -850,7 +880,12 @@ function WorkoutForm({
                   onChange={(weight) => updateSet(entry.key, setIndex, { weight })}
                 />
               </div>
-              <BarTotal plates={set.weight} barKg={barOf(entry)} unit={unit} />
+              <BarTotal
+                plates={set.weight}
+                barKg={barOf(entry)}
+                kind={fixedPartOf(entry.equipment) ?? 'bar'}
+                unit={unit}
+              />
             </div>
           ))}
           <button

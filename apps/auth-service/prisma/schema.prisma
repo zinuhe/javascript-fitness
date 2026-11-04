@@ -18,14 +18,17 @@ enum WeightUnit {
 }
 
 model User {
-  id          String     @id @default(uuid()) @db.Uuid
-  email       String     @unique
-  displayName String
-  weightUnit  WeightUnit @default(kg)
+  id               String     @id @default(uuid()) @db.Uuid
+  email            String     @unique
+  displayName      String
+  weightUnit       WeightUnit @default(kg)
   // The user's barbell, added to the plates they type for barbell exercises.
-  barWeightKg Decimal    @default(12.5) @db.Decimal(5, 2)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime @updatedAt
+  barWeightKg      Decimal    @default(12.5) @db.Decimal(5, 2)
+  // One heavy (adjustable) dumbbell's handle with its collars, added to the plates typed for
+  // heavy dumbbell exercises. 5.44 kg is 12 lb.
+  dumbbellHandleKg Decimal    @default(5.44) @db.Decimal(5, 2)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   credential    Credential?
   refreshTokens RefreshToken[]

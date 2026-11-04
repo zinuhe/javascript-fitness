@@ -163,7 +163,7 @@ describe('logging a workout', () => {
     expect(within(equipment).getByRole('radio', { name: 'Barbell' })).toBeChecked();
     // Only with dumbbells: how many, two unless changed.
     expect(screen.queryByRole('radiogroup', { name: 'Dumbbells for exercise 1' })).toBeNull();
-    await user.click(within(equipment).getByRole('radio', { name: 'Dumbbell' }));
+    await user.click(within(equipment).getByRole('radio', { name: 'Light dumbbell' }));
     const dumbbells = screen.getByRole('radiogroup', { name: 'Dumbbells for exercise 1' });
     expect(within(dumbbells).getByRole('radio', { name: '2 dumbbells' })).toBeChecked();
     await user.click(within(dumbbells).getByRole('radio', { name: '1 dumbbell' }));
@@ -173,7 +173,7 @@ describe('logging a workout', () => {
 
     const heading = await screen.findByRole('heading', { name: 'Bench Press' });
     expect(
-      within(heading.closest('article')!).getByLabelText('Equipment: Dumbbell ×1'),
+      within(heading.closest('article')!).getByLabelText('Equipment: Light dumbbell ×1'),
     ).toHaveClass('tag');
     expect(apiState.workouts[0].exercises[0]).toMatchObject({
       exerciseId: press.id,
@@ -182,7 +182,7 @@ describe('logging a workout', () => {
     });
 
     await user.click(screen.getByRole('link', { name: '← Workouts' }));
-    expect(await screen.findByText('Bench Press (Dumbbell ×1)')).toBeInTheDocument();
+    expect(await screen.findByText('Bench Press (Light dumbbell ×1)')).toBeInTheDocument();
   });
 
   it('allows one workout per date, warning as soon as a taken date is picked', async () => {
@@ -750,6 +750,96 @@ describe('barbell exercises', () => {
     await user.selectOptions(await exerciseSelect(1), squat.name);
     expect(screen.getByLabelText('Weight (kg)')).toBeInTheDocument();
     expect(screen.queryByText(/\+ bar/)).not.toBeInTheDocument();
+  });
+});
+
+/** The "+ handle … = …" line under a heavy dumbbell set. */
+const handleHint = () =>
+  screen.getByText(
+    (_, el) => el?.matches('p.hint') === true && /^\+ handle/.test(el.textContent ?? ''),
+  );
+
+describe('heavy dumbbell exercises', () => {
+  it('adds the handle to the plates typed; a light dumbbell counts as typed', async () => {
+    signedInAs({ weightUnit: 'lb' });
+    const curl = seedExercise({
+      name: 'Biceps Curl',
+      equipment: [Equipment.Dumbbell, Equipment.HeavyDumbbell],
+    });
+    const { user } = renderApp('/workouts/new');
+
+    await user.selectOptions(await exerciseSelect(1), curl.name);
+    const equipment = screen.getByRole('radiogroup', { name: 'Equipment for exercise 1' });
+    // Light dumbbells (the first) are typed as they are, with nothing added.
+    expect(within(equipment).getByRole('radio', { name: 'Light dumbbell' })).toBeChecked();
+    expect(screen.getByLabelText('Weight (lb)')).toBeInTheDocument();
+    expect(screen.queryByText(/^\+ (bar|handle)/)).toBeNull();
+
+    await user.click(within(equipment).getByRole('radio', { name: 'Heavy dumbbell' }));
+    await user.type(screen.getByLabelText('Reps'), '10');
+    await user.type(screen.getByLabelText('Plates (lb)'), '20');
+    expect(handleHint()).toHaveTextContent('+ handle 12 lb = 32 lb');
+    expect(screen.getByText('handle')).toHaveAttribute('data-tip', 'Handle: 12 lb (5.44 kg)');
+    // Heavy dumbbells come in ones or twos too.
+    expect(screen.getByRole('radio', { name: '2 dumbbells' })).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Save workout' }));
+
+    const heading = await screen.findByRole('heading', { name: 'Biceps Curl' });
+    // Stored as the total of one dumbbell: 9.07 kg of plates + the 5.44 kg handle.
+    expect(apiState.workouts[0].exercises[0]).toMatchObject({
+      equipment: Equipment.HeavyDumbbell,
+      barKg: 5.44,
+      dumbbells: 2,
+      sets: [expect.objectContaining({ reps: 10, weightKg: 14.51 })],
+    });
+    const card = heading.closest('article')!;
+    expect(within(card).getByLabelText('Equipment: Heavy dumbbell ×2')).toBeInTheDocument();
+    expect(within(within(card).getAllByRole('row')[1]).getAllByRole('cell')[2]).toHaveTextContent(
+      '20 lb (9 kg)20 lb + handle = 32 lb (15 kg)',
+    );
+
+    // Editing shows the plates again.
+    await user.click(screen.getByRole('link', { name: 'Edit' }));
+    expect(await screen.findByLabelText('Plates (lb)')).toHaveValue('20');
+  });
+
+  it('uses the handle set in Account, and never takes a saved bar for a handle', async () => {
+    const me = signedInAs();
+    const press = seedExercise({
+      name: 'Bench Press',
+      equipment: [Equipment.Barbell, Equipment.HeavyDumbbell],
+    });
+    const old = seedWorkout(me.id, {
+      exercises: [
+        {
+          exerciseId: press.id,
+          equipment: Equipment.Barbell,
+          barKg: 12.5,
+          sets: [{ reps: 10, weightKg: 32.5 }],
+        },
+      ],
+    });
+    const { user, router } = renderApp('/account');
+
+    const handle = await screen.findByLabelText('Heavy dumbbell handle (kg)');
+    expect(handle).toHaveValue('5.44');
+    await user.clear(handle);
+    await user.type(handle, '6');
+    await user.click(screen.getByRole('button', { name: 'Save handle weight' }));
+    expect(await screen.findByText(/Now 6 kg/)).toBeInTheDocument();
+    expect(apiState.users[0]).toMatchObject({ dumbbellHandleKg: 6, barWeightKg: 12.5 });
+
+    // The old workout was done with its 12.5 kg bar (20 kg of plates)…
+    await router.navigate({ to: '/workouts/$workoutId/edit', params: { workoutId: old.id } });
+    expect(await screen.findByLabelText('Plates (kg)')).toHaveValue('20');
+    expect(barHint()).toHaveTextContent('+ bar 12.5 kg = 32.5 kg');
+    // …switched to the heavy dumbbell, the plates get the 6 kg handle, not that bar…
+    const equipment = screen.getByRole('radiogroup', { name: 'Equipment for exercise 1' });
+    await user.click(within(equipment).getByRole('radio', { name: 'Heavy dumbbell' }));
+    expect(handleHint()).toHaveTextContent('+ handle 6 kg = 26 kg');
+    // …and back on the barbell, its own bar returns.
+    await user.click(within(equipment).getByRole('radio', { name: 'Barbell' }));
+    expect(barHint()).toHaveTextContent('+ bar 12.5 kg = 32.5 kg');
   });
 });
 

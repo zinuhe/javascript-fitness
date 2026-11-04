@@ -12,8 +12,9 @@ import {
   ErrorMessage,
   dayLabel,
   exerciseNames,
+  equipmentName,
+  fixedPartOf,
   formatDay,
-  labelize,
   useScrollToOnOpen,
 } from '../components/ui';
 import { PencilIcon } from '../components/icons';
@@ -42,13 +43,13 @@ function allAlike(sets: WorkoutSet[]): boolean {
   );
 }
 
-/** "Dumbbell ×2": the equipment, with how many dumbbells when it is dumbbells. */
+/** "Light dumbbell ×2": the equipment, with how many dumbbells when it is dumbbells. */
 function equipmentTag(entry: WorkoutExercise): string {
-  const name = labelize(entry.equipment ?? '');
+  const name = equipmentName(entry.equipment ?? '');
   return entry.dumbbells ? `${name} ×${entry.dumbbells}` : name;
 }
 
-/** "Bench Press (Dumbbell ×2)": the exercise with the equipment it was done with. */
+/** "Bench Press (Light dumbbell ×2)": the exercise with the equipment it was done with. */
 function loggedExerciseLabel(entry: WorkoutExercise, catalog: Exercise[]): string {
   const exercise = catalog.find((e) => e.id === entry.exerciseId);
   if (!exercise) return 'Unknown exercise';
@@ -270,7 +271,7 @@ export function WorkoutDetailPage() {
                   <tr key={set.id}>
                     <td>{allAlike(entry.sets) ? entry.sets.length : index + 1}</td>
                     <td>{set.reps}</td>
-                    {/* Barbell sets store the total: show the plates as typed, the sum below. */}
+                    {/* Sets with a bar or handle store the total: the plates as typed, the sum below. */}
                     {entry.barKg !== undefined ? (
                       <td>
                         {formatWeight(set.weightKg - entry.barKg, unit)}{' '}
@@ -279,7 +280,11 @@ export function WorkoutDetailPage() {
                         </span>
                         <span className="hint cell-note">
                           {formatWeight(set.weightKg - entry.barKg, unit)} +{' '}
-                          <BarWord barKg={entry.barKg} /> = {formatWeight(set.weightKg, unit)} (
+                          <BarWord
+                            barKg={entry.barKg}
+                            kind={fixedPartOf(entry.equipment) ?? 'bar'}
+                          />{' '}
+                          = {formatWeight(set.weightKg, unit)} (
                           {formatWholeInOtherUnit(set.weightKg, unit)})
                         </span>
                       </td>

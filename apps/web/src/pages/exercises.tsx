@@ -26,6 +26,8 @@ import {
 import {
   ErrorMessage,
   equipmentLabel,
+  equipmentName,
+  fixedPartOf,
   formatSessionDate,
   formatShortDate,
   labelize,
@@ -66,7 +68,7 @@ function EquipmentPicker({ initial = [] }: { initial?: Equipment[] }) {
               required={checked.size === 0}
               onChange={() => toggle(value)}
             />
-            <span>{labelize(value)}</span>
+            <span>{equipmentName(value)}</span>
           </label>
         ))}
       </div>
@@ -243,7 +245,7 @@ export function ExercisesPage() {
   const needle = query.trim().toLowerCase();
   const matching = needle
     ? data.items.filter((e) =>
-        [e.name, labelize(e.muscleGroup), ...e.equipment.map(labelize)].some((text) =>
+        [e.name, labelize(e.muscleGroup), ...e.equipment.map(equipmentName)].some((text) =>
           text.toLowerCase().includes(needle),
         ),
       )
@@ -386,9 +388,9 @@ export function ExercisesPage() {
  * Estimated 1RM over time as a small line chart. Pure SVG scaled to its container, so it
  * fits a phone as well as a desktop card; values are also listed in the table below it.
  */
-/** "Dumbbell ×2": what a session was done with. */
+/** "Light dumbbell ×2": what a session was done with. */
 function sessionEquipment(point: ExerciseProgressPoint): string {
-  const name = labelize(point.equipment ?? '');
+  const name = equipmentName(point.equipment ?? '');
   return point.dumbbells ? `${name} ×${point.dumbbells}` : name;
 }
 
@@ -479,7 +481,9 @@ function OneRepMaxChart({
               <span className="chart-tip-note">{sessionEquipment(shown)}</span>
             )}
             {shown.sets.some((s) => s.barKg !== undefined) && (
-              <span className="chart-tip-note">Plates only, without the bar</span>
+              <span className="chart-tip-note">
+                Plates only, without the {fixedPartOf(shown.equipment) ?? 'bar'}
+              </span>
             )}
             {sameSets(shown.sets) ? (
               <p className="chart-tip-same">{sameSets(shown.sets)}</p>
@@ -541,7 +545,7 @@ export function ExerciseDetailPage() {
             <span className="tag">{labelize(exercise.muscleGroup)}</span>
             {exercise.equipment.map((value) => (
               <span key={value} className="tag">
-                {labelize(value)}
+                {equipmentName(value)}
               </span>
             ))}
           </p>
@@ -585,7 +589,7 @@ export function ExerciseDetailPage() {
                   checked={equipment === value}
                   onChange={() => startSwitch(() => setEquipment(value))}
                 />
-                <span>{value ? labelize(value) : 'All'}</span>
+                <span>{value ? equipmentName(value) : 'All'}</span>
               </label>
             ))}
           </div>
@@ -593,7 +597,7 @@ export function ExerciseDetailPage() {
         {points.length === 0 ? (
           <p className="muted">
             No sets logged for this exercise
-            {equipment ? ` with ${labelize(equipment).toLowerCase()}` : ''} yet.{' '}
+            {equipment ? ` with ${equipmentName(equipment).toLowerCase()}` : ''} yet.{' '}
             <Link to="/workouts/new">Log a workout</Link>
           </p>
         ) : (

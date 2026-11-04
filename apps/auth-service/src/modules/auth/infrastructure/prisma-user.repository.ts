@@ -10,6 +10,7 @@ type UserWithCredential = {
   displayName: string;
   weightUnit: WeightUnit;
   barWeightKg: { toNumber(): number };
+  dumbbellHandleKg: { toNumber(): number };
   createdAt: Date;
   credential: { passwordHash: string } | null;
 };
@@ -60,6 +61,7 @@ export class PrismaUserRepository implements UserRepository {
       displayName: user.displayName,
       weightUnit: user.weightUnit,
       barWeightKg: user.barWeightKg.toNumber(),
+      dumbbellHandleKg: user.dumbbellHandleKg.toNumber(),
       passwordHash: user.credential?.passwordHash ?? '',
       createdAt: user.createdAt,
     };

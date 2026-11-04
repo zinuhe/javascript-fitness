@@ -13,6 +13,11 @@ import {
 import { WORKOUT_REPOSITORY, type WorkoutRepository } from '../domain/workout.repository';
 import { buildProgressPoints } from './progress.calculator';
 
+/** Equipment whose sets include a fixed weight: the barbell's bar, the heavy dumbbell's handle. */
+const WITH_BAR: readonly (Equipment | undefined)[] = [Equipment.Barbell, Equipment.HeavyDumbbell];
+/** Equipment that comes in ones or twos. */
+const DUMBBELLS: readonly (Equipment | undefined)[] = [Equipment.Dumbbell, Equipment.HeavyDumbbell];
+
 @Injectable()
 export class WorkoutsService {
   constructor(@Inject(WORKOUT_REPOSITORY) private readonly workouts: WorkoutRepository) {}
@@ -129,14 +134,14 @@ export class WorkoutsService {
     return input.exercises.map((entry) => {
       const options = catalog.get(entry.exerciseId)!;
       const equipment = entry.equipment ?? (options.length === 1 ? options[0] : undefined);
-      if (entry.barKg !== undefined && equipment !== Equipment.Barbell) {
+      if (entry.barKg !== undefined && !WITH_BAR.includes(equipment)) {
         throw new ValidationError(
-          'Only barbell exercises can include a bar weight',
+          'Only barbell or heavy dumbbell exercises can include a bar or handle weight',
           'workout.bar_without_barbell',
           { [entry.exerciseId]: [`equipment: ${equipment ?? 'none'}`] },
         );
       }
-      if (entry.dumbbells !== undefined && equipment !== Equipment.Dumbbell) {
+      if (entry.dumbbells !== undefined && !DUMBBELLS.includes(equipment)) {
         throw new ValidationError(
           'Only dumbbell exercises can say how many dumbbells were used',
           'workout.dumbbells_without_dumbbell',
@@ -144,7 +149,7 @@ export class WorkoutsService {
         );
       }
       // Two dumbbells unless told otherwise.
-      const dumbbells = equipment === Equipment.Dumbbell ? (entry.dumbbells ?? 2) : undefined;
+      const dumbbells = DUMBBELLS.includes(equipment) ? (entry.dumbbells ?? 2) : undefined;
       if (entry.equipment === undefined && options.length === 1) {
         return { ...entry, equipment: options[0], ...(dumbbells ? { dumbbells } : {}) };
       }

@@ -12,6 +12,7 @@ const buildUser = (over: Partial<UserEntity> = {}): UserEntity => ({
   displayName: 'Alex',
   weightUnit: 'kg',
   barWeightKg: 12.5,
+  dumbbellHandleKg: 5.44,
   passwordHash: 'hashed',
   createdAt: new Date('2026-01-01T00:00:00Z'),
   ...over,

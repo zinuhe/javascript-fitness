@@ -68,8 +68,21 @@ export function AccountPage() {
         <ErrorMessage error={changeUnit.error} />
       </fieldset>
 
-      {/* Remounted when the unit or the saved bar changes, to show the new value. */}
-      <BarWeightForm key={`${user.weightUnit}-${user.barWeightKg}`} />
+      {/* Remounted when the unit or the saved weight changes, to show the new value. */}
+      <FixedWeightForm
+        key={`bar-${user.weightUnit}-${user.barWeightKg}`}
+        field="barWeightKg"
+        label="Barbell weight"
+        hint="Added to the plates you type for barbell exercises."
+        save="Save bar weight"
+      />
+      <FixedWeightForm
+        key={`handle-${user.weightUnit}-${user.dumbbellHandleKg}`}
+        field="dumbbellHandleKg"
+        label="Heavy dumbbell handle"
+        hint="One handle with its collars, added to the plates you type for heavy dumbbell exercises (per dumbbell)."
+        save="Save handle weight"
+      />
 
       <Link to="/help" className="card link-card help-link">
         <strong>Help</strong>
@@ -85,42 +98,54 @@ export function AccountPage() {
   );
 }
 
-/** The user's barbell weight, in their unit; barbell exercises add it to the plates. */
-function BarWeightForm() {
+/**
+ * A fixed weight added to the plates the user types, in their unit: the barbell's bar or
+ * the heavy dumbbell's handle.
+ */
+function FixedWeightForm({
+  field,
+  label,
+  hint,
+  save,
+}: {
+  field: 'barWeightKg' | 'dumbbellHandleKg';
+  label: string;
+  hint: string;
+  save: string;
+}) {
   const { data: user } = useSuspenseQuery(meQuery);
   const queryClient = useQueryClient();
-  const [bar, setBar] = useState(() => weightInputValue(user.barWeightKg, user.weightUnit));
-  const changeBar = useMutation({
-    mutationFn: (barWeightKg: number) => updateProfile({ barWeightKg }),
+  const [value, setValue] = useState(() => weightInputValue(user[field], user.weightUnit));
+  const change = useMutation({
+    mutationFn: (kg: number) => updateProfile({ [field]: kg }),
     onSuccess: (profile) => queryClient.setQueryData(meQuery.queryKey, profile),
   });
-  const saveBar = (event: FormEvent) => {
+  const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    changeBar.mutate(toKg(parseDecimal(bar), user.weightUnit));
+    change.mutate(toKg(parseDecimal(value), user.weightUnit));
   };
 
   return (
-    <form className="card stack-tight" onSubmit={saveBar}>
+    <form className="card stack-tight" onSubmit={onSubmit}>
       <label>
-        Barbell weight ({user.weightUnit})
+        {label} ({user.weightUnit})
         <input
           type="text"
           inputMode="decimal"
           pattern="[0-9]+([.,][0-9]{1,2})?"
           autoComplete="off"
-          value={bar}
-          onChange={(e) => setBar(e.target.value)}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
           required
         />
       </label>
       <p className="muted">
-        Added to the plates you type for barbell exercises. Now{' '}
-        {formatWeight(user.barWeightKg, user.weightUnit)}.
+        {hint} Now {formatWeight(user[field], user.weightUnit)}.
       </p>
-      <ErrorMessage error={changeBar.error} />
+      <ErrorMessage error={change.error} />
       <div className="row">
-        <button className="button secondary" disabled={changeBar.isPending}>
-          {changeBar.isPending ? 'Saving…' : 'Save bar weight'}
+        <button className="button secondary" disabled={change.isPending}>
+          {change.isPending ? 'Saving…' : save}
         </button>
       </div>
     </form>
