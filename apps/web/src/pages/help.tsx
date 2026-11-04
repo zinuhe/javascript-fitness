@@ -73,12 +73,12 @@ const TOPICS: Record<Lang, Topic[]> = {
           </li>
           <li>
             <strong>Heavy dumbbell</strong> (a handle you load with plates): the same, per dumbbell:
-            the plates you type plus the handle set in Account. A <strong>light dumbbell</strong>{' '}
+            the plates you type plus the handle set in Account. A regular <strong>dumbbell</strong>{' '}
             (fixed weight) counts as typed.
           </li>
           <li>
             <strong>Several equipment:</strong> the chart shows the equipment picked in the tabs
-            (Barbell, Light dumbbell…), never a mix.
+            (Barbell, Dumbbell…), never a mix.
           </li>
           <li>
             <strong>Horizontal axis:</strong> points are evenly spaced, however many days passed
@@ -159,12 +159,12 @@ const TOPICS: Record<Lang, Topic[]> = {
           </li>
           <li>
             <strong>Heavy dumbbell</strong> (un eje que cargas con discos): igual, por mancuerna:
-            los discos que escribes más el eje configurado en Account. Una{' '}
-            <strong>light dumbbell</strong> (de peso fijo) cuenta tal como la escribes.
+            los discos que escribes más el eje configurado en Account. Una <strong>dumbbell</strong>{' '}
+            normal (de peso fijo) cuenta tal como la escribes.
           </li>
           <li>
             <strong>Varios equipos:</strong> la gráfica muestra el equipo elegido en las pestañas
-            (Barbell, Light dumbbell…), nunca una mezcla.
+            (Barbell, Dumbbell…), nunca una mezcla.
           </li>
           <li>
             <strong>Eje horizontal:</strong> los puntos van a la misma distancia, sin importar

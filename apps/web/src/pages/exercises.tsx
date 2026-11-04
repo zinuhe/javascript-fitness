@@ -388,7 +388,7 @@ export function ExercisesPage() {
  * Estimated 1RM over time as a small line chart. Pure SVG scaled to its container, so it
  * fits a phone as well as a desktop card; values are also listed in the table below it.
  */
-/** "Light dumbbell ×2": what a session was done with. */
+/** "Dumbbell ×2": what a session was done with. */
 function sessionEquipment(point: ExerciseProgressPoint): string {
   const name = equipmentName(point.equipment ?? '');
   return point.dumbbells ? `${name} ×${point.dumbbells}` : name;

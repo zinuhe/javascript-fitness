@@ -37,9 +37,8 @@ README "Deploying to the Raspberry Pi" has the details.
 - A set's `weightKg` is the total lifted. Barbell and heavy dumbbell (`heavy_dumbbell`, an
   adjustable handle loaded with plates) sets include a fixed part the user doesn't type: the
   bar or the handle, saved per logged exercise as `barKg` (defaults from the profile's
-  `barWeightKg` / `dumbbellHandleKg`). The stored value `dumbbell` is shown as "Light
-  dumbbell" (fixed weight, counted as typed). Dumbbell weights are per dumbbell; the 1/2
-  dumbbell count is informative only.
+  `barWeightKg` / `dumbbellHandleKg`). A plain `dumbbell` has a fixed weight and counts as
+  typed. Dumbbell weights are per dumbbell; the 1/2 dumbbell count is informative only.
 - Exercise pictures: up to two per exercise (slot 1 is shown small, 2 is extra), each stored in Postgres
   (`exercise_images`) as a thumb and a large rendition that the browser resizes before
   uploading (`apps/web/src/components/image-resize.ts`). They are served without a token at

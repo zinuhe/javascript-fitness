@@ -43,13 +43,13 @@ function allAlike(sets: WorkoutSet[]): boolean {
   );
 }
 
-/** "Light dumbbell ×2": the equipment, with how many dumbbells when it is dumbbells. */
+/** "Dumbbell ×2": the equipment, with how many dumbbells when it is dumbbells. */
 function equipmentTag(entry: WorkoutExercise): string {
   const name = equipmentName(entry.equipment ?? '');
   return entry.dumbbells ? `${name} ×${entry.dumbbells}` : name;
 }
 
-/** "Bench Press (Light dumbbell ×2)": the exercise with the equipment it was done with. */
+/** "Bench Press (Dumbbell ×2)": the exercise with the equipment it was done with. */
 function loggedExerciseLabel(entry: WorkoutExercise, catalog: Exercise[]): string {
   const exercise = catalog.find((e) => e.id === entry.exerciseId);
   if (!exercise) return 'Unknown exercise';

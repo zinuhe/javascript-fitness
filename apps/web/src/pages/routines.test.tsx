@@ -250,7 +250,7 @@ describe('starting a routine day', () => {
 
     const equipment = await screen.findByRole('radiogroup', { name: 'Equipment for exercise 1' });
     const weight = () => screen.getByLabelText('Weight (kg)');
-    expect(within(equipment).getByRole('radio', { name: 'Light dumbbell' })).toBeChecked();
+    expect(within(equipment).getByRole('radio', { name: 'Dumbbell' })).toBeChecked();
     expect(weight()).toHaveValue('30');
     expect(screen.getByLabelText('Reps')).toHaveValue('10');
 
@@ -261,7 +261,7 @@ describe('starting a routine day', () => {
     // Once typed over, switching keeps what was typed.
     await user.clear(weight());
     await user.type(weight(), '85');
-    await user.click(within(equipment).getByRole('radio', { name: 'Light dumbbell' }));
+    await user.click(within(equipment).getByRole('radio', { name: 'Dumbbell' }));
     expect(weight()).toHaveValue('85');
     await user.click(screen.getByRole('button', { name: 'Save workout' }));
 

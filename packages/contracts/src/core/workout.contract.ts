@@ -20,7 +20,7 @@ export interface WorkoutExercise {
    * hold the total lifted.
    */
   barKg?: number;
-  /** How many dumbbells were used (1 or 2), for light or heavy dumbbell exercises. */
+  /** How many dumbbells were used (1 or 2), for dumbbell or heavy dumbbell exercises. */
   dumbbells?: number;
   order: number;
   sets: WorkoutSet[];
@@ -65,7 +65,7 @@ export interface CreateWorkoutExerciseRequest {
    * a heavy dumbbell.
    */
   barKg?: number;
-  /** How many dumbbells (1 or 2); only with a light or heavy dumbbell, 2 when left out. */
+  /** How many dumbbells (1 or 2); only with a dumbbell or heavy dumbbell, 2 when left out. */
   dumbbells?: number;
   sets: CreateSetRequest[];
 }

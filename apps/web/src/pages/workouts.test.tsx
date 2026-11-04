@@ -163,7 +163,7 @@ describe('logging a workout', () => {
     expect(within(equipment).getByRole('radio', { name: 'Barbell' })).toBeChecked();
     // Only with dumbbells: how many, two unless changed.
     expect(screen.queryByRole('radiogroup', { name: 'Dumbbells for exercise 1' })).toBeNull();
-    await user.click(within(equipment).getByRole('radio', { name: 'Light dumbbell' }));
+    await user.click(within(equipment).getByRole('radio', { name: 'Dumbbell' }));
     const dumbbells = screen.getByRole('radiogroup', { name: 'Dumbbells for exercise 1' });
     expect(within(dumbbells).getByRole('radio', { name: '2 dumbbells' })).toBeChecked();
     await user.click(within(dumbbells).getByRole('radio', { name: '1 dumbbell' }));
@@ -173,7 +173,7 @@ describe('logging a workout', () => {
 
     const heading = await screen.findByRole('heading', { name: 'Bench Press' });
     expect(
-      within(heading.closest('article')!).getByLabelText('Equipment: Light dumbbell ×1'),
+      within(heading.closest('article')!).getByLabelText('Equipment: Dumbbell ×1'),
     ).toHaveClass('tag');
     expect(apiState.workouts[0].exercises[0]).toMatchObject({
       exerciseId: press.id,
@@ -182,7 +182,7 @@ describe('logging a workout', () => {
     });
 
     await user.click(screen.getByRole('link', { name: '← Workouts' }));
-    expect(await screen.findByText('Bench Press (Light dumbbell ×1)')).toBeInTheDocument();
+    expect(await screen.findByText('Bench Press (Dumbbell ×1)')).toBeInTheDocument();
   });
 
   it('allows one workout per date, warning as soon as a taken date is picked', async () => {
@@ -760,7 +760,7 @@ const handleHint = () =>
   );
 
 describe('heavy dumbbell exercises', () => {
-  it('adds the handle to the plates typed; a light dumbbell counts as typed', async () => {
+  it('adds the handle to the plates typed; a regular dumbbell counts as typed', async () => {
     signedInAs({ weightUnit: 'lb' });
     const curl = seedExercise({
       name: 'Biceps Curl',
@@ -770,8 +770,8 @@ describe('heavy dumbbell exercises', () => {
 
     await user.selectOptions(await exerciseSelect(1), curl.name);
     const equipment = screen.getByRole('radiogroup', { name: 'Equipment for exercise 1' });
-    // Light dumbbells (the first) are typed as they are, with nothing added.
-    expect(within(equipment).getByRole('radio', { name: 'Light dumbbell' })).toBeChecked();
+    // Regular dumbbells (the first) are typed as they are, with nothing added.
+    expect(within(equipment).getByRole('radio', { name: 'Dumbbell' })).toBeChecked();
     expect(screen.getByLabelText('Weight (lb)')).toBeInTheDocument();
     expect(screen.queryByText(/^\+ (bar|handle)/)).toBeNull();
 

@@ -48,7 +48,7 @@ enum Muscle {
 
 enum Equipment {
   barbell
-  // Fixed-weight dumbbells (shown as "Light dumbbell").
+  // Fixed-weight dumbbells.
   dumbbell
   // Adjustable dumbbells: a heavy handle plus plates; the handle is added like a bar.
   heavy_dumbbell
@@ -133,7 +133,7 @@ model WorkoutExercise {
   // store the total lifted); null when none. Kept per exercise so later changes to the
   // user's bar or handle don't alter past workouts.
   barKg      Decimal?   @db.Decimal(5, 2)
-  // How many dumbbells were used (1 or 2), for light or heavy dumbbell exercises;
+  // How many dumbbells were used (1 or 2), for dumbbell or heavy dumbbell exercises;
   // informative only.
   dumbbells  Int?
 

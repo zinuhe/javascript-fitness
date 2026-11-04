@@ -14,15 +14,12 @@ export const formatDate = (iso: string) => dateFormat.format(new Date(iso));
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-/**
- * How a piece of equipment is named in the UI. Fixed dumbbells keep the stored value
- * `dumbbell` but read "Light dumbbell", next to the plate-loaded "Heavy dumbbell".
- */
+/** How a piece of equipment is named in the UI: "Dumbbell", "Heavy dumbbell"… */
 export function equipmentName(value: string): string {
-  return value === 'dumbbell' ? 'Light dumbbell' : labelize(value);
+  return labelize(value);
 }
 
-/** "Barbell · Light dumbbell". */
+/** "Barbell · Dumbbell". */
 export function equipmentLabel(equipment: string[]): string {
   return equipment.map(equipmentName).join(' · ');
 }
