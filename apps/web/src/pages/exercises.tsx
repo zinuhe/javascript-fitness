@@ -42,7 +42,12 @@ import {
   exerciseImageUrl,
 } from '../components/exercise-images';
 import { prepareExerciseImage } from '../components/image-resize';
-import { formatTableVolume, formatWeight, useWeightUnit } from '../components/units';
+import {
+  formatTableVolume,
+  formatWeight,
+  formatWholeInOtherUnit,
+  useWeightUnit,
+} from '../components/units';
 
 /**
  * One or more pieces of equipment as toggle chips. While none is checked every box is
@@ -663,7 +668,12 @@ export function ExerciseDetailPage() {
                         ({formatTableVolume(point.totalVolumeKg, unit).other})
                       </span>
                     </td>
-                    <td>{formatWeight(point.bestSetWeightKg, unit)}</td>
+                    <td className="wrap-on-phone">
+                      <span className="nowrap">{formatWeight(point.bestSetWeightKg, unit)}</span>{' '}
+                      <span className="hint other-unit">
+                        ({formatWholeInOtherUnit(point.bestSetWeightKg, unit)})
+                      </span>
+                    </td>
                     <td>{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
                   </tr>
                 ))}
