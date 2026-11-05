@@ -25,7 +25,7 @@ import {
   workoutQuery,
   workoutsOnDayQuery,
 } from '../api/queries';
-import { BarWord } from '../components/bar';
+import { BarWord, PerDumbbell } from '../components/bar';
 import { ExercisePreview } from '../components/exercise-images';
 import {
   ErrorMessage,
@@ -124,8 +124,9 @@ function Stepper({
 }
 
 /**
- * "+ bar 27.6 lb = 47.6 lb" under a barbell set ("+ 2 handles 24 lb = …" for two heavy
- * dumbbells), once plates are typed. `barKg` is one bar or handle.
+ * "+ bar 27.6 lb = 47.6 lb" under a barbell set, and "2 × (🏋 12 lb + 10 lb) = 44 lb" under a
+ * heavy dumbbell one (each dumbbell); the totals once plates are typed. `barKg` is one bar or
+ * handle.
  */
 function BarTotal({
   plates,
@@ -143,13 +144,31 @@ function BarTotal({
   if (barKg === undefined) return null;
   const typed = parseDecimal(plates);
   const fixedKg = barKg * count;
-  const bar = displayWeight(fixedKg, unit);
+  const total =
+    plates.trim() !== '' && Number.isFinite(typed)
+      ? formatWeight(toKg(typed + displayWeight(fixedKg, unit), unit), unit)
+      : undefined;
+  if (kind === 'handle') {
+    // Each dumbbell, its handle plus its share of the plates: "2 × (🏋 12 lb + 10 lb) = 44 lb".
+    return (
+      <p className="hint">
+        {total === undefined ? (
+          <>
+            + <PerDumbbell handleKg={barKg} count={count} unit={unit} />
+          </>
+        ) : (
+          <>
+            <PerDumbbell handleKg={barKg} platesKg={toKg(typed, unit)} count={count} unit={unit} />{' '}
+            = {total}
+          </>
+        )}
+      </p>
+    );
+  }
   return (
     <p className="hint">
-      + <BarWord barKg={barKg} kind={kind} count={count} /> {formatWeight(fixedKg, unit)}
-      {plates.trim() !== '' && Number.isFinite(typed)
-        ? ` = ${formatWeight(toKg(typed + bar, unit), unit)}`
-        : ''}
+      + <BarWord barKg={barKg} /> {formatWeight(fixedKg, unit)}
+      {total === undefined ? '' : ` = ${total}`}
     </p>
   );
 }

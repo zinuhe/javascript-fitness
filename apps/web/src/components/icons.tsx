@@ -24,8 +24,9 @@ export const PlusIcon = () => (
   </svg>
 );
 
-export const DumbbellIcon = () => (
-  <svg {...base}>
+/** A dumbbell: the Exercises tab, and (small) a heavy dumbbell's handle next to its weight. */
+export const DumbbellIcon = ({ size = 24 }: { size?: number | string }) => (
+  <svg {...base} width={size} height={size}>
     <path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11" />
   </svg>
 );

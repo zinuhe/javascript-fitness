@@ -576,6 +576,14 @@ fieldset.card > legend {
 .bar-word:focus {
   outline: none;
 }
+/* A heavy dumbbell's handle, drawn as a dumbbell before its weight: "2 × (🏋 12 lb + 10 lb)". */
+.bar-icon {
+  text-decoration: none;
+  margin-right: 0.15em;
+}
+.bar-icon svg {
+  vertical-align: -0.2em;
+}
 .activity {
   list-style: none;
   margin: 0;
