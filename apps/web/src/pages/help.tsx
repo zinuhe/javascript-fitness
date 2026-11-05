@@ -72,9 +72,10 @@ const TOPICS: Record<Lang, Topic[]> = {
             <strong>Barbell:</strong> the total weight is used, plates plus bar.
           </li>
           <li>
-            <strong>Heavy dumbbell</strong> (a handle you load with plates): the same, per dumbbell:
-            the plates you type plus the handle set in Account. A regular <strong>dumbbell</strong>{' '}
-            (fixed weight) counts as typed.
+            <strong>Dumbbells:</strong> write the weight of all of them together (two 20 lb
+            dumbbells are 40 lb). With a <strong>heavy dumbbell</strong> (a handle you load with
+            plates), write the plates of all of them; one handle per dumbbell, as set in Account, is
+            added.
           </li>
           <li>
             <strong>Several equipment:</strong> the chart shows the equipment picked in the tabs
@@ -158,9 +159,9 @@ const TOPICS: Record<Lang, Topic[]> = {
             <strong>Con barra:</strong> se usa el peso total, discos más barra.
           </li>
           <li>
-            <strong>Heavy dumbbell</strong> (un eje que cargas con discos): igual, por mancuerna:
-            los discos que escribes más el eje configurado en Account. Una <strong>dumbbell</strong>{' '}
-            normal (de peso fijo) cuenta tal como la escribes.
+            <strong>Mancuernas:</strong> escribe el peso de todas juntas (dos de 20 lb son 40 lb).
+            Con <strong>heavy dumbbell</strong> (un eje que cargas con discos), escribe los discos
+            de todas; se suma un eje por mancuerna, el configurado en Account.
           </li>
           <li>
             <strong>Varios equipos:</strong> la gráfica muestra el equipo elegido en las pestañas

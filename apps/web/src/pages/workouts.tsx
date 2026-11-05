@@ -13,6 +13,8 @@ import {
   dayLabel,
   exerciseNames,
   equipmentName,
+  fixedPartCount,
+  fixedPartKg,
   fixedPartOf,
   formatDay,
   useScrollToOnOpen,
@@ -42,6 +44,10 @@ function allAlike(sets: WorkoutSet[]): boolean {
     )
   );
 }
+
+/** The bar, or every handle, included in each set of a logged exercise. */
+const fixedOf = (entry: WorkoutExercise) =>
+  fixedPartKg(entry.barKg, entry.equipment, entry.dumbbells);
 
 /** "Dumbbell ×2": the equipment, with how many dumbbells when it is dumbbells. */
 function equipmentTag(entry: WorkoutExercise): string {
@@ -274,15 +280,16 @@ export function WorkoutDetailPage() {
                     {/* Sets with a bar or handle store the total: the plates as typed, the sum below. */}
                     {entry.barKg !== undefined ? (
                       <td>
-                        {formatWeight(set.weightKg - entry.barKg, unit)}{' '}
+                        {formatWeight(set.weightKg - fixedOf(entry), unit)}{' '}
                         <span className="hint">
-                          ({formatWholeInOtherUnit(set.weightKg - entry.barKg, unit)})
+                          ({formatWholeInOtherUnit(set.weightKg - fixedOf(entry), unit)})
                         </span>
                         <span className="hint cell-note">
-                          {formatWeight(set.weightKg - entry.barKg, unit)} +{' '}
+                          {formatWeight(set.weightKg - fixedOf(entry), unit)} +{' '}
                           <BarWord
                             barKg={entry.barKg}
                             kind={fixedPartOf(entry.equipment) ?? 'bar'}
+                            count={fixedPartCount(entry.equipment, entry.dumbbells)}
                           />{' '}
                           = {formatWeight(set.weightKg, unit)} (
                           {formatWholeInOtherUnit(set.weightKg, unit)})

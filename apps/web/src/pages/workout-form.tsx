@@ -31,6 +31,8 @@ import {
   ErrorMessage,
   dayLabel,
   equipmentName,
+  fixedPartCount,
+  fixedPartKg,
   fixedPartOf,
   formatSessionDate,
   isDumbbell,
@@ -122,26 +124,29 @@ function Stepper({
 }
 
 /**
- * "+ bar 27.6 lb = 47.6 lb" under a barbell set ("+ handle 12 lb = …" for a heavy dumbbell),
- * once plates are typed.
+ * "+ bar 27.6 lb = 47.6 lb" under a barbell set ("+ 2 handles 24 lb = …" for two heavy
+ * dumbbells), once plates are typed. `barKg` is one bar or handle.
  */
 function BarTotal({
   plates,
   barKg,
   kind,
+  count,
   unit,
 }: {
   plates: string;
   barKg: number | undefined;
   kind: 'bar' | 'handle';
+  count: number;
   unit: WeightUnit;
 }) {
   if (barKg === undefined) return null;
   const typed = parseDecimal(plates);
-  const bar = displayWeight(barKg, unit);
+  const fixedKg = barKg * count;
+  const bar = displayWeight(fixedKg, unit);
   return (
     <p className="hint">
-      + <BarWord barKg={barKg} kind={kind} /> {formatWeight(barKg, unit)}
+      + <BarWord barKg={barKg} kind={kind} count={count} /> {formatWeight(fixedKg, unit)}
       {plates.trim() !== '' && Number.isFinite(typed)
         ? ` = ${formatWeight(toKg(typed + bar, unit), unit)}`
         : ''}
@@ -252,11 +257,14 @@ const lastDumbbells = (
     ? lastSets.find((e) => e.exerciseId === exerciseId && e.equipment === equipment)?.dumbbells
     : undefined) ?? 2;
 
-/** Saved sets as form drafts; with a bar, the weight field shows the plates only. */
-const toSetDrafts = (sets: LastExerciseSets['sets'], unit: WeightUnit, barKg = 0): SetDraft[] =>
+/**
+ * Saved sets as form drafts; with a bar or handles (`fixedKg`, all of them), the weight
+ * field shows the plates only.
+ */
+const toSetDrafts = (sets: LastExerciseSets['sets'], unit: WeightUnit, fixedKg = 0): SetDraft[] =>
   sets.map((set) => ({
     reps: String(set.reps),
-    weight: weightInputValue(set.weightKg - barKg, unit),
+    weight: weightInputValue(set.weightKg - fixedKg, unit),
     rpe: set.rpe,
     restSeconds: set.restSeconds,
   }));
@@ -269,7 +277,13 @@ function lastSetsFor(
   unit: WeightUnit,
 ): SetDraft[] {
   const previous = lastSets.find((e) => e.exerciseId === exerciseId && e.equipment === equipment);
-  return previous?.sets.length ? toSetDrafts(previous.sets, unit, previous.barKg) : [emptySet()];
+  return previous?.sets.length
+    ? toSetDrafts(
+        previous.sets,
+        unit,
+        fixedPartKg(previous.barKg, previous.equipment, previous.dumbbells),
+      )
+    : [emptySet()];
 }
 
 /** Local day of `date` in the `YYYY-MM-DD` shape a date input expects. */
@@ -303,7 +317,11 @@ function draftFromWorkout(workout: Workout, unit: WeightUnit): WorkoutDraft {
       barKg: entry.barKg,
       barFor: entry.equipment ?? '',
       dumbbells: entry.dumbbells ?? 2,
-      sets: toSetDrafts(entry.sets, unit, entry.barKg),
+      sets: toSetDrafts(
+        entry.sets,
+        unit,
+        fixedPartKg(entry.barKg, entry.equipment, entry.dumbbells),
+      ),
       // Logged sets are never swapped behind the user's back.
       pristine: false,
     })),
@@ -509,6 +527,11 @@ function WorkoutForm({
     if (entry.barKg !== undefined && entry.barFor === entry.equipment) return entry.barKg;
     return part === 'bar' ? me.barWeightKg : me.dumbbellHandleKg;
   };
+  /** All that is added to each set's plates: the bar once, or one handle per dumbbell. */
+  const fixedOf = (entry: ExerciseDraft) => {
+    const bar = barOf(entry);
+    return bar === undefined ? undefined : bar * fixedPartCount(entry.equipment, entry.dumbbells);
+  };
   const navigate = useNavigate();
   const [draft] = useState(initial);
   /** The entry the form opened at; followed by key, so it survives reordering/removals. */
@@ -624,6 +647,7 @@ function WorkoutForm({
       routineDayId: routineDayId || null,
       exercises: done.map((e) => {
         const bar = barOf(e);
+        const fixed = fixedOf(e) ?? 0;
         return {
           exerciseId: e.exerciseId,
           ...(e.equipment ? { equipment: e.equipment } : {}),
@@ -633,8 +657,9 @@ function WorkoutForm({
             .filter((s) => !isBlankSet(s))
             .map((s) => ({
               reps: parseDecimal(s.reps),
-              // Sets store the total lifted: the plates typed plus the bar.
-              weightKg: Math.round((toKg(parseDecimal(s.weight), unit) + (bar ?? 0)) * 100) / 100,
+              // Sets store the total lifted: the plates typed plus the bar, or plus one
+              // handle per dumbbell (the API keeps the weight of one in barKg).
+              weightKg: Math.round((toKg(parseDecimal(s.weight), unit) + fixed) * 100) / 100,
               ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
               ...(s.restSeconds !== undefined ? { restSeconds: s.restSeconds } : {}),
             })),
@@ -884,6 +909,7 @@ function WorkoutForm({
                 plates={set.weight}
                 barKg={barOf(entry)}
                 kind={fixedPartOf(entry.equipment) ?? 'bar'}
+                count={fixedPartCount(entry.equipment, entry.dumbbells)}
                 unit={unit}
               />
             </div>

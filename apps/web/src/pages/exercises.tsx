@@ -27,6 +27,8 @@ import {
   ErrorMessage,
   equipmentLabel,
   equipmentName,
+  fixedPartCount,
+  fixedPartKg,
   fixedPartOf,
   formatSessionDate,
   formatShortDate,
@@ -415,17 +417,23 @@ function OneRepMaxChart({
   const x = (i: number) => pad + (i * (width - 2 * pad)) / (points.length - 1);
   const y = (v: number) => height - pad - ((v - min) / span) * (height - 2 * pad);
   const path = points.map((p, i) => `${x(i)},${y(p.estimatedOneRepMaxKg)}`).join(' ');
-  // Barbell sets show the plates, as logged; the chart and table keep the total.
-  const plates = (set: ExerciseProgressPoint['sets'][number]) => set.weightKg - (set.barKg ?? 0);
-  const setLine = (set: ExerciseProgressPoint['sets'][number]) =>
-    `${set.reps} × ${formatWeight(plates(set), unit)}`;
+  // Sets with a bar or handles show the plates, as logged; the chart and table keep the total.
+  type Set = ExerciseProgressPoint['sets'][number];
+  const plates = (point: ExerciseProgressPoint, set: Set) =>
+    set.weightKg - fixedPartKg(set.barKg, point.equipment, point.dumbbells);
+  const setLine = (point: ExerciseProgressPoint, set: Set) =>
+    `${set.reps} × ${formatWeight(plates(point, set), unit)}`;
   /** "4 × 12 — 50 lb" when every set of the session was the same, else null. */
-  const sameSets = (sets: ExerciseProgressPoint['sets']) =>
-    sets.every((s) => s.reps === sets[0].reps && plates(s) === plates(sets[0]))
-      ? `${sets.length} × ${sets[0].reps} — ${formatWeight(plates(sets[0]), unit)}`
+  const sameSets = (point: ExerciseProgressPoint) => {
+    const [first] = point.sets;
+    return point.sets.every(
+      (s) => s.reps === first.reps && plates(point, s) === plates(point, first),
+    )
+      ? `${point.sets.length} × ${first.reps} — ${formatWeight(plates(point, first), unit)}`
       : null;
-  const setsSummary = (sets: ExerciseProgressPoint['sets']) =>
-    sameSets(sets) ?? sets.map(setLine).join(', ');
+  };
+  const setsSummary = (point: ExerciseProgressPoint) =>
+    sameSets(point) ?? point.sets.map((set) => setLine(point, set)).join(', ');
   const shown = active === null ? null : points[active];
 
   return (
@@ -456,7 +464,7 @@ function OneRepMaxChart({
               className="chart-hit"
               tabIndex={0}
               role="button"
-              aria-label={`${formatSessionDate(p.performedAt)}: ${setsSummary(p.sets)}`}
+              aria-label={`${formatSessionDate(p.performedAt)}: ${setsSummary(p)}`}
               onMouseEnter={() => setActive(i)}
               onMouseLeave={() => setActive(null)}
               onFocus={() => setActive(i)}
@@ -483,14 +491,15 @@ function OneRepMaxChart({
             {shown.sets.some((s) => s.barKg !== undefined) && (
               <span className="chart-tip-note">
                 Plates only, without the {fixedPartOf(shown.equipment) ?? 'bar'}
+                {fixedPartCount(shown.equipment, shown.dumbbells) > 1 ? 's' : ''}
               </span>
             )}
-            {sameSets(shown.sets) ? (
-              <p className="chart-tip-same">{sameSets(shown.sets)}</p>
+            {sameSets(shown) ? (
+              <p className="chart-tip-same">{sameSets(shown)}</p>
             ) : (
               <ol>
                 {shown.sets.map((set, i) => (
-                  <li key={i}>{setLine(set)}</li>
+                  <li key={i}>{setLine(shown, set)}</li>
                 ))}
               </ol>
             )}

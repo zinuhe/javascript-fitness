@@ -80,7 +80,7 @@ export function AccountPage() {
         key={`handle-${user.weightUnit}-${user.dumbbellHandleKg}`}
         field="dumbbellHandleKg"
         label="Heavy dumbbell handle"
-        hint="One handle with its collars, added to the plates you type for heavy dumbbell exercises (per dumbbell)."
+        hint="One handle with its collars, added once per dumbbell to the plates you type for heavy dumbbell exercises."
         save="Save handle weight"
       />
 

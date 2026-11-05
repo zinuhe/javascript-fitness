@@ -16,11 +16,15 @@ export interface WorkoutExercise {
   /** Which of the exercise's equipment was used this time. */
   equipment?: Equipment;
   /**
-   * Bar (barbell) or handle (heavy dumbbell) weight included in each set's weightKg: sets
-   * hold the total lifted.
+   * The bar (barbell), or one handle (heavy dumbbell), included in each set's weightKg: sets
+   * hold the total lifted, `plates + barKg` or, with heavy dumbbells, `plates + barKg ×
+   * dumbbells` (one handle per dumbbell).
    */
   barKg?: number;
-  /** How many dumbbells were used (1 or 2), for dumbbell or heavy dumbbell exercises. */
+  /**
+   * How many dumbbells were used (1 or 2), for dumbbell or heavy dumbbell exercises. Dumbbell
+   * weights are the total of all of them; with heavy dumbbells it also counts the handles.
+   */
   dumbbells?: number;
   order: number;
   sets: WorkoutSet[];
@@ -61,8 +65,8 @@ export interface CreateWorkoutExerciseRequest {
    */
   equipment?: Equipment;
   /**
-   * Bar or handle weight already included in each set's weightKg; only with a barbell or
-   * a heavy dumbbell.
+   * The bar, or one handle, already included in each set's weightKg (once per dumbbell for
+   * heavy dumbbells); only with a barbell or a heavy dumbbell.
    */
   barKg?: number;
   /** How many dumbbells (1 or 2); only with a dumbbell or heavy dumbbell, 2 when left out. */
@@ -100,7 +104,8 @@ export interface ExerciseProgressPoint {
   bestSetWeightKg: number;
   /**
    * That session's sets of the exercise, in the order they were done. `weightKg` is the
-   * total lifted; `barKg` is the bar or handle included in it (barbell, heavy dumbbell).
+   * total lifted; `barKg` is the bar, or one handle, included in it (once per dumbbell for
+   * heavy dumbbells: see `dumbbells`).
    */
   sets: { reps: number; weightKg: number; barKg?: number }[];
 }
@@ -123,7 +128,10 @@ export interface ExerciseSessionCount {
 export interface LastExerciseSets {
   exerciseId: string;
   equipment?: Equipment;
-  /** Bar or handle weight included in the sets' weights, to show them as plates again. */
+  /**
+   * The bar, or one handle (once per dumbbell), included in the sets' weights, to show them
+   * as plates again.
+   */
   barKg?: number;
   /** How many dumbbells were used that time. */
   dumbbells?: number;

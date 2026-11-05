@@ -753,14 +753,14 @@ describe('barbell exercises', () => {
   });
 });
 
-/** The "+ handle … = …" line under a heavy dumbbell set. */
+/** The "+ handle … = …" (or "+ 2 handles … = …") line under a heavy dumbbell set. */
 const handleHint = () =>
   screen.getByText(
-    (_, el) => el?.matches('p.hint') === true && /^\+ handle/.test(el.textContent ?? ''),
+    (_, el) => el?.matches('p.hint') === true && /^\+ (\d+ )?handles?/.test(el.textContent ?? ''),
   );
 
 describe('heavy dumbbell exercises', () => {
-  it('adds the handle to the plates typed; a regular dumbbell counts as typed', async () => {
+  it('adds one handle per dumbbell to the plates of all of them', async () => {
     signedInAs({ weightUnit: 'lb' });
     const curl = seedExercise({
       name: 'Biceps Curl',
@@ -777,30 +777,86 @@ describe('heavy dumbbell exercises', () => {
 
     await user.click(within(equipment).getByRole('radio', { name: 'Heavy dumbbell' }));
     await user.type(screen.getByLabelText('Reps'), '10');
+    // The plates of both dumbbells together, as with regular dumbbells (40 lb = two 20s).
     await user.type(screen.getByLabelText('Plates (lb)'), '20');
-    expect(handleHint()).toHaveTextContent('+ handle 12 lb = 32 lb');
-    expect(screen.getByText('handle')).toHaveAttribute('data-tip', 'Handle: 12 lb (5.44 kg)');
-    // Heavy dumbbells come in ones or twos too.
     expect(screen.getByRole('radio', { name: '2 dumbbells' })).toBeChecked();
+    expect(handleHint()).toHaveTextContent('+ 2 handles 24 lb = 44 lb');
+    expect(screen.getByText('2 handles')).toHaveAttribute(
+      'data-tip',
+      'Handles: 2 × 12 lb (5.44 kg)',
+    );
+    // One dumbbell, one handle; and back.
+    await user.click(screen.getByRole('radio', { name: '1 dumbbell' }));
+    expect(handleHint()).toHaveTextContent('+ handle 12 lb = 32 lb');
+    await user.click(screen.getByRole('radio', { name: '2 dumbbells' }));
     await user.click(screen.getByRole('button', { name: 'Save workout' }));
 
     const heading = await screen.findByRole('heading', { name: 'Biceps Curl' });
-    // Stored as the total of one dumbbell: 9.07 kg of plates + the 5.44 kg handle.
+    // The total of both: 9.07 kg of plates + two 5.44 kg handles; barKg is one handle.
     expect(apiState.workouts[0].exercises[0]).toMatchObject({
       equipment: Equipment.HeavyDumbbell,
       barKg: 5.44,
       dumbbells: 2,
-      sets: [expect.objectContaining({ reps: 10, weightKg: 14.51 })],
+      sets: [expect.objectContaining({ reps: 10, weightKg: 19.95 })],
     });
     const card = heading.closest('article')!;
     expect(within(card).getByLabelText('Equipment: Heavy dumbbell ×2')).toBeInTheDocument();
     expect(within(within(card).getAllByRole('row')[1]).getAllByRole('cell')[2]).toHaveTextContent(
-      '20 lb (9 kg)20 lb + handle = 32 lb (15 kg)',
+      '20 lb (9 kg)20 lb + 2 handles = 44 lb (20 kg)',
     );
 
     // Editing shows the plates again.
     await user.click(screen.getByRole('link', { name: 'Edit' }));
     expect(await screen.findByLabelText('Plates (lb)')).toHaveValue('20');
+    expect(handleHint()).toHaveTextContent('+ 2 handles 24 lb = 44 lb');
+  });
+
+  it('shows the plates of both, without the handles, when hovering the progress chart', async () => {
+    const me = signedInAs({ weightUnit: 'lb' });
+    const curl = seedExercise({ name: 'Biceps Curl', equipment: [Equipment.HeavyDumbbell] });
+    for (const performedAt of ['2026-10-01T12:00:00.000Z', '2026-10-08T12:00:00.000Z']) {
+      seedWorkout(me.id, {
+        performedAt,
+        // 20 lb of plates (9.07 kg) + two 5.44 kg handles, three times.
+        exercises: [
+          {
+            exerciseId: curl.id,
+            barKg: 5.44,
+            dumbbells: 2,
+            sets: Array.from({ length: 3 }, () => ({ reps: 10, weightKg: 19.95 })),
+          },
+        ],
+      });
+    }
+    const { user } = renderApp(`/exercises/${curl.id}`);
+
+    await user.hover(await screen.findByRole('button', { name: /^Thu 8 Oct 2026: / }));
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('Plates only, without the handles');
+    expect(tip).toHaveTextContent('3 × 10 — 20 lb');
+  });
+
+  it('fixes a session saved with a single handle once its plates are typed again', async () => {
+    const me = signedInAs({ weightUnit: 'lb' });
+    const curl = seedExercise({ name: 'Biceps Curl', equipment: [Equipment.HeavyDumbbell] });
+    // Logged before the fix: 20 lb of plates + one 12 lb handle, with two dumbbells.
+    const old = seedWorkout(me.id, {
+      exercises: [
+        { exerciseId: curl.id, barKg: 5.44, dumbbells: 2, sets: [{ reps: 8, weightKg: 14.51 }] },
+      ],
+    });
+    const { user } = renderApp(`/workouts/${old.id}/edit`);
+
+    // Its 32 lb total now reads as 8 lb of plates + two handles…
+    const plates = await screen.findByLabelText('Plates (lb)');
+    expect(plates).toHaveValue('8');
+    await user.clear(plates);
+    await user.type(plates, '20');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    // …and typing the 20 lb again saves the real 44 lb.
+    await screen.findByRole('heading', { name: 'Biceps Curl' });
+    expect(apiState.workouts[0].exercises[0].sets[0]).toMatchObject({ weightKg: 19.95 });
   });
 
   it('uses the handle set in Account, and never takes a saved bar for a handle', async () => {
@@ -833,10 +889,10 @@ describe('heavy dumbbell exercises', () => {
     await router.navigate({ to: '/workouts/$workoutId/edit', params: { workoutId: old.id } });
     expect(await screen.findByLabelText('Plates (kg)')).toHaveValue('20');
     expect(barHint()).toHaveTextContent('+ bar 12.5 kg = 32.5 kg');
-    // …switched to the heavy dumbbell, the plates get the 6 kg handle, not that bar…
+    // …switched to heavy dumbbells (two), the plates get two 6 kg handles, not that bar…
     const equipment = screen.getByRole('radiogroup', { name: 'Equipment for exercise 1' });
     await user.click(within(equipment).getByRole('radio', { name: 'Heavy dumbbell' }));
-    expect(handleHint()).toHaveTextContent('+ handle 6 kg = 26 kg');
+    expect(handleHint()).toHaveTextContent('+ 2 handles 12 kg = 32 kg');
     // …and back on the barbell, its own bar returns.
     await user.click(within(equipment).getByRole('radio', { name: 'Barbell' }));
     expect(barHint()).toHaveTextContent('+ bar 12.5 kg = 32.5 kg');

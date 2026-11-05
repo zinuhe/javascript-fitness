@@ -129,12 +129,13 @@ model WorkoutExercise {
   order      Int
   // Which of the exercise's equipment was used this time (barbell, dumbbell…).
   equipment  Equipment?
-  // Bar (barbell) or handle (heavy dumbbell) weight included in every set's weightKg (sets
-  // store the total lifted); null when none. Kept per exercise so later changes to the
-  // user's bar or handle don't alter past workouts.
+  // The bar (barbell), or one handle (heavy dumbbell), included in every set's weightKg
+  // (sets store the total lifted: plates + barKg, or plates + barKg × dumbbells for heavy
+  // dumbbells); null when none. Kept per exercise so later changes to the user's bar or
+  // handle don't alter past workouts.
   barKg      Decimal?   @db.Decimal(5, 2)
-  // How many dumbbells were used (1 or 2), for dumbbell or heavy dumbbell exercises;
-  // informative only.
+  // How many dumbbells were used (1 or 2), for dumbbell or heavy dumbbell exercises; it
+  // counts the handles of heavy dumbbells, and is informative otherwise.
   dumbbells  Int?
 
   workout  Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)

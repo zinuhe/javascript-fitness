@@ -35,6 +35,22 @@ export function fixedPartOf(equipment: string | undefined): 'bar' | 'handle' | u
 export const isDumbbell = (equipment: string | undefined) =>
   equipment === 'dumbbell' || equipment === 'heavy_dumbbell';
 
+/** How many bars or handles a set includes: one per heavy dumbbell, else one. */
+export const fixedPartCount = (equipment: string | undefined, dumbbells: number | undefined) =>
+  equipment === 'heavy_dumbbell' ? (dumbbells ?? 1) : 1;
+
+/**
+ * The fixed weight included in a set's `weightKg`: the bar once, or one handle per heavy
+ * dumbbell (`weightKg = plates + barKg × dumbbells`); 0 without a bar or handle.
+ */
+export function fixedPartKg(
+  barKg: number | undefined,
+  equipment: string | undefined,
+  dumbbells: number | undefined,
+): number {
+  return barKg === undefined ? 0 : barKg * fixedPartCount(equipment, dumbbells);
+}
+
 const sessionDateParts = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
   month: 'short',
