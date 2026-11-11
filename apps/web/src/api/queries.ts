@@ -65,6 +65,13 @@ export const workoutsQuery = (page: number) =>
     queryFn: () => api<Paginated<Workout>>(`/workouts?page=${page}&pageSize=${WORKOUTS_PAGE_SIZE}`),
   });
 
+/** Local day of `date` in the `YYYY-MM-DD` shape a date input expects. */
+export function toInputDate(date: Date): string {
+  const local = new Date(date);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+  return local.toISOString().slice(0, 10);
+}
+
 /**
  * The workouts logged on a local day (`YYYY-MM-DD`), to keep it to one workout per date.
  * The day's bounds are local midnights, so the time zone never shifts the day.
@@ -81,6 +88,9 @@ export const workoutsOnDayQuery = (day: string) => {
       ),
   });
 };
+
+/** Today's workouts: once there is one, "Next up" can't be started until tomorrow. */
+export const workoutsTodayQuery = () => workoutsOnDayQuery(toInputDate(new Date()));
 
 export const workoutQuery = (id: string) =>
   queryOptions({

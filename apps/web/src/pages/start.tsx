@@ -1,13 +1,49 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { NextRoutineDay } from '@fitness/contracts';
-import { exercisesQuery, nextRoutineQuery } from '../api/queries';
+import { exercisesQuery, nextRoutineQuery, workoutsTodayQuery } from '../api/queries';
 import { dayLabel, exerciseNames } from '../components/ui';
 
-/** "Next up" call to action for the active routine (Workouts list and Start page). */
+/**
+ * "Next up" call to action for the active routine (Workouts list and Start page). Once a
+ * workout is logged today it only announces the next day: there is one workout per date, so
+ * it can't be started until tomorrow.
+ */
 export function NextUpCard({ next }: { next: NextRoutineDay }) {
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
+  const { data: today } = useSuspenseQuery(workoutsTodayQuery());
   const names = exerciseNames(catalog.items);
+  const body = (
+    <>
+      <span className="next-up-kicker">Next up · {next.routine.name}</span>
+      <strong className="next-up-title">{dayLabel(next.day)}</strong>
+      <span className="muted">
+        {next.day.exerciseIds.map((id) => names.get(id) ?? 'Unknown exercise').join(' · ')}
+      </span>
+    </>
+  );
+  if (today.items.length > 0) {
+    return (
+      <div
+        className="card next-up next-up-done"
+        role="group"
+        aria-label={`Next up: ${dayLabel(next.day)} of ${next.routine.name}`}
+      >
+        {body}
+        <button
+          type="button"
+          className="button next-up-cta"
+          disabled
+          aria-describedby="next-up-done-note"
+        >
+          Start
+        </button>
+        <span id="next-up-done-note" className="hint">
+          You already logged a workout today.
+        </span>
+      </div>
+    );
+  }
   return (
     <Link
       to="/workouts/new"
@@ -15,11 +51,7 @@ export function NextUpCard({ next }: { next: NextRoutineDay }) {
       className="card link-card next-up"
       aria-label={`Start ${dayLabel(next.day)} of ${next.routine.name}`}
     >
-      <span className="next-up-kicker">Next up · {next.routine.name}</span>
-      <strong className="next-up-title">{dayLabel(next.day)}</strong>
-      <span className="muted">
-        {next.day.exerciseIds.map((id) => names.get(id) ?? 'Unknown exercise').join(' · ')}
-      </span>
+      {body}
       <span className="button next-up-cta">Start</span>
     </Link>
   );

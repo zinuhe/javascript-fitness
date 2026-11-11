@@ -217,12 +217,51 @@ describe('starting a routine day', () => {
       expect.objectContaining({ reps: 6, weightKg: 65 }),
     ]);
 
-    // The Workouts list now points at the next day and labels the session.
+    // The Workouts list now announces the next day and labels the session. With today's
+    // workout logged, the next one can't be started until tomorrow.
     await user.click(screen.getByRole('link', { name: '← Workouts' }));
-    expect(
-      await screen.findByRole('link', { name: 'Start Day 2 · Pull of Push / Pull' }),
-    ).toBeInTheDocument();
+    const nextUp = await screen.findByRole('group', {
+      name: 'Next up: Day 2 · Pull of Push / Pull',
+    });
+    expect(within(nextUp).getByRole('button', { name: 'Start' })).toBeDisabled();
+    expect(screen.queryByRole('link', { name: /^Start Day/ })).toBeNull();
     expect(screen.getAllByText('Day 1 · Push')[0]).toBeInTheDocument();
+  });
+
+  it('only announces the next day once today has a workout, until that one is deleted', async () => {
+    const me = signedInAs();
+    const { bench, row } = seedCatalog();
+    const routine = seedRoutine(me.id, {
+      name: 'Push / Pull',
+      days: [
+        { name: 'Push', exerciseIds: [bench.id] },
+        { name: 'Pull', exerciseIds: [row.id] },
+      ],
+    });
+    const today = seedWorkout(me.id, {
+      performedAt: new Date().toISOString(),
+      routineDayId: routine.days[0].id,
+      exercises: [{ exerciseId: bench.id, sets: [{ reps: 8, weightKg: 60 }] }],
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { user, router } = renderApp('/workouts/start');
+
+    // One workout per date: the next day is shown, but not offered today.
+    const nextUp = await screen.findByRole('group', {
+      name: 'Next up: Day 2 · Pull of Push / Pull',
+    });
+    expect(within(nextUp).getByRole('button', { name: 'Start' })).toBeDisabled();
+    expect(within(nextUp).getByText('You already logged a workout today.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Start Day/ })).toBeNull();
+    // The other days and the empty form stay, to log a day that was missed.
+    expect(screen.getByRole('link', { name: 'Empty workout' })).toBeInTheDocument();
+
+    // Without today's workout, the next day can be started again.
+    await router.navigate({ to: '/workouts/$workoutId', params: { workoutId: today.id } });
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    expect(
+      await screen.findByRole('link', { name: 'Start Day 1 · Push of Push / Pull' }),
+    ).toBeInTheDocument();
   });
 
   it('starts with the equipment used last time and re-fills the sets when it changes', async () => {

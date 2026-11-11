@@ -165,6 +165,8 @@ export function WorkoutDetailPage() {
       queryClient.removeQueries({ queryKey: workoutQuery(workoutId).queryKey });
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       await queryClient.invalidateQueries({ queryKey: ['progress'] });
+      // The rotation steps back when the deleted workout was the latest of its routine.
+      await queryClient.invalidateQueries({ queryKey: ['routines'] });
       await navigate({ to: '/workouts' });
     },
   });

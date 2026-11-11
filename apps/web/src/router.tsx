@@ -14,6 +14,7 @@ import {
   lastSetsQuery,
   meQuery,
   nextRoutineQuery,
+  workoutsTodayQuery,
   progressQuery,
   routineQuery,
   routinesQuery,
@@ -113,6 +114,7 @@ const workoutsRoute = createRoute({
       context.queryClient.ensureQueryData(workoutsQuery(deps.page)),
       context.queryClient.ensureQueryData(exercisesQuery),
       context.queryClient.ensureQueryData(nextRoutineQuery),
+      context.queryClient.ensureQueryData(workoutsTodayQuery()),
     ]),
   component: WorkoutsPage,
 });
@@ -125,6 +127,7 @@ const startWorkoutRoute = createRoute({
     const [next] = await Promise.all([
       context.queryClient.ensureQueryData(nextRoutineQuery),
       context.queryClient.ensureQueryData(exercisesQuery),
+      context.queryClient.ensureQueryData(workoutsTodayQuery()),
     ]);
     if (!next) throw redirect({ to: '/workouts/new', replace: true });
   },

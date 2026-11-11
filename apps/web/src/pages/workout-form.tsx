@@ -23,6 +23,7 @@ import {
   routinesQuery,
   updateWorkout,
   workoutQuery,
+  toInputDate,
   workoutsOnDayQuery,
 } from '../api/queries';
 import { BarWord, PerDumbbell } from '../components/bar';
@@ -304,13 +305,6 @@ function lastSetsFor(
         fixedPartKg(previous.barKg, previous.equipment, previous.dumbbells),
       )
     : [emptySet()];
-}
-
-/** Local day of `date` in the `YYYY-MM-DD` shape a date input expects. */
-function toInputDate(date: Date): string {
-  const local = new Date(date);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 10);
 }
 
 /**

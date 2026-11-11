@@ -371,6 +371,16 @@ a {
   margin-top: 6px;
   width: 100%;
 }
+/* Already trained today: the next day is announced, but can't be started until tomorrow. */
+.next-up-done {
+  display: flex;
+  flex-direction: column;
+  border-color: var(--border);
+  background: var(--surface);
+}
+.next-up-done .next-up-kicker {
+  color: var(--muted);
+}
 
 .exercise-list {
   margin: 0;
