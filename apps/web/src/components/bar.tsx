@@ -40,6 +40,18 @@ function WeightIcon({ name, kg, children }: { name: string; kg: number; children
   );
 }
 
+/**
+ * "◎" before the weight of the plates a bar or heavy dumbbells were loaded with, saying so
+ * (and that weight in both units) on hover or tap.
+ */
+export function PlatesMark({ platesKg }: { platesKg: number }) {
+  return (
+    <WeightIcon name="Plates" kg={platesKg}>
+      <PlateIcon size="1.15em" />
+    </WeightIcon>
+  );
+}
+
 /** "🏋 12 lb": the handle of one heavy dumbbell. */
 function Handle({ handleKg, unit }: { handleKg: number; unit: WeightUnit }) {
   return (

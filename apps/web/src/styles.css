@@ -1128,6 +1128,13 @@ tfoot td {
   border-bottom: none;
   font-weight: 700;
 }
+/* A cell allowed to take two lines (the volume total on a phone), keeping its numbers whole. */
+td.wraps {
+  white-space: normal;
+}
+td.wraps .nowrap {
+  white-space: nowrap;
+}
 table.compact th,
 table.compact td {
   padding: 8px 6px;

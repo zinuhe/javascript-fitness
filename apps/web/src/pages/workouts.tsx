@@ -21,7 +21,7 @@ import {
 } from '../components/ui';
 import { PencilIcon } from '../components/icons';
 import { ExercisePreview } from '../components/exercise-images';
-import { BarWord, DumbbellSum } from '../components/bar';
+import { BarWord, DumbbellSum, PlatesMark } from '../components/bar';
 import {
   formatVolume,
   formatWeight,
@@ -282,6 +282,8 @@ export function WorkoutDetailPage() {
                     {/* Sets with a bar or handle store the total: the plates as typed, the sum below. */}
                     {entry.barKg !== undefined ? (
                       <td>
+                        {/* The plates, as typed: "◎ 20 lb (9 kg)". */}
+                        <PlatesMark platesKg={set.weightKg - fixedOf(entry)} />
                         {formatWeight(set.weightKg - fixedOf(entry), unit)}{' '}
                         <span className="hint">
                           ({formatWholeInOtherUnit(set.weightKg - fixedOf(entry), unit)})
@@ -325,8 +327,9 @@ export function WorkoutDetailPage() {
                   <tr>
                     <th scope="row">Total</th>
                     <td>{entry.sets.reduce((n, set) => n + set.reps, 0)}</td>
-                    <td colSpan={1 + Number(showRpe) + Number(showRest)}>
-                      {formatVolume(entry.sets, unit)} volume
+                    {/* On a phone "volume" may go to a second line; the numbers stay together. */}
+                    <td className="wraps" colSpan={1 + Number(showRpe) + Number(showRest)}>
+                      <span className="nowrap">{formatVolume(entry.sets, unit)}</span> volume
                     </td>
                   </tr>
                 </tfoot>

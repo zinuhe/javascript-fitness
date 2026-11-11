@@ -686,6 +686,11 @@ describe('barbell exercises', () => {
     expect(within(row).getAllByRole('cell')[2]).toHaveTextContent(
       '20 lb (9 kg)20 lb + bar = 47.6 lb (22 kg)',
     );
+    // The plates marked as such, their weight in both units on hover.
+    expect(within(row).getByRole('img', { name: 'Plates, 20 lb (9.07 kg)' })).toHaveAttribute(
+      'data-tip',
+      'Plates: 20 lb (9.07 kg)',
+    );
 
     // Editing shows the plates again.
     await user.click(screen.getByRole('link', { name: 'Edit' }));
@@ -815,6 +820,10 @@ describe('heavy dumbbell exercises', () => {
     expect(within(within(card).getAllByRole('row')[1]).getAllByRole('cell')[2]).toHaveTextContent(
       '20 lb (9 kg)12 lb + 10 lb = 22 lb12 lb + 10 lb = 22 lbTotal 44 lb (20 kg)',
     );
+    // The plates of both, marked as such before the rows of each dumbbell.
+    expect(
+      within(within(card).getAllByRole('row')[1]).getAllByRole('img', { name: /^Plates/ })[0],
+    ).toHaveAccessibleName('Plates, 20 lb (9.07 kg)');
 
     // Editing shows the plates again.
     await user.click(screen.getByRole('link', { name: 'Edit' }));
