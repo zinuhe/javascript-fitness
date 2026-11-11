@@ -39,6 +39,8 @@ export interface WorkoutRepository {
   deleteForUser(id: string, userId: string): Promise<boolean>;
   /** Equipment of each catalog exercise among `exerciseIds`; unknown ids are left out. */
   findExerciseEquipment(exerciseIds: string[]): Promise<Map<string, Equipment[]>>;
+  /** Returns the subset of `exerciseIds` that are warm-up exercises (never logged). */
+  findWarmupExerciseIds(exerciseIds: string[]): Promise<string[]>;
   /** Whether the routine day exists and belongs to one of the user's routines. */
   routineDayBelongsToUser(routineDayId: string, userId: string): Promise<boolean>;
   /**

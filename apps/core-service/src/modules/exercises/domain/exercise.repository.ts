@@ -7,9 +7,11 @@ export interface CreateExerciseData {
   secondaryMuscles?: Muscle[];
   equipment: Equipment[];
   description?: string;
+  warmup?: boolean;
+  dose?: string;
 }
 
-export type UpdateExerciseData = Partial<CreateExerciseData>;
+export type UpdateExerciseData = Partial<Omit<CreateExerciseData, 'warmup'>>;
 
 export interface ExerciseRepository {
   create(data: CreateExerciseData): Promise<Exercise>;
@@ -21,7 +23,7 @@ export interface ExerciseRepository {
   existsByName(name: string, excludeId?: string): Promise<boolean>;
   /** Which of `equipment` some logged workout used with this exercise. */
   findUsedEquipment(id: string, equipment: Equipment[]): Promise<Equipment[]>;
-  /** Whether any logged workout or routine references this exercise (blocks deletion). */
+  /** Whether any logged workout or routine (or its warm-up) references it (blocks deletion). */
   isInUse(id: string): Promise<boolean>;
 }
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { Fragment, useState, type FormEvent } from 'react';
 import {
   useMutation,
   useQueryClient,
@@ -6,7 +6,7 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
-import type { CreateRoutineRequest, Routine } from '@fitness/contracts';
+import type { CreateRoutineRequest, Exercise, Routine } from '@fitness/contracts';
 import {
   activateRoutine,
   createRoutine,
@@ -16,7 +16,13 @@ import {
   routinesQuery,
   updateRoutine,
 } from '../api/queries';
-import { ErrorMessage, dayLabel, exerciseNames } from '../components/ui';
+import {
+  ErrorMessage,
+  dayLabel,
+  exerciseNames,
+  trainingExercises,
+  warmupExercises,
+} from '../components/ui';
 
 /** Routines changed: every routine query, including "next day", is stale. */
 const refreshRoutines = (queryClient: ReturnType<typeof useQueryClient>) =>
@@ -151,6 +157,19 @@ export function RoutineDetailPage() {
               </li>
             ))}
           </ol>
+          {day.warmupExerciseIds.length > 0 && (
+            <p className="muted">
+              Warm-up:{' '}
+              {day.warmupExerciseIds.map((exerciseId, index) => (
+                <Fragment key={`${exerciseId}-${index}`}>
+                  {index > 0 && ' · '}
+                  <Link to="/exercises/$exerciseId" params={{ exerciseId }}>
+                    {names.get(exerciseId) ?? 'Unknown exercise'}
+                  </Link>
+                </Fragment>
+              ))}
+            </p>
+          )}
         </article>
       ))}
     </section>
@@ -165,10 +184,16 @@ interface DayDraft {
   id?: string;
   name: string;
   exerciseIds: string[];
+  warmupExerciseIds: string[];
 }
 
 let nextKey = 0;
-const emptyDay = (): DayDraft => ({ key: nextKey++, name: '', exerciseIds: [] });
+const emptyDay = (): DayDraft => ({
+  key: nextKey++,
+  name: '',
+  exerciseIds: [],
+  warmupExerciseIds: [],
+});
 
 /** Moves the item at `index` by `delta` positions (no-op at the ends). */
 function move<T>(items: T[], index: number, delta: number): T[] {
@@ -230,11 +255,97 @@ export function EditRoutinePage() {
           id: day.id,
           name: day.name ?? '',
           exerciseIds: [...day.exerciseIds],
+          warmupExerciseIds: [...day.warmupExerciseIds],
         }))
       }
       save={save}
       cancelTo={routineId}
     />
+  );
+}
+
+/**
+ * A day's exercises, or its warm-up: in order, each one movable and removable, and a picker
+ * that adds one at the end.
+ */
+function DayExerciseList({
+  ids,
+  onChange,
+  names,
+  options,
+  listLabel,
+  addLabel,
+  addPrompt,
+  empty,
+}: {
+  ids: string[];
+  onChange: (ids: string[]) => void;
+  names: Map<string, string>;
+  options: Exercise[];
+  listLabel: string;
+  addLabel: string;
+  addPrompt: string;
+  empty: string;
+}) {
+  return (
+    <>
+      {ids.length === 0 ? (
+        <p className="muted">{empty}</p>
+      ) : (
+        <ol className="edit-list" aria-label={listLabel}>
+          {ids.map((exerciseId, index) => {
+            const exerciseName = names.get(exerciseId) ?? 'Unknown exercise';
+            return (
+              <li key={`${exerciseId}-${index}`}>
+                <span className="edit-list-name">{exerciseName}</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Move ${exerciseName} up`}
+                  disabled={index === 0}
+                  onClick={() => onChange(move(ids, index, -1))}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Move ${exerciseName} down`}
+                  disabled={index === ids.length - 1}
+                  onClick={() => onChange(move(ids, index, 1))}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Remove ${exerciseName}`}
+                  onClick={() => onChange(ids.filter((_, i) => i !== index))}
+                >
+                  ✕
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {/* Picking an option adds it right away and resets the picker (fast on a phone). */}
+      <select
+        aria-label={addLabel}
+        value=""
+        onChange={(e) => {
+          if (e.target.value) onChange([...ids, e.target.value]);
+        }}
+      >
+        <option value="">{addPrompt}</option>
+        {options.map((exercise) => (
+          <option key={exercise.id} value={exercise.id}>
+            {exercise.name}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }
 
@@ -258,6 +369,8 @@ function RoutineForm({
 }: RoutineFormProps) {
   const { data: catalog } = useSuspenseQuery(exercisesQuery);
   const names = exerciseNames(catalog.items);
+  const training = trainingExercises(catalog.items);
+  const warmups = warmupExercises(catalog.items);
   const [name, setName] = useState(initialName);
   const [days, setDays] = useState<DayDraft[]>(initialDays);
   const [problem, setProblem] = useState<string | null>(null);
@@ -279,11 +392,12 @@ function RoutineForm({
         ...(day.id ? { id: day.id } : {}),
         ...(day.name.trim() ? { name: day.name.trim() } : {}),
         exerciseIds: day.exerciseIds,
+        warmupExerciseIds: day.warmupExerciseIds,
       })),
     });
   };
 
-  if (catalog.items.length === 0) {
+  if (training.length === 0) {
     return (
       <section className="card empty">
         <p>The exercise catalog is empty.</p>
@@ -375,80 +489,34 @@ function RoutineForm({
             />
           </label>
 
-          {day.exerciseIds.length === 0 ? (
-            <p className="muted">No exercises yet.</p>
-          ) : (
-            <ol className="edit-list" aria-label={`Exercises of day ${dayIndex + 1}`}>
-              {day.exerciseIds.map((exerciseId, index) => {
-                const exerciseName = names.get(exerciseId) ?? 'Unknown exercise';
-                return (
-                  <li key={`${exerciseId}-${index}`}>
-                    <span className="edit-list-name">{exerciseName}</span>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Move ${exerciseName} up`}
-                      disabled={index === 0}
-                      onClick={() =>
-                        updateDay(day.key, (d) => ({
-                          ...d,
-                          exerciseIds: move(d.exerciseIds, index, -1),
-                        }))
-                      }
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Move ${exerciseName} down`}
-                      disabled={index === day.exerciseIds.length - 1}
-                      onClick={() =>
-                        updateDay(day.key, (d) => ({
-                          ...d,
-                          exerciseIds: move(d.exerciseIds, index, 1),
-                        }))
-                      }
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Remove ${exerciseName}`}
-                      onClick={() =>
-                        updateDay(day.key, (d) => ({
-                          ...d,
-                          exerciseIds: d.exerciseIds.filter((_, i) => i !== index),
-                        }))
-                      }
-                    >
-                      ✕
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
+          <DayExerciseList
+            ids={day.exerciseIds}
+            onChange={(exerciseIds) => updateDay(day.key, (d) => ({ ...d, exerciseIds }))}
+            names={names}
+            options={training}
+            listLabel={`Exercises of day ${dayIndex + 1}`}
+            addLabel={`Add exercise to day ${dayIndex + 1}`}
+            addPrompt="+ Add exercise…"
+            empty="No exercises yet."
+          />
+          {/* Once there are warm-up exercises (Exercises → Warm-up), each day picks its own. */}
+          {(warmups.length > 0 || day.warmupExerciseIds.length > 0) && (
+            <div className="stack-tight day-warmup">
+              <span className="legend">Warm-up</span>
+              <DayExerciseList
+                ids={day.warmupExerciseIds}
+                onChange={(warmupExerciseIds) =>
+                  updateDay(day.key, (d) => ({ ...d, warmupExerciseIds }))
+                }
+                names={names}
+                options={warmups}
+                listLabel={`Warm-up of day ${dayIndex + 1}`}
+                addLabel={`Add warm-up to day ${dayIndex + 1}`}
+                addPrompt="+ Add warm-up…"
+                empty="No warm-up."
+              />
+            </div>
           )}
-
-          {/* Picking an option adds it right away and resets the picker (fast on a phone). */}
-          <select
-            aria-label={`Add exercise to day ${dayIndex + 1}`}
-            value=""
-            onChange={(e) => {
-              const exerciseId = e.target.value;
-              if (exerciseId) {
-                updateDay(day.key, (d) => ({ ...d, exerciseIds: [...d.exerciseIds, exerciseId] }));
-              }
-            }}
-          >
-            <option value="">+ Add exercise…</option>
-            {catalog.items.map((exercise) => (
-              <option key={exercise.id} value={exercise.id}>
-                {exercise.name}
-              </option>
-            ))}
-          </select>
         </fieldset>
       ))}
 

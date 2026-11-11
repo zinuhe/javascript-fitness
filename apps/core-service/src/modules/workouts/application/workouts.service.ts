@@ -131,6 +131,16 @@ export class WorkoutsService {
         },
       );
     }
+    const warmups = await this.workouts.findWarmupExerciseIds(
+      input.exercises.map((e) => e.exerciseId),
+    );
+    if (warmups.length > 0) {
+      throw new ValidationError(
+        'Warm-up exercises are a guide and cannot be logged',
+        'workout.warmup_exercise',
+        { exerciseId: warmups },
+      );
+    }
     return input.exercises.map((entry) => {
       const options = catalog.get(entry.exerciseId)!;
       const equipment = entry.equipment ?? (options.length === 1 ? options[0] : undefined);

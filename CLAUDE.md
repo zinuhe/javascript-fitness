@@ -46,5 +46,10 @@ README "Deploying to the Raspberry Pi" has the details.
   uploading (`apps/web/src/components/image-resize.ts`). They are served without a token at
   `/api/media/exercises/{id}/{slot}/{size}?v={version}` (cached for good, outside the
   gateway rate limit); uploads and removals go through the JWT-protected exercise routes.
+- Warm-ups: an exercise with `warmup: true` (fixed at creation; `dose` says how much, e.g.
+  "10 per side") is a guide only. It is never logged (workouts reject it), never one of a
+  routine day's `exerciseIds`, and only goes in a day's `warmupExerciseIds`
+  (`routine_day_warmups`). The web shows them at `/exercises/warmup`, per day of the active
+  routine, and leaves them out of the catalog list and the workout pickers.
 - The web app is used mostly on an iPhone: design mobile-first (16px inputs, 44px targets,
   safe areas) and check it at 393×852 as well as on desktop.

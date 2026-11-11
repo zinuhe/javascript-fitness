@@ -30,6 +30,7 @@ import { EditWorkoutPage, NewWorkoutPage } from './pages/workout-form';
 import { EditExercisePage, ExerciseDetailPage, ExercisesPage } from './pages/exercises';
 import { EditRoutinePage, NewRoutinePage, RoutineDetailPage, RoutinesPage } from './pages/routines';
 import { StartWorkoutPage } from './pages/start';
+import { WarmupPage } from './pages/warmup';
 import { AccountPage } from './pages/account';
 import { HelpPage } from './pages/help';
 
@@ -193,6 +194,22 @@ const exercisesRoute = createRoute({
   component: ExercisesPage,
 });
 
+// The warm-up guide. A static segment, so it wins over `exercises/$exerciseId`.
+const warmupRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: 'exercises/warmup',
+  // `?day=` (a routine day's id) opens the guide scrolled to that day's warm-up.
+  validateSearch: (search: Record<string, unknown>): { day?: string } => ({
+    day: typeof search.day === 'string' ? search.day : undefined,
+  }),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(exercisesQuery),
+      context.queryClient.ensureQueryData(nextRoutineQuery),
+    ]),
+  component: WarmupPage,
+});
+
 const exerciseRoute = createRoute({
   getParentRoute: () => appRoute,
   path: 'exercises/$exerciseId',
@@ -278,6 +295,7 @@ const routeTree = rootRoute.addChildren([
     routineRoute,
     editRoutineRoute,
     exercisesRoute,
+    warmupRoute,
     exerciseRoute,
     editExerciseRoute,
     accountRoute,

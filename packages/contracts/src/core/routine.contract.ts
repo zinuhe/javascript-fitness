@@ -8,6 +8,8 @@ export interface RoutineDay {
   position: number;
   name?: string;
   exerciseIds: string[];
+  /** Warm-up exercises to do first, in order; a guide, never logged. */
+  warmupExerciseIds: string[];
 }
 
 export interface Routine {
@@ -25,6 +27,8 @@ export interface RoutineDayInput {
   id?: string;
   name?: string;
   exerciseIds: string[];
+  /** Warm-up exercises (only those marked `warmup`), in order; none when omitted. */
+  warmupExerciseIds?: string[];
 }
 
 export interface CreateRoutineRequest {

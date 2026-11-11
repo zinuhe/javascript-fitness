@@ -143,6 +143,14 @@ export class PrismaWorkoutRepository implements WorkoutRepository {
     return new Map(found.map((e) => [e.id, e.equipment as Equipment[]]));
   }
 
+  async findWarmupExerciseIds(exerciseIds: string[]): Promise<string[]> {
+    const found = await this.prisma.exercise.findMany({
+      where: { id: { in: [...new Set(exerciseIds)] }, warmup: true },
+      select: { id: true },
+    });
+    return found.map((e) => e.id);
+  }
+
   async routineDayBelongsToUser(routineDayId: string, userId: string): Promise<boolean> {
     const day = await this.prisma.routineDay.findFirst({
       where: { id: routineDayId, routine: { userId } },

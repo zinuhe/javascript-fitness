@@ -8,8 +8,9 @@ export interface RoutineRepository {
   countForUser(userId: string): Promise<number>;
   create(userId: string, data: CreateRoutineRequest, isActive: boolean): Promise<Routine>;
   /**
-   * Replaces name and days atomically. Days with an `id` are updated in place (keeping the
-   * workouts linked to them), days without one are created, and missing days are deleted.
+   * Replaces name and days (with their exercises and warm-ups) atomically. Days with an `id`
+   * are updated in place (keeping the workouts linked to them), days without one are created,
+   * and missing days are deleted.
    * Returns null when the routine does not exist or belongs to another user.
    */
   replaceForUser(id: string, userId: string, data: CreateRoutineRequest): Promise<Routine | null>;
@@ -18,6 +19,8 @@ export interface RoutineRepository {
   activateForUser(id: string, userId: string): Promise<Routine | null>;
   /** Returns the subset of `exerciseIds` that do not exist in the catalog. */
   findMissingExerciseIds(exerciseIds: string[]): Promise<string[]>;
+  /** Returns the subset of `exerciseIds` that are warm-up exercises. */
+  findWarmupExerciseIds(exerciseIds: string[]): Promise<string[]>;
   /** Day of the user's most recent workout that is linked to a day of this routine. */
   findLastPerformedDayId(routineId: string, userId: string): Promise<string | null>;
 }

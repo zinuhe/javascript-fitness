@@ -64,6 +64,13 @@ export interface Exercise {
   /** What it can be done with, at least one (e.g. barbell and dumbbell). */
   equipment: Equipment[];
   description?: string;
+  /**
+   * A warm-up exercise: listed in the warm-up guide and in routine days' warm-ups, never
+   * logged in a workout nor one of a routine day's exercises. Fixed when created.
+   */
+  warmup: boolean;
+  /** How much of it to do, as written: "10 per side", "30 s". Mostly for warm-ups. */
+  dose?: string;
   /** Pictures of the exercise, by slot; empty when it has none. */
   images: ExerciseImageRef[];
   createdAt: string;
@@ -93,6 +100,10 @@ export interface CreateExerciseRequest {
   secondaryMuscles?: Muscle[];
   equipment: Equipment[];
   description?: string;
+  /** False by default; cannot be changed afterwards. */
+  warmup?: boolean;
+  dose?: string;
 }
 
-export type UpdateExerciseRequest = Partial<CreateExerciseRequest>;
+/** Any field but `warmup`, which is fixed when the exercise is created. */
+export type UpdateExerciseRequest = Partial<Omit<CreateExerciseRequest, 'warmup'>>;

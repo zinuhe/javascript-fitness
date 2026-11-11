@@ -39,6 +39,13 @@ export function StartWorkoutPage() {
     <section className="stack">
       <h1>Start workout</h1>
       <NextUpCard next={next} />
+      {next.day.warmupExerciseIds.length > 0 && (
+        // Before starting: the workout form keeps no draft if you leave it.
+        <Link to="/exercises/warmup" search={{ day: next.day.id }} className="button secondary">
+          Warm-up for {dayLabel(next.day)} · {next.day.warmupExerciseIds.length}{' '}
+          {next.day.warmupExerciseIds.length === 1 ? 'exercise' : 'exercises'}
+        </Link>
+      )}
 
       {others.length > 0 && (
         <div className="stack-tight">

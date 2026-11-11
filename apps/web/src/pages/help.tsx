@@ -104,6 +104,22 @@ const TOPICS: Record<Lang, Topic[]> = {
         </>
       ),
     },
+    {
+      question: 'Where is my warm-up?',
+      answer: (
+        <>
+          <p>
+            In <Link to="/exercises/warmup">Exercises → Warm-up</Link>: a guide with what to do
+            before each day of your routine, how much and how, with pictures. It is never logged and
+            does not count in your progress.
+          </p>
+          <p>
+            Add warm-up exercises there, then choose each day’s in its routine (Edit routine →
+            Warm-up). Start workout links to the next day’s warm-up.
+          </p>
+        </>
+      ),
+    },
   ],
   es: [
     {
@@ -187,6 +203,22 @@ const TOPICS: Record<Lang, Topic[]> = {
         <>
           <p>Las reps × el peso de cada serie, sumadas: cuánto trabajo movió la sesión.</p>
           <Example>4 × 12 — 50 lb → 4 × 12 × 50 = 2400 lb</Example>
+        </>
+      ),
+    },
+    {
+      question: '¿Dónde está mi calentamiento?',
+      answer: (
+        <>
+          <p>
+            En <Link to="/exercises/warmup">Exercises → Warm-up</Link>: una guía con qué hacer antes
+            de cada día de tu rutina, cuánto y cómo, con fotos. Nunca se registra ni cuenta en tu
+            progreso.
+          </p>
+          <p>
+            Agrega ahí los ejercicios de calentamiento y luego elige los de cada día en su rutina
+            (Edit routine → Warm-up). Start workout enlaza al calentamiento del día que sigue.
+          </p>
         </>
       ),
     },

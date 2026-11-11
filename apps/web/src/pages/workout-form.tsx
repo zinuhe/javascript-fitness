@@ -37,6 +37,7 @@ import {
   formatSessionDate,
   isDumbbell,
   parseDecimal,
+  trainingExercises,
   useScrollToOnOpen,
 } from '../components/ui';
 import {
@@ -699,7 +700,9 @@ function WorkoutForm({
     });
   };
 
-  if (catalog.items.length === 0) {
+  // Warm-ups are a guide, never logged.
+  const loggable = trainingExercises(catalog.items);
+  if (loggable.length === 0) {
     return (
       <section className="card empty">
         <p>The exercise catalog is empty.</p>
@@ -818,7 +821,7 @@ function WorkoutForm({
             required={!isSkipped(entry)}
           >
             <option value="">Choose an exercise…</option>
-            {catalog.items.map((exercise) => (
+            {loggable.map((exercise) => (
               <option key={exercise.id} value={exercise.id}>
                 {exercise.name}
               </option>

@@ -10,8 +10,8 @@ const routine: Routine = {
   createdAt: '2026-10-01T00:00:00.000Z',
   updatedAt: '2026-10-01T00:00:00.000Z',
   days: [
-    { id: 'd-1', position: 0, name: 'Push', exerciseIds: ['ex-1'] },
-    { id: 'd-2', position: 1, name: 'Pull', exerciseIds: ['ex-2'] },
+    { id: 'd-1', position: 0, name: 'Push', exerciseIds: ['ex-1'], warmupExerciseIds: [] },
+    { id: 'd-2', position: 1, name: 'Pull', exerciseIds: ['ex-2'], warmupExerciseIds: [] },
   ],
 };
 
@@ -31,6 +31,7 @@ beforeEach(() => {
     deleteForUser: jest.fn().mockResolvedValue(true),
     activateForUser: jest.fn().mockResolvedValue(routine),
     findMissingExerciseIds: jest.fn().mockResolvedValue([]),
+    findWarmupExerciseIds: jest.fn().mockResolvedValue([]),
     findLastPerformedDayId: jest.fn().mockResolvedValue(null),
   };
   service = new RoutinesService(repo);
@@ -53,6 +54,38 @@ describe('RoutinesService.create', () => {
       httpStatus: 422,
       code: 'routine.unknown_exercise',
       errors: { exerciseId: ['ex-2'] },
+    });
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps each day's warm-up, made of warm-up exercises only", async () => {
+    repo.findWarmupExerciseIds.mockResolvedValue(['wu-1', 'wu-2']);
+    const withWarmup = {
+      name: 'PPL',
+      days: [{ exerciseIds: ['ex-1'], warmupExerciseIds: ['wu-1', 'wu-2'] }],
+    };
+
+    await service.create('user-1', withWarmup);
+
+    expect(repo.findMissingExerciseIds).toHaveBeenCalledWith(['ex-1', 'wu-1', 'wu-2']);
+    expect(repo.create).toHaveBeenCalledWith('user-1', withWarmup, true);
+  });
+
+  it("rejects warm-up exercises among a day's exercises, and others in its warm-up (422)", async () => {
+    repo.findWarmupExerciseIds.mockResolvedValue(['wu-1']);
+
+    await expect(
+      service.create('user-1', {
+        name: 'PPL',
+        days: [
+          { exerciseIds: ['ex-1', 'wu-1'] },
+          { exerciseIds: ['ex-2'], warmupExerciseIds: ['ex-1'] },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      httpStatus: 422,
+      code: 'routine.invalid_warmup',
+      errors: { exerciseId: ['wu-1', 'ex-1'] },
     });
     expect(repo.create).not.toHaveBeenCalled();
   });

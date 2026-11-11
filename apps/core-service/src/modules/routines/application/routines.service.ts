@@ -27,7 +27,7 @@ export class RoutinesService {
 
   /** The user's first routine becomes the active one, so "next day" works right away. */
   async create(userId: string, input: CreateRoutineRequest): Promise<Routine> {
-    await this.assertExercisesExist(input);
+    await this.assertExercises(input);
     const isFirst = (await this.routines.countForUser(userId)) === 0;
     return this.routines.create(userId, input, isFirst);
   }
@@ -41,7 +41,7 @@ export class RoutinesService {
         dayId: unknown,
       });
     }
-    await this.assertExercisesExist(input);
+    await this.assertExercises(input);
     const routine = await this.routines.replaceForUser(id, userId, input);
     if (!routine) {
       throw new NotFoundError('Routine not found', 'routine.not_found');
@@ -72,15 +72,30 @@ export class RoutinesService {
     return { routine, day: nextRoutineDay(routine.days, lastDayId) };
   }
 
-  private async assertExercisesExist(input: CreateRoutineRequest): Promise<void> {
-    const missing = await this.routines.findMissingExerciseIds(
-      input.days.flatMap((day) => day.exerciseIds),
-    );
+  /** Every exercise exists, and warm-up exercises are in days' warm-ups and only there. */
+  private async assertExercises(input: CreateRoutineRequest): Promise<void> {
+    const exercises = input.days.flatMap((day) => day.exerciseIds);
+    const warmups = input.days.flatMap((day) => day.warmupExerciseIds ?? []);
+    const missing = await this.routines.findMissingExerciseIds([...exercises, ...warmups]);
     if (missing.length > 0) {
       throw new ValidationError(
         'Routine references unknown exercises',
         'routine.unknown_exercise',
         { exerciseId: missing },
+      );
+    }
+    const isWarmup = new Set(await this.routines.findWarmupExerciseIds([...exercises, ...warmups]));
+    const misplaced = [
+      ...new Set([
+        ...exercises.filter((id) => isWarmup.has(id)),
+        ...warmups.filter((id) => !isWarmup.has(id)),
+      ]),
+    ];
+    if (misplaced.length > 0) {
+      throw new ValidationError(
+        "Warm-up exercises go in a day's warm-up, and only warm-up exercises go there",
+        'routine.invalid_warmup',
+        { exerciseId: misplaced },
       );
     }
   }

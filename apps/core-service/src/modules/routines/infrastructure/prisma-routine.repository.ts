@@ -7,7 +7,10 @@ import type { RoutineRepository } from '../domain/routine.repository';
 const routineInclude = {
   days: {
     orderBy: { position: 'asc' },
-    include: { exercises: { orderBy: { position: 'asc' }, select: { exerciseId: true } } },
+    include: {
+      exercises: { orderBy: { position: 'asc' }, select: { exerciseId: true } },
+      warmups: { orderBy: { position: 'asc' }, select: { exerciseId: true } },
+    },
   },
 } satisfies Prisma.RoutineInclude;
 
@@ -16,6 +19,11 @@ type RoutineWithDays = Prisma.RoutineGetPayload<{ include: typeof routineInclude
 /** Nested-create payload for a day's exercises, in the order given. */
 const dayExercisesCreate = (day: RoutineDayInput) => ({
   create: day.exerciseIds.map((exerciseId, position) => ({ exerciseId, position })),
+});
+
+/** Nested-create payload for a day's warm-up, in the order given. */
+const dayWarmupsCreate = (day: RoutineDayInput) => ({
+  create: (day.warmupExerciseIds ?? []).map((exerciseId, position) => ({ exerciseId, position })),
 });
 
 /** Prisma adapter for {@link RoutineRepository}. */
@@ -63,6 +71,7 @@ export class PrismaRoutineRepository implements RoutineRepository {
             position,
             name: day.name,
             exercises: dayExercisesCreate(day),
+            warmups: dayWarmupsCreate(day),
           })),
         },
       },
@@ -82,13 +91,25 @@ export class PrismaRoutineRepository implements RoutineRepository {
       for (const [position, day] of data.days.entries()) {
         if (day.id) {
           await tx.routineDayExercise.deleteMany({ where: { dayId: day.id } });
+          await tx.routineDayWarmup.deleteMany({ where: { dayId: day.id } });
           await tx.routineDay.update({
             where: { id: day.id },
-            data: { position, name: day.name ?? null, exercises: dayExercisesCreate(day) },
+            data: {
+              position,
+              name: day.name ?? null,
+              exercises: dayExercisesCreate(day),
+              warmups: dayWarmupsCreate(day),
+            },
           });
         } else {
           await tx.routineDay.create({
-            data: { routineId: id, position, name: day.name, exercises: dayExercisesCreate(day) },
+            data: {
+              routineId: id,
+              position,
+              name: day.name,
+              exercises: dayExercisesCreate(day),
+              warmups: dayWarmupsCreate(day),
+            },
           });
         }
       }
@@ -131,6 +152,14 @@ export class PrismaRoutineRepository implements RoutineRepository {
     return unique.filter((id) => !existing.has(id));
   }
 
+  async findWarmupExerciseIds(exerciseIds: string[]): Promise<string[]> {
+    const found = await this.prisma.exercise.findMany({
+      where: { id: { in: [...new Set(exerciseIds)] }, warmup: true },
+      select: { id: true },
+    });
+    return found.map((e) => e.id);
+  }
+
   async findLastPerformedDayId(routineId: string, userId: string): Promise<string | null> {
     const last = await this.prisma.workout.findFirst({
       where: { userId, routineDay: { routineId } },
@@ -152,6 +181,7 @@ export class PrismaRoutineRepository implements RoutineRepository {
         position: day.position,
         name: day.name ?? undefined,
         exerciseIds: day.exercises.map((e) => e.exerciseId),
+        warmupExerciseIds: day.warmups.map((e) => e.exerciseId),
       })),
     };
   }

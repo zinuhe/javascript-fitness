@@ -72,11 +72,17 @@ model Exercise {
   // What it can be done with (at least one); each logged workout says which one was used.
   equipment   Equipment[]
   description String?
+  // A warm-up exercise: shown in the warm-up guide, never logged in a workout nor one of a
+  // routine day's exercises. Set when the exercise is created.
+  warmup      Boolean     @default(false)
+  // How much of it to do, as the user writes it ("10 per side", "30 s"); for warm-ups.
+  dose        String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   workoutExercises    WorkoutExercise[]
   routineDayExercises RoutineDayExercise[]
+  routineDayWarmups   RoutineDayWarmup[]
   images              ExerciseImage[]
 
   @@unique([name])
@@ -187,6 +193,7 @@ model RoutineDay {
 
   routine   Routine              @relation(fields: [routineId], references: [id], onDelete: Cascade)
   exercises RoutineDayExercise[]
+  warmups   RoutineDayWarmup[]
   workouts  Workout[]
 
   @@index([routineId])
@@ -205,6 +212,21 @@ model RoutineDayExercise {
   @@index([dayId])
   @@index([exerciseId])
   @@map("routine_day_exercises")
+}
+
+// A routine day's warm-up: warm-up exercises in order. A guide only, never logged.
+model RoutineDayWarmup {
+  id         String @id @default(uuid()) @db.Uuid
+  dayId      String @db.Uuid
+  exerciseId String @db.Uuid
+  position   Int
+
+  day      RoutineDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  exercise Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@index([dayId])
+  @@index([exerciseId])
+  @@map("routine_day_warmups")
 }
 
 // What the user changed and from where, shown in Account. No FKs: entries outlive what

@@ -21,6 +21,8 @@ type ExerciseRow = {
   secondaryMuscles: string[];
   equipment: string[];
   description: string | null;
+  warmup: boolean;
+  dose: string | null;
   createdAt: Date;
   images: { slot: number; version: string }[];
 };
@@ -109,11 +111,12 @@ export class PrismaExerciseRepository implements ExerciseRepository {
   }
 
   async isInUse(id: string): Promise<boolean> {
-    const [inWorkout, inRoutine] = await Promise.all([
+    const [inWorkout, inRoutine, inWarmup] = await Promise.all([
       this.prisma.workoutExercise.findFirst({ where: { exerciseId: id }, select: { id: true } }),
       this.prisma.routineDayExercise.findFirst({ where: { exerciseId: id }, select: { id: true } }),
+      this.prisma.routineDayWarmup.findFirst({ where: { exerciseId: id }, select: { id: true } }),
     ]);
-    return inWorkout !== null || inRoutine !== null;
+    return inWorkout !== null || inRoutine !== null || inWarmup !== null;
   }
 
   private toContract(row: ExerciseRow): Exercise {
@@ -125,6 +128,9 @@ export class PrismaExerciseRepository implements ExerciseRepository {
       secondaryMuscles: row.secondaryMuscles as Muscle[],
       equipment: row.equipment as Equipment[],
       description: row.description ?? undefined,
+      warmup: row.warmup,
+      // "" clears it.
+      dose: row.dose || undefined,
       images: row.images.map((image) => ({
         slot: image.slot as ExerciseImageSlot,
         version: image.version,

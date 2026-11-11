@@ -455,6 +455,24 @@ a {
 .segmented label:has(input:focus-visible) {
   outline: 2px solid var(--accent);
 }
+/* The same control made of links, for pages side by side (Exercises | Warm-up). */
+.segmented a {
+  display: grid;
+  place-items: center;
+  min-height: var(--tap);
+  border-radius: 9px;
+  font-size: 0.95rem;
+  color: inherit;
+}
+.segmented a:hover {
+  text-decoration: none;
+}
+.segmented a[aria-current='page'] {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
 /* Several-of-many toggle chips built from checkboxes. */
 .chips {
   display: flex;
@@ -670,6 +688,28 @@ fieldset.card > legend {
 }
 
 /* Sessions with the exercise, at the right of its row. */
+/* Warm-up rows: no count column, and a third line with the first lines of how to do it. */
+.list-row.with-figure.warmup-row {
+  grid-template-columns: 44px 1fr;
+}
+.warmup-row .muscle-map,
+.warmup-row .exercise-thumb {
+  grid-row: span 3;
+}
+.list-row-note {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 0.85rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* A routine day's warm-up, under its exercises in the routine editor. */
+.day-warmup {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
 .list-row-count {
   grid-column: 3;
   grid-row: 1 / span 2;
@@ -715,7 +755,8 @@ fieldset.card > legend {
   display: block;
   font-size: 0.75rem;
 }
-.notes {
+.notes,
+.description {
   white-space: pre-wrap;
 }
 .pending {

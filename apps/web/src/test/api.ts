@@ -98,6 +98,8 @@ export function seedExercise(over: Partial<Exercise> = {}): Exercise {
     images: [],
     createdAt: now(),
     ...over,
+    warmup: over.warmup ?? false,
+    dose: over.dose || undefined,
   };
   state.exercises.push(exercise);
   return exercise;
@@ -129,6 +131,7 @@ export function seedRoutine(userId: string, input: CreateRoutineRequest): Routin
       position,
       name: day.name,
       exerciseIds: [...day.exerciseIds],
+      warmupExerciseIds: [...(day.warmupExerciseIds ?? [])],
     })),
   };
   state.routines.push(routine);
@@ -255,6 +258,29 @@ const ownsRoutineDay = (userId: string, dayId: string) =>
 
 const missingExercises = (ids: string[]) =>
   [...new Set(ids)].filter((id) => !state.exercises.some((e) => e.id === id));
+
+const isWarmup = (id: string) => state.exercises.some((e) => e.id === id && e.warmup);
+
+/** Like the API: warm-up exercises go in days' warm-ups, and only there (else a 422). */
+function misplacedWarmups(input: CreateRoutineRequest) {
+  const misplaced = input.days.flatMap((d) => [
+    ...d.exerciseIds.filter(isWarmup),
+    ...(d.warmupExerciseIds ?? []).filter((id) => !isWarmup(id)),
+  ]);
+  return misplaced.length > 0
+    ? problem(422, "Warm-up exercises go in a day's warm-up, and only warm-up exercises go there", {
+        exerciseId: [...new Set(misplaced)],
+      })
+    : undefined;
+}
+
+/** Like the API: warm-ups are a guide, never logged (a 422). */
+function loggedWarmups(input: Pick<CreateWorkoutRequest, 'exercises'>) {
+  const warmups = [...new Set(input.exercises.map((e) => e.exerciseId).filter(isWarmup))];
+  return warmups.length > 0
+    ? problem(422, 'Warm-up exercises are a guide and cannot be logged', { exerciseId: warmups })
+    : undefined;
+}
 
 const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
@@ -435,6 +461,8 @@ export const handlers = [
     const exercise = state.exercises.find((e) => e.id === params.id);
     if (!exercise) return problem(404, 'Exercise not found');
     const body = (await request.json()) as Partial<CreateExerciseRequest>;
+    // Fixed once created; the API rejects the unknown field.
+    if ('warmup' in body) return problem(400, 'property warmup should not exist');
     const name = body.name ?? exercise.name;
     if (state.exercises.some((e) => e !== exercise && sameName(e.name, name))) {
       return problem(409, 'An exercise with this name already exists');
@@ -451,7 +479,10 @@ export const handlers = [
         `Logged workouts use this exercise with ${used.join(', ')}; that equipment cannot be removed`,
       );
     }
-    Object.assign(exercise, body, { description: body.description || undefined });
+    Object.assign(exercise, body, {
+      description: body.description || undefined,
+      dose: ('dose' in body ? body.dose : exercise.dose) || undefined,
+    });
     logActivity(currentUser(request)!.id, 'exercise.update', `Edited exercise ${exercise.name}`);
     return HttpResponse.json(exercise);
   }),
@@ -495,7 +526,9 @@ export const handlers = [
     if (!state.exercises.some((e) => e.id === id)) return problem(404, 'Exercise not found');
     const used =
       state.workouts.some((w) => w.exercises.some((e) => e.exerciseId === id)) ||
-      state.routines.some((r) => r.days.some((d) => d.exerciseIds.includes(id)));
+      state.routines.some((r) =>
+        r.days.some((d) => d.exerciseIds.includes(id) || d.warmupExerciseIds.includes(id)),
+      );
     if (used) {
       return problem(
         409,
@@ -531,6 +564,8 @@ export const handlers = [
     if (missing.length > 0) {
       return problem(422, 'Workout references unknown exercises', { exerciseId: missing });
     }
+    const warmups = loggedWarmups(body);
+    if (warmups) return warmups;
     if (body.routineDayId && !ownsRoutineDay(user.id, body.routineDayId)) {
       return problem(422, 'Workout references an unknown routine day');
     }
@@ -616,6 +651,8 @@ export const handlers = [
     if (missing.length > 0) {
       return problem(422, 'Workout references unknown exercises', { exerciseId: missing });
     }
+    const warmups = loggedWarmups(body);
+    if (warmups) return warmups;
     if (body.routineDayId && !ownsRoutineDay(user.id, body.routineDayId)) {
       return problem(422, 'Workout references an unknown routine day');
     }
@@ -687,10 +724,14 @@ export const handlers = [
     const user = currentUser(request);
     if (!user) return problem(401, 'Unauthorized');
     const body = (await request.json()) as CreateRoutineRequest;
-    const missing = missingExercises(body.days.flatMap((d) => d.exerciseIds));
+    const missing = missingExercises(
+      body.days.flatMap((d) => [...d.exerciseIds, ...(d.warmupExerciseIds ?? [])]),
+    );
     if (missing.length > 0) {
       return problem(422, 'Routine references unknown exercises', { exerciseId: missing });
     }
+    const misplaced = misplacedWarmups(body);
+    if (misplaced) return misplaced;
     const routine = seedRoutine(user.id, body);
     logActivity(user.id, 'routine.create', `Created routine ${routine.name}`);
     return HttpResponse.json(routine, { status: 201 });
@@ -713,12 +754,15 @@ export const handlers = [
       d.id && !routine.days.some((existing) => existing.id === d.id) ? [d.id] : [],
     );
     if (unknown.length > 0) return problem(422, 'Routine references days it does not have');
+    const misplaced = misplacedWarmups(body);
+    if (misplaced) return misplaced;
     routine.name = body.name;
     routine.days = body.days.map((day, position) => ({
       id: day.id ?? nextId('day'),
       position,
       name: day.name,
       exerciseIds: [...day.exerciseIds],
+      warmupExerciseIds: [...(day.warmupExerciseIds ?? [])],
     }));
     logActivity(user.id, 'routine.update', `Edited routine ${routine.name}`);
     return HttpResponse.json(withoutOwner(routine));

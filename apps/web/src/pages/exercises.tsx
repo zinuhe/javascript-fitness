@@ -33,6 +33,7 @@ import {
   formatSessionDate,
   formatShortDate,
   labelize,
+  trainingExercises,
 } from '../components/ui';
 import { MuscleMap, MusclesWorked } from '../components/muscle-map';
 import {
@@ -128,8 +129,18 @@ function MusclePicker({ initial }: { initial?: Exercise }) {
   );
 }
 
-/** Name, muscle group, equipment and description; shared by the add and edit forms. */
-function ExerciseFields({ initial }: { initial?: Exercise }) {
+/**
+ * Name, muscle group, equipment and description, plus "how much" for warm-ups; shared by
+ * the add and edit forms (and the warm-up guide's add form).
+ */
+export function ExerciseFields({
+  initial,
+  warmup = initial?.warmup ?? false,
+}: {
+  initial?: Exercise;
+  /** A warm-up exercise: asks how much of it to do; bodyweight unless told otherwise. */
+  warmup?: boolean;
+}) {
   return (
     <>
       <div className="grid-2">
@@ -157,25 +168,52 @@ function ExerciseFields({ initial }: { initial?: Exercise }) {
           </select>
         </label>
       </div>
-      <EquipmentPicker initial={initial?.equipment} />
+      {warmup && (
+        <label>
+          How much
+          <input
+            name="dose"
+            maxLength={40}
+            placeholder="e.g. 10 per side, 30 s"
+            defaultValue={initial?.dose}
+          />
+        </label>
+      )}
+      <EquipmentPicker
+        initial={initial?.equipment ?? (warmup ? [Equipment.Bodyweight] : undefined)}
+      />
       <MusclePicker initial={initial} />
       <label>
         Description
-        <input
-          name="description"
-          maxLength={500}
-          placeholder="Optional"
-          defaultValue={initial?.description}
-        />
+        {warmup ? (
+          <textarea
+            name="description"
+            maxLength={500}
+            rows={3}
+            placeholder="How to do it"
+            defaultValue={initial?.description}
+          />
+        ) : (
+          <input
+            name="description"
+            maxLength={500}
+            placeholder="Optional"
+            defaultValue={initial?.description}
+          />
+        )}
       </label>
     </>
   );
 }
 
-/** Reads {@link ExerciseFields} back; an empty description is sent as "" to clear it. */
-function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
+/**
+ * Reads {@link ExerciseFields} back; an empty description (or "how much") is sent as "" to
+ * clear it.
+ */
+export function readExerciseFields(form: HTMLFormElement): CreateExerciseRequest {
   const data = new FormData(form);
   return {
+    ...(data.has('dose') ? { dose: String(data.get('dose')).trim() } : {}),
     name: String(data.get('name')).trim(),
     muscleGroup: data.get('muscleGroup') as MuscleGroup,
     // In catalog order, whatever order they were ticked in.
@@ -226,8 +264,26 @@ function useStoredState<T extends string>(key: string, fallback: T, allowed: rea
   return [value, update] as const;
 }
 
+/** "Exercises | Warm-up": the two halves of the catalog, each its own page. */
+export function CatalogTabs() {
+  // Exact, and whatever the search (`?day=`): "Exercises" is a prefix of the warm-up path.
+  const activeOptions = { exact: true, includeSearch: false };
+  return (
+    <nav className="segmented" aria-label="Catalog">
+      <Link to="/exercises" activeOptions={activeOptions}>
+        Exercises
+      </Link>
+      <Link to="/exercises/warmup" activeOptions={activeOptions}>
+        Warm-up
+      </Link>
+    </nav>
+  );
+}
+
 export function ExercisesPage() {
-  const { data } = useSuspenseQuery(exercisesQuery);
+  const { data: catalog } = useSuspenseQuery(exercisesQuery);
+  // Warm-ups have their own page.
+  const data = { items: trainingExercises(catalog.items) };
   const { data: counts } = useSuspenseQuery(exerciseCountsQuery);
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
@@ -281,6 +337,7 @@ export function ExercisesPage() {
   return (
     <section className="stack">
       <h1>Exercises</h1>
+      <CatalogTabs />
 
       {data.items.length > 0 && (
         <input
@@ -525,16 +582,6 @@ const detailRoute = getRouteApi('/_app/exercises/$exerciseId');
 export function ExerciseDetailPage() {
   const { exerciseId } = detailRoute.useParams();
   const { data: exercise } = useSuspenseQuery(exerciseQuery(exerciseId));
-  // undefined is "All": every session, whatever the equipment.
-  const [equipment, setEquipment] = useState<Equipment | undefined>(undefined);
-  const severalEquipment = exercise.equipment.length > 1;
-  // A transition keeps the current numbers on screen while the other equipment loads.
-  const [switching, startSwitch] = useTransition();
-  const { data: progress } = useSuspenseQuery(progressQuery(exerciseId, equipment));
-  const unit = useWeightUnit();
-  const points = [...progress.points].reverse(); // newest first
-  const best = Math.max(0, ...progress.points.map((p) => p.estimatedOneRepMaxKg));
-  const heaviest = Math.max(0, ...progress.points.map((p) => p.bestSetWeightKg));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -543,7 +590,7 @@ export function ExerciseDetailPage() {
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: exerciseQuery(exerciseId).queryKey });
       await queryClient.invalidateQueries({ queryKey: exercisesQuery.queryKey });
-      await navigate({ to: '/exercises' });
+      await navigate({ to: exercise.warmup ? '/exercises/warmup' : '/exercises' });
     },
   });
 
@@ -551,11 +598,18 @@ export function ExerciseDetailPage() {
     <section className="stack">
       <div className="detail-header">
         <div>
-          <Link to="/exercises" className="muted back-link">
-            ← Exercises
-          </Link>
+          {exercise.warmup ? (
+            <Link to="/exercises/warmup" className="muted back-link">
+              ← Warm-up
+            </Link>
+          ) : (
+            <Link to="/exercises" className="muted back-link">
+              ← Exercises
+            </Link>
+          )}
           <h1>{exercise.name}</h1>
           <p className="row">
+            {exercise.warmup && <span className="tag">Warm-up</span>}
             <span className="tag">{labelize(exercise.muscleGroup)}</span>
             {exercise.equipment.map((value) => (
               <span key={value} className="tag">
@@ -563,8 +617,13 @@ export function ExerciseDetailPage() {
               </span>
             ))}
           </p>
+          {exercise.dose && (
+            <p className="dose">
+              <span className="muted">How much:</span> <strong>{exercise.dose}</strong>
+            </p>
+          )}
           <ExerciseGallery exercise={exercise} />
-          {exercise.description && <p>{exercise.description}</p>}
+          {exercise.description && <p className="description">{exercise.description}</p>}
           <MusclesWorked exercise={exercise} />
         </div>
         <div className="detail-actions">
@@ -589,100 +648,118 @@ export function ExerciseDetailPage() {
       </div>
       {/* 409 when workouts or routines use it: the API explains why. */}
       <ErrorMessage error={remove.error} />
-
-      <div className="card stack" aria-busy={switching}>
-        <h2>Your progress</h2>
-        {severalEquipment && (
-          <div className="segmented" role="radiogroup" aria-label="Progress with">
-            {[undefined, ...exercise.equipment].map((value) => (
-              <label key={value ?? 'all'}>
-                <input
-                  type="radio"
-                  name="progressEquipment"
-                  value={value ?? 'all'}
-                  checked={equipment === value}
-                  onChange={() => startSwitch(() => setEquipment(value))}
-                />
-                <span>{value ? equipmentName(value) : 'All'}</span>
-              </label>
-            ))}
-          </div>
-        )}
-        {points.length === 0 ? (
-          <p className="muted">
-            No sets logged for this exercise
-            {equipment ? ` with ${equipmentName(equipment).toLowerCase()}` : ''} yet.{' '}
-            <Link to="/workouts/new">Log a workout</Link>
-          </p>
-        ) : (
-          <>
-            <dl className="stats">
-              <div>
-                <dt>Best est. 1RM</dt>
-                <dd>{formatWeight(best, unit)}</dd>
-              </div>
-              <div>
-                <dt>Heaviest set</dt>
-                <dd>{formatWeight(heaviest, unit)}</dd>
-              </div>
-              <div>
-                <dt>Sessions</dt>
-                <dd>{points.length}</dd>
-              </div>
-            </dl>
-            {progress.points.length > 1 && (
-              <OneRepMaxChart
-                points={progress.points}
-                showEquipment={severalEquipment && !equipment}
-              />
-            )}
-            <table className="compact">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Session</th>
-                  <th>Volume</th>
-                  <th>Top set</th>
-                  <th>Est. 1RM</th>
-                </tr>
-              </thead>
-              <tbody>
-                {points.map((point, index) => (
-                  <tr key={point.performedAt}>
-                    {/* Session number: the oldest is 1 (rows are newest first). */}
-                    <td className="muted">{points.length - index}</td>
-                    <td className="wrap-on-phone">
-                      <Link to="/workouts/$workoutId" params={{ workoutId: point.workoutId }}>
-                        {formatSessionDate(point.performedAt)}
-                      </Link>
-                      {/* On "All", what each session was done with. */}
-                      {severalEquipment && !equipment && point.equipment && (
-                        <span className="hint cell-note">{sessionEquipment(point)}</span>
-                      )}
-                    </td>
-                    <td className="wrap-on-phone">
-                      <span className="nowrap">
-                        {formatTableVolume(point.totalVolumeKg, unit).main}
-                      </span>{' '}
-                      <span className="hint other-unit">
-                        ({formatTableVolume(point.totalVolumeKg, unit).other})
-                      </span>
-                    </td>
-                    <td className="wrap-on-phone">
-                      <span className="nowrap">{formatWeight(point.bestSetWeightKg, unit)}</span>{' '}
-                      <span className="hint other-unit">
-                        ({formatWholeInOtherUnit(point.bestSetWeightKg, unit)})
-                      </span>
-                    </td>
-                    <td>{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-      </div>
+      {/* Warm-ups are never logged: nothing to chart. */}
+      {!exercise.warmup && <ExerciseProgress exercise={exercise} />}
     </section>
+  );
+}
+
+/** Progress over the logged sessions: best numbers, the 1RM chart and one row per session. */
+function ExerciseProgress({ exercise }: { exercise: Exercise }) {
+  // undefined is "All": every session, whatever the equipment.
+  const [equipment, setEquipment] = useState<Equipment | undefined>(undefined);
+  const severalEquipment = exercise.equipment.length > 1;
+  // A transition keeps the current numbers on screen while the other equipment loads.
+  const [switching, startSwitch] = useTransition();
+  const { data: progress } = useSuspenseQuery(progressQuery(exercise.id, equipment));
+  const unit = useWeightUnit();
+  const points = [...progress.points].reverse(); // newest first
+  const best = Math.max(0, ...progress.points.map((p) => p.estimatedOneRepMaxKg));
+  const heaviest = Math.max(0, ...progress.points.map((p) => p.bestSetWeightKg));
+
+  return (
+    <div className="card stack" aria-busy={switching}>
+      <h2>Your progress</h2>
+      {severalEquipment && (
+        <div className="segmented" role="radiogroup" aria-label="Progress with">
+          {[undefined, ...exercise.equipment].map((value) => (
+            <label key={value ?? 'all'}>
+              <input
+                type="radio"
+                name="progressEquipment"
+                value={value ?? 'all'}
+                checked={equipment === value}
+                onChange={() => startSwitch(() => setEquipment(value))}
+              />
+              <span>{value ? equipmentName(value) : 'All'}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {points.length === 0 ? (
+        <p className="muted">
+          No sets logged for this exercise
+          {equipment ? ` with ${equipmentName(equipment).toLowerCase()}` : ''} yet.{' '}
+          <Link to="/workouts/new">Log a workout</Link>
+        </p>
+      ) : (
+        <>
+          <dl className="stats">
+            <div>
+              <dt>Best est. 1RM</dt>
+              <dd>{formatWeight(best, unit)}</dd>
+            </div>
+            <div>
+              <dt>Heaviest set</dt>
+              <dd>{formatWeight(heaviest, unit)}</dd>
+            </div>
+            <div>
+              <dt>Sessions</dt>
+              <dd>{points.length}</dd>
+            </div>
+          </dl>
+          {progress.points.length > 1 && (
+            <OneRepMaxChart
+              points={progress.points}
+              showEquipment={severalEquipment && !equipment}
+            />
+          )}
+          <table className="compact">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Session</th>
+                <th>Volume</th>
+                <th>Top set</th>
+                <th>Est. 1RM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {points.map((point, index) => (
+                <tr key={point.performedAt}>
+                  {/* Session number: the oldest is 1 (rows are newest first). */}
+                  <td className="muted">{points.length - index}</td>
+                  <td className="wrap-on-phone">
+                    <Link to="/workouts/$workoutId" params={{ workoutId: point.workoutId }}>
+                      {formatSessionDate(point.performedAt)}
+                    </Link>
+                    {/* On "All", what each session was done with. */}
+                    {severalEquipment && !equipment && point.equipment && (
+                      <span className="hint cell-note">{sessionEquipment(point)}</span>
+                    )}
+                  </td>
+                  <td className="wrap-on-phone">
+                    <span className="nowrap">
+                      {formatTableVolume(point.totalVolumeKg, unit).main}
+                    </span>{' '}
+                    <span className="hint other-unit">
+                      ({formatTableVolume(point.totalVolumeKg, unit).other})
+                    </span>
+                  </td>
+                  <td className="wrap-on-phone">
+                    <span className="nowrap">{formatWeight(point.bestSetWeightKg, unit)}</span>{' '}
+                    <span className="hint other-unit">
+                      ({formatWholeInOtherUnit(point.bestSetWeightKg, unit)})
+                    </span>
+                  </td>
+                  <td>{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -823,7 +900,9 @@ export function EditExercisePage() {
       </div>
       <ExercisePictures exercise={exercise} />
       <p className="muted">
-        Changes apply everywhere the exercise is used: past workouts, routines and progress.
+        {exercise.warmup
+          ? 'Changes apply to every routine day that warms up with it.'
+          : 'Changes apply everywhere the exercise is used: past workouts, routines and progress.'}
       </p>
       <ErrorMessage error={save.error} />
       <div className="form-actions">

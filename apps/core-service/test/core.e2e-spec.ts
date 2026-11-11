@@ -941,6 +941,97 @@ describe('core-service (e2e)', () => {
       expect(res.body.title).toBe('exercise.in_use');
     });
 
+    describe('warm-ups', () => {
+      const warmup = (token: string, name: string, dose?: string) =>
+        createExercise(token, {
+          name: `${name} ${randomUUID()}`,
+          muscleGroup: MuscleGroup.Back,
+          equipment: [Equipment.Bodyweight],
+          warmup: true,
+          ...(dose ? { dose } : {}),
+        });
+
+      it("keeps each day's warm-up in order, apart from its exercises", async () => {
+        const token = tokenFor();
+        const { routine, bench, row, squat } = await threeDaySplit(token);
+        const [catCow, circles] = await Promise.all([
+          warmup(token, 'Cat-Cow', '10 reps'),
+          warmup(token, 'Hip circles', '10 per side'),
+        ]);
+        expect(catCow).toMatchObject({ warmup: true, dose: '10 reps' });
+        expect(bench.warmup).toBe(false);
+        expect(routine.days.map((d) => d.warmupExerciseIds)).toEqual([[], [], []]);
+
+        const [push, pull, legs] = routine.days;
+        const res = await as(token)
+          .put(`/routines/${routine.id}`, {
+            name: routine.name,
+            days: [
+              {
+                id: push.id,
+                name: 'Push',
+                exerciseIds: [bench.id],
+                warmupExerciseIds: [circles.id, catCow.id],
+              },
+              { id: pull.id, name: 'Pull', exerciseIds: [row.id] },
+              {
+                id: legs.id,
+                name: 'Legs',
+                exerciseIds: [squat.id],
+                warmupExerciseIds: [catCow.id],
+              },
+            ],
+          })
+          .expect(200);
+        expect((res.body as Routine).days.map((d) => [d.exerciseIds, d.warmupExerciseIds])).toEqual(
+          [
+            [[bench.id], [circles.id, catCow.id]],
+            [[row.id], []],
+            [[squat.id], [catCow.id]],
+          ],
+        );
+        // A warm-up some day uses cannot be deleted either.
+        const inUse = await as(token).delete(`/exercises/${catCow.id}`).expect(409);
+        expect(inUse.body.title).toBe('exercise.in_use');
+      });
+
+      it('go only in warm-ups, are never logged, and stay warm-ups (422, 400)', async () => {
+        const token = tokenFor();
+        const { bench } = await threeDaySplit(token);
+        const catCow = await warmup(token, 'Cat-Cow');
+
+        const misplaced = await as(token)
+          .post('/routines', {
+            name: 'Mixed up',
+            days: [{ exerciseIds: [catCow.id], warmupExerciseIds: [bench.id] }],
+          })
+          .expect(422);
+        expect(misplaced.body).toMatchObject({
+          title: 'routine.invalid_warmup',
+          errors: { exerciseId: [catCow.id, bench.id] },
+        });
+
+        const logged = await as(token)
+          .post('/workouts', {
+            exercises: [{ exerciseId: catCow.id, sets: [{ reps: 10, weightKg: 0 }] }],
+          })
+          .expect(422);
+        expect(logged.body.title).toBe('workout.warmup_exercise');
+
+        await request(http)
+          .patch(`/exercises/${catCow.id}`)
+          .set('authorization', `Bearer ${token}`)
+          .send({ warmup: false })
+          .expect(400);
+        const edited = await request(http)
+          .patch(`/exercises/${catCow.id}`)
+          .set('authorization', `Bearer ${token}`)
+          .send({ dose: '30 s' })
+          .expect(200);
+        expect(edited.body).toMatchObject({ warmup: true, dose: '30 s' });
+      });
+    });
+
     it('returns the last sets of each exercise for pre-filling a day', async () => {
       const token = tokenFor();
       const { bench, squat } = await threeDaySplit(token);

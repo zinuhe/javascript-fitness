@@ -101,6 +101,12 @@ export function exerciseNames(exercises: Exercise[]): Map<string, string> {
   return new Map(exercises.map((e) => [e.id, e.name]));
 }
 
+/** The exercises that are trained and logged: the catalog without its warm-ups. */
+export const trainingExercises = (exercises: Exercise[]) => exercises.filter((e) => !e.warmup);
+
+/** The catalog's warm-up exercises: a guide only, never logged. */
+export const warmupExercises = (exercises: Exercise[]) => exercises.filter((e) => e.warmup);
+
 /**
  * Human message for an API/network error, including per-field validation details;
  * `describe` can reword each detail in the page's own terms.

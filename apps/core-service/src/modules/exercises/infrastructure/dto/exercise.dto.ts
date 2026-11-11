@@ -1,8 +1,9 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -60,9 +61,26 @@ export class CreateExerciseDto implements CreateExerciseRequest {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: 'A warm-up exercise (guide only, never logged); fixed once created',
+  })
+  @IsOptional()
+  @IsBoolean()
+  warmup?: boolean;
+
+  @ApiPropertyOptional({ example: '10 per side', maxLength: 40, description: 'How much to do' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  dose?: string;
 }
 
-export class UpdateExerciseDto extends PartialType(CreateExerciseDto) {}
+/** Everything but `warmup`, which cannot change once the exercise exists. */
+export class UpdateExerciseDto extends PartialType(
+  OmitType(CreateExerciseDto, ['warmup'] as const),
+) {}
 
 export class ListExercisesQueryDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })

@@ -31,6 +31,17 @@ export class RoutineDayDto implements RoutineDayInput {
   @ArrayMaxSize(30)
   @IsUUID('all', { each: true })
   exerciseIds!: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Warm-up exercises in order (only exercises marked as warm-up)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsUUID('all', { each: true })
+  warmupExerciseIds?: string[];
 }
 
 export class RoutineDto implements CreateRoutineRequest {

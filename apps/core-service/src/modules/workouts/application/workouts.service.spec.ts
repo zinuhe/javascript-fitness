@@ -35,6 +35,7 @@ beforeEach(() => {
     replaceForUser: jest.fn().mockResolvedValue({ id: 'w-1' } as Workout),
     deleteForUser: jest.fn(),
     findExerciseEquipment: jest.fn().mockImplementation(() => Promise.resolve(catalog())),
+    findWarmupExerciseIds: jest.fn().mockResolvedValue([]),
     routineDayBelongsToUser: jest.fn().mockResolvedValue(true),
     findLastSets: jest.fn().mockResolvedValue([]),
     countSessionsByExercise: jest.fn().mockResolvedValue([]),
@@ -55,6 +56,18 @@ describe('WorkoutsService.create', () => {
       code: 'workout.unknown_exercise',
       errors: { exerciseId: ['ex-2'] },
     });
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects warm-up exercises, which are never logged (422)', async () => {
+    repo.findWarmupExerciseIds.mockResolvedValue(['ex-2']);
+
+    await expect(service.create('user-1', input)).rejects.toMatchObject({
+      httpStatus: 422,
+      code: 'workout.warmup_exercise',
+      errors: { exerciseId: ['ex-2'] },
+    });
+    expect(repo.findWarmupExerciseIds).toHaveBeenCalledWith(['ex-1', 'ex-2']);
     expect(repo.create).not.toHaveBeenCalled();
   });
 

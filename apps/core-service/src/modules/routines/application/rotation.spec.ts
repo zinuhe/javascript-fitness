@@ -6,6 +6,7 @@ const days: RoutineDay[] = ['push', 'pull', 'legs'].map((id, position) => ({
   position,
   name: id,
   exerciseIds: ['ex-1'],
+  warmupExerciseIds: [],
 }));
 
 describe('nextRoutineDay', () => {
