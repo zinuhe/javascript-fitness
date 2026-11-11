@@ -753,7 +753,7 @@ describe('barbell exercises', () => {
   });
 });
 
-/** The "2 × (🏋 12 lb + 10 lb) = 44 lb" line under a heavy dumbbell set; the icon is the handle. */
+/** The rows under a heavy dumbbell set, one per dumbbell ("🏋 12 lb + ◎ 10 lb = 22 lb") and a total. */
 const handleHint = () =>
   screen.getByText(
     (_, el) =>
@@ -784,15 +784,21 @@ describe('heavy dumbbell exercises', () => {
     // The plates of both dumbbells together, as with regular dumbbells (40 lb = two 20s).
     await user.type(screen.getByLabelText('Plates (lb)'), '20');
     expect(screen.getByRole('radio', { name: '2 dumbbells' })).toBeChecked();
-    // Each dumbbell: its handle (the icon) and half the plates.
-    expect(handleHint()).toHaveTextContent(/^2 × \(12 lb \+ 10 lb\) = 44 lb$/);
-    expect(screen.getByRole('img', { name: 'Handle, 12 lb (5.44 kg)' })).toHaveAttribute(
-      'data-tip',
-      'Handle: 12 lb (5.44 kg)',
+    // A row for each dumbbell, its handle and half the plates (the icons), then the total.
+    expect(handleHint()).toHaveTextContent(
+      /^12 lb \+ 10 lb = 22 lb12 lb \+ 10 lb = 22 lbTotal 44 lb$/,
     );
-    // One dumbbell, one handle and all the plates; and back.
+    const handles = screen.getAllByRole('img', { name: 'Handle, 12 lb (5.44 kg)' });
+    expect(handles).toHaveLength(2);
+    expect(handles[0]).toHaveAttribute('data-tip', 'Handle: 12 lb (5.44 kg)');
+    expect(screen.getAllByRole('img', { name: 'Plates, 10 lb (4.54 kg)' })[0]).toHaveAttribute(
+      'data-tip',
+      'Plates: 10 lb (4.54 kg)',
+    );
+    // One dumbbell, one row with all the plates, which is the total; and back.
     await user.click(screen.getByRole('radio', { name: '1 dumbbell' }));
     expect(handleHint()).toHaveTextContent(/^12 lb \+ 20 lb = 32 lb$/);
+    expect(screen.getAllByRole('img', { name: /^Handle/ })).toHaveLength(1);
     await user.click(screen.getByRole('radio', { name: '2 dumbbells' }));
     await user.click(screen.getByRole('button', { name: 'Save workout' }));
 
@@ -807,13 +813,15 @@ describe('heavy dumbbell exercises', () => {
     const card = heading.closest('article')!;
     expect(within(card).getByLabelText('Equipment: Heavy dumbbell ×2')).toBeInTheDocument();
     expect(within(within(card).getAllByRole('row')[1]).getAllByRole('cell')[2]).toHaveTextContent(
-      '20 lb (9 kg)2 × (12 lb + 10 lb) = 44 lb (20 kg)',
+      '20 lb (9 kg)12 lb + 10 lb = 22 lb12 lb + 10 lb = 22 lbTotal 44 lb (20 kg)',
     );
 
     // Editing shows the plates again.
     await user.click(screen.getByRole('link', { name: 'Edit' }));
     expect(await screen.findByLabelText('Plates (lb)')).toHaveValue('20');
-    expect(handleHint()).toHaveTextContent(/^2 × \(12 lb \+ 10 lb\) = 44 lb$/);
+    expect(handleHint()).toHaveTextContent(
+      /^12 lb \+ 10 lb = 22 lb12 lb \+ 10 lb = 22 lbTotal 44 lb$/,
+    );
   });
 
   it('shows the plates of both, without the handles, when hovering the progress chart', async () => {
@@ -855,7 +863,7 @@ describe('heavy dumbbell exercises', () => {
     // Its 32 lb total now reads as 8 lb of plates + two handles…
     const card = (await screen.findByRole('heading', { name: 'Biceps Curl' })).closest('article')!;
     expect(within(within(card).getAllByRole('row')[1]).getAllByRole('cell')[2]).toHaveTextContent(
-      '8 lb (4 kg)2 × (12 lb + 4 lb) = 32 lb (15 kg)',
+      '8 lb (4 kg)12 lb + 4 lb = 16 lb12 lb + 4 lb = 16 lbTotal 32 lb (15 kg)',
     );
     await user.click(screen.getByRole('link', { name: 'Edit' }));
     const plates = await screen.findByLabelText('Plates (lb)');
@@ -902,7 +910,9 @@ describe('heavy dumbbell exercises', () => {
     // …switched to heavy dumbbells (two), the plates get two 6 kg handles, not that bar…
     const equipment = screen.getByRole('radiogroup', { name: 'Equipment for exercise 1' });
     await user.click(within(equipment).getByRole('radio', { name: 'Heavy dumbbell' }));
-    expect(handleHint()).toHaveTextContent(/^2 × \(6 kg \+ 10 kg\) = 32 kg$/);
+    expect(handleHint()).toHaveTextContent(
+      /^6 kg \+ 10 kg = 16 kg6 kg \+ 10 kg = 16 kgTotal 32 kg$/,
+    );
     // …and back on the barbell, its own bar returns.
     await user.click(within(equipment).getByRole('radio', { name: 'Barbell' }));
     expect(barHint()).toHaveTextContent('+ bar 12.5 kg = 32.5 kg');

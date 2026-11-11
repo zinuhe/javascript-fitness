@@ -604,13 +604,26 @@ fieldset.card > legend {
 .bar-word:focus {
   outline: none;
 }
-/* A heavy dumbbell's handle, drawn as a dumbbell before its weight: "2 × (🏋 12 lb + 10 lb)". */
+/* A heavy dumbbell's handle or plates, drawn as an icon before the weight: "🏋 12 lb + ◎ 10 lb". */
 .bar-icon {
   text-decoration: none;
   margin-right: 0.15em;
 }
 .bar-icon svg {
   vertical-align: -0.2em;
+}
+/* Heavy dumbbells: one row each (handle + its plates), then what they add up to. */
+.dumbbell-row {
+  display: block;
+  white-space: nowrap;
+}
+.dumbbell-total {
+  display: inline-block;
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 600;
 }
 .activity {
   list-style: none;

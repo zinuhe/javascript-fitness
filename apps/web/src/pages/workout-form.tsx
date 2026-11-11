@@ -26,7 +26,7 @@ import {
   toInputDate,
   workoutsOnDayQuery,
 } from '../api/queries';
-import { BarWord, PerDumbbell } from '../components/bar';
+import { BarWord, DumbbellSum, Handles } from '../components/bar';
 import { ExercisePreview } from '../components/exercise-images';
 import {
   ErrorMessage,
@@ -126,9 +126,9 @@ function Stepper({
 }
 
 /**
- * "+ bar 27.6 lb = 47.6 lb" under a barbell set, and "2 × (🏋 12 lb + 10 lb) = 44 lb" under a
- * heavy dumbbell one (each dumbbell); the totals once plates are typed. `barKg` is one bar or
- * handle.
+ * "+ bar 27.6 lb = 47.6 lb" under a barbell set. Under a heavy dumbbell one, a row for each
+ * dumbbell ("🏋 12 lb + ◎ 10 lb = 22 lb") and their total. The totals show once plates are
+ * typed. `barKg` is one bar or handle.
  */
 function BarTotal({
   plates,
@@ -146,23 +146,26 @@ function BarTotal({
   if (barKg === undefined) return null;
   const typed = parseDecimal(plates);
   const fixedKg = barKg * count;
-  const total =
+  // Added in the user's unit, as typed, so "20 + 24" never shows as 43.9.
+  const totalKg =
     plates.trim() !== '' && Number.isFinite(typed)
-      ? formatWeight(toKg(typed + displayWeight(fixedKg, unit), unit), unit)
+      ? toKg(typed + displayWeight(fixedKg, unit), unit)
       : undefined;
   if (kind === 'handle') {
-    // Each dumbbell, its handle plus its share of the plates: "2 × (🏋 12 lb + 10 lb) = 44 lb".
     return (
       <p className="hint">
-        {total === undefined ? (
+        {totalKg === undefined ? (
           <>
-            + <PerDumbbell handleKg={barKg} count={count} unit={unit} />
+            + <Handles handleKg={barKg} count={count} unit={unit} />
           </>
         ) : (
-          <>
-            <PerDumbbell handleKg={barKg} platesKg={toKg(typed, unit)} count={count} unit={unit} />{' '}
-            = {total}
-          </>
+          <DumbbellSum
+            handleKg={barKg}
+            platesKg={toKg(typed, unit)}
+            totalKg={totalKg}
+            count={count}
+            unit={unit}
+          />
         )}
       </p>
     );
@@ -170,7 +173,7 @@ function BarTotal({
   return (
     <p className="hint">
       + <BarWord barKg={barKg} /> {formatWeight(fixedKg, unit)}
-      {total === undefined ? '' : ` = ${total}`}
+      {totalKg === undefined ? '' : ` = ${formatWeight(totalKg, unit)}`}
     </p>
   );
 }

@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import type { WeightUnit } from '@fitness/contracts';
-import { DumbbellIcon } from './icons';
-import { formatWeight } from './units';
+import { DumbbellIcon, PlateIcon } from './icons';
+import { formatWeight, formatWholeInOtherUnit } from './units';
 
-/** "12 lb (5.44 kg)": a bar or handle in both units, for its tooltip. */
+/** "12 lb (5.44 kg)": a bar, handle or plates in both units, for a tooltip. */
 const bothUnits = (kg: number) => `${formatWeight(kg, 'lb')} (${formatWeight(kg, 'kg')})`;
 
 /**
@@ -23,55 +24,109 @@ export function BarWord({ barKg }: { barKg: number }) {
   );
 }
 
-/**
- * Each heavy dumbbell, the part before the "=": "2 × (🏋 12 lb + 10 lb)", its handle (an icon
- * with the weight in both units on hover or tap) plus its share of the plates. With one
- * dumbbell, "🏋 12 lb + 20 lb"; while no plates are typed, just the handles: "2 × 🏋 12 lb".
- */
-export function PerDumbbell({
+/** An icon before a weight, saying what it is ("Handle", "Plates") on hover, tap or focus. */
+function WeightIcon({ name, kg, children }: { name: string; kg: number; children: ReactNode }) {
+  const weight = bothUnits(kg);
+  return (
+    <span
+      className="bar-word bar-icon"
+      role="img"
+      tabIndex={0}
+      data-tip={`${name}: ${weight}`}
+      aria-label={`${name}, ${weight}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** "🏋 12 lb": the handle of one heavy dumbbell. */
+function Handle({ handleKg, unit }: { handleKg: number; unit: WeightUnit }) {
+  return (
+    <>
+      <WeightIcon name="Handle" kg={handleKg}>
+        <DumbbellIcon size="1.15em" />
+      </WeightIcon>
+      {formatWeight(handleKg, unit)}
+    </>
+  );
+}
+
+/** The handles of heavy dumbbells while no plates are typed yet: "2 × 🏋 12 lb". */
+export function Handles({
   handleKg,
-  platesKg,
   count,
   unit,
 }: {
   handleKg: number;
-  /** The plates of all the dumbbells together. */
-  platesKg?: number;
   count: number;
   unit: WeightUnit;
 }) {
-  const weight = bothUnits(handleKg);
-  const handle = (
+  return (
     <>
-      <span
-        className="bar-word bar-icon"
-        role="img"
-        tabIndex={0}
-        data-tip={`Handle: ${weight}`}
-        aria-label={`Handle, ${weight}`}
-      >
-        <DumbbellIcon size="1.15em" />
-      </span>
-      {formatWeight(handleKg, unit)}
+      {count > 1 ? `${count} × ` : ''}
+      <Handle handleKg={handleKg} unit={unit} />
     </>
   );
-  const times = count > 1 ? `${count} × ` : '';
-  if (platesKg === undefined) {
+}
+
+/**
+ * What each heavy dumbbell weighs, one row per dumbbell (its handle plus its share of the
+ * plates), and what they add up to:
+ *
+ *     🏋 12 lb + ◎ 10 lb = 22 lb
+ *     🏋 12 lb + ◎ 10 lb = 22 lb
+ *     Total 44 lb (20 kg)
+ *
+ * With one dumbbell its row is the total: "🏋 12 lb + ◎ 20 lb = 32 lb (15 kg)".
+ */
+export function DumbbellSum({
+  handleKg,
+  platesKg,
+  totalKg,
+  count,
+  unit,
+  otherUnit = false,
+}: {
+  handleKg: number;
+  /** The plates of all the dumbbells together. */
+  platesKg: number;
+  /** Everything lifted: the plates plus one handle per dumbbell. */
+  totalKg: number;
+  count: number;
+  unit: WeightUnit;
+  /** Also say the total in the unit the user does not use: "(20 kg)". */
+  otherUnit?: boolean;
+}) {
+  const total = `${formatWeight(totalKg, unit)}${
+    otherUnit ? ` (${formatWholeInOtherUnit(totalKg, unit)})` : ''
+  }`;
+  const each = (
+    <>
+      <Handle handleKg={handleKg} unit={unit} /> +{' '}
+      <WeightIcon name="Plates" kg={platesKg / count}>
+        <PlateIcon size="1.15em" />
+      </WeightIcon>
+      {formatWeight(platesKg / count, unit)} ={' '}
+    </>
+  );
+  if (count <= 1) {
     return (
-      <>
-        {times}
-        {handle}
-      </>
+      <span className="dumbbell-row">
+        {each}
+        {total}
+      </span>
     );
   }
-  const plates = formatWeight(platesKg / count, unit);
-  return count > 1 ? (
+  return (
     <>
-      {times}({handle} + {plates})
-    </>
-  ) : (
-    <>
-      {handle} + {plates}
+      {Array.from({ length: count }, (_, index) => (
+        <span className="dumbbell-row" key={index}>
+          {each}
+          {formatWeight(totalKg / count, unit)}
+        </span>
+      ))}
+      <span className="dumbbell-total">Total {total}</span>
     </>
   );
 }

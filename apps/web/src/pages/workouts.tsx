@@ -21,7 +21,7 @@ import {
 } from '../components/ui';
 import { PencilIcon } from '../components/icons';
 import { ExercisePreview } from '../components/exercise-images';
-import { BarWord, PerDumbbell } from '../components/bar';
+import { BarWord, DumbbellSum } from '../components/bar';
 import {
   formatVolume,
   formatWeight,
@@ -286,23 +286,24 @@ export function WorkoutDetailPage() {
                         <span className="hint">
                           ({formatWholeInOtherUnit(set.weightKg - fixedOf(entry), unit)})
                         </span>
-                        {/* "2 × (🏋 12 lb + 10 lb) = 44 lb" with heavy dumbbells, "20 lb + bar = …". */}
+                        {/* Heavy dumbbells: a row for each and their total. Else "20 lb + bar = …". */}
                         <span className="hint cell-note">
                           {fixedPartOf(entry.equipment) === 'handle' ? (
-                            <PerDumbbell
+                            <DumbbellSum
                               handleKg={entry.barKg}
                               platesKg={set.weightKg - fixedOf(entry)}
+                              totalKg={set.weightKg}
                               count={fixedPartCount(entry.equipment, entry.dumbbells)}
                               unit={unit}
+                              otherUnit
                             />
                           ) : (
                             <>
                               {formatWeight(set.weightKg - fixedOf(entry), unit)} +{' '}
-                              <BarWord barKg={entry.barKg} />
+                              <BarWord barKg={entry.barKg} /> = {formatWeight(set.weightKg, unit)} (
+                              {formatWholeInOtherUnit(set.weightKg, unit)})
                             </>
-                          )}{' '}
-                          = {formatWeight(set.weightKg, unit)} (
-                          {formatWholeInOtherUnit(set.weightKg, unit)})
+                          )}
                         </span>
                       </td>
                     ) : (

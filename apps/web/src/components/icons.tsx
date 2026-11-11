@@ -31,6 +31,14 @@ export const DumbbellIcon = ({ size = 24 }: { size?: number | string }) => (
   </svg>
 );
 
+/** A weight plate: the plates loaded on a heavy dumbbell's handle. */
+export const PlateIcon = ({ size = 24 }: { size?: number | string }) => (
+  <svg {...base} width={size} height={size}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="2.5" />
+  </svg>
+);
+
 /** Two arrows chasing each other: a routine that repeats. */
 export const RepeatIcon = () => (
   <svg {...base}>
