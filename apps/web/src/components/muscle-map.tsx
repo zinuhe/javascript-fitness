@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Muscle, type Exercise } from '@fitness/contracts';
 import { BACK, FRONT, type BodyRegion } from './body-outline';
+import { ChevronDownIcon } from './icons';
 import { labelize } from './ui';
 
 /** The drawing zones each muscle lights up (side delts show on both shoulder views). */
@@ -103,17 +105,40 @@ export function MuscleMap({
   );
 }
 
-/** The muscle map of an exercise with the muscles named under it. */
+/**
+ * The muscle map of an exercise with the muscles named under it. On a phone it starts as
+ * one line (a small figure and the names) so the progress shows on the first screen; a tap
+ * opens the large map. Wider screens always show the large one.
+ */
 export function MusclesWorked({ exercise }: { exercise: Exercise }) {
+  const [open, setOpen] = useState(false);
   const { primaryMuscles: primary, secondaryMuscles: secondary } = exercise;
   if (primary.length + secondary.length === 0) return null;
+  const legend = (
+    <>
+      {primary.length > 0 && <span>{primary.map(labelize).join(', ')}</span>}
+      {secondary.length > 0 && <span className="also">{secondary.map(labelize).join(', ')}</span>}
+    </>
+  );
   return (
-    <div className="stack-tight">
-      <MuscleMap primary={primary} secondary={secondary} />
-      <p className="muscle-legend">
-        {primary.length > 0 && <span>{primary.map(labelize).join(', ')}</span>}
-        {secondary.length > 0 && <span className="also">{secondary.map(labelize).join(', ')}</span>}
-      </p>
+    <div className={open ? 'muscles-worked open' : 'muscles-worked'}>
+      <button
+        type="button"
+        className="muscles-compact"
+        aria-expanded={open}
+        aria-label={open ? 'Hide the muscle map' : 'Show the muscle map'}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <MuscleMap primary={primary} secondary={secondary} size="small" decorative />
+        <span className="muscle-legend">{legend}</span>
+        <span className="muscles-chevron">
+          <ChevronDownIcon />
+        </span>
+      </button>
+      <div className="muscles-full stack-tight">
+        <MuscleMap primary={primary} secondary={secondary} />
+        <p className="muscle-legend">{legend}</p>
+      </div>
     </div>
   );
 }

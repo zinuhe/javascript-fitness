@@ -14,18 +14,21 @@ export class ApiError extends Error {
 }
 
 // ── Token storage ───────────────────────────────────────────────────────────────
-// Kept in localStorage so a reload stays signed in. Storage can throw (private mode,
-// blocked site data), in which case the session simply lives until the tab closes.
+// Kept in localStorage so a reload stays signed in, and read from it every time: another
+// tab may have rotated the pair, which revokes the refresh token this tab last saw. Storage
+// can throw (private mode, blocked site data); then the session lives in memory until the
+// tab closes.
 let memoryTokens: AuthTokens | null = null;
+let storageWorks = true;
 
 export const tokenStore = {
   get(): AuthTokens | null {
-    if (memoryTokens) return memoryTokens;
+    if (!storageWorks) return memoryTokens;
     try {
       const raw = localStorage.getItem(TOKENS_KEY);
       memoryTokens = raw ? (JSON.parse(raw) as AuthTokens) : null;
     } catch {
-      memoryTokens = null;
+      storageWorks = false;
     }
     return memoryTokens;
   },
@@ -33,16 +36,18 @@ export const tokenStore = {
     memoryTokens = tokens;
     try {
       localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
+      storageWorks = true;
     } catch {
-      // ignore — see note above
+      storageWorks = false;
     }
   },
   clear(): void {
     memoryTokens = null;
     try {
       localStorage.removeItem(TOKENS_KEY);
+      storageWorks = true;
     } catch {
-      // ignore
+      storageWorks = false;
     }
   },
 };
@@ -128,6 +133,9 @@ function refreshTokens(): Promise<boolean> {
       tokenStore.set(result.tokens);
       return true;
     } catch {
+      // Another tab rotated the pair at the same time: its new tokens are good.
+      const latest = tokenStore.get();
+      if (latest && latest.refreshToken !== current.refreshToken) return true;
       tokenStore.clear();
       sessionExpiredListeners.forEach((listener) => listener());
       return false;

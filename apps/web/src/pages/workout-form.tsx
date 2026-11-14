@@ -28,6 +28,7 @@ import {
 } from '../api/queries';
 import { BarWord, DumbbellSum, Handles } from '../components/bar';
 import { ExercisePreview } from '../components/exercise-images';
+import { ChevronDownIcon } from '../components/icons';
 import {
   ErrorMessage,
   dayLabel,
@@ -71,6 +72,8 @@ interface StepperProps {
   required?: boolean;
   /** Marks the field when the form found a problem with it (the alert says which). */
   invalid?: boolean;
+  /** Label for screen readers only: the set rows share one line of column titles. */
+  hideLabel?: boolean;
 }
 
 /**
@@ -86,11 +89,14 @@ function Stepper({
   decimal = false,
   required = false,
   invalid = false,
+  hideLabel = false,
 }: StepperProps) {
   const id = useId();
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className={hideLabel ? 'visually-hidden' : undefined}>
+        {label}
+      </label>
       <div className="stepper">
         <button
           type="button"
@@ -108,6 +114,14 @@ function Stepper({
           autoComplete="off"
           enterKeyHint="next"
           value={value}
+          // The whole number selected on focus, so typing replaces it. Deferred: iOS Safari
+          // puts the caret where the finger landed right after focusing.
+          onFocus={(e) => {
+            const input = e.currentTarget;
+            setTimeout(() => {
+              if (document.activeElement === input) input.select();
+            }, 0);
+          }}
           onChange={(e) => onChange(e.target.value)}
           required={required}
           aria-invalid={invalid || undefined}
@@ -549,6 +563,9 @@ function WorkoutForm({
     const bar = barOf(entry);
     return bar === undefined ? undefined : bar * fixedPartCount(entry.equipment, entry.dumbbells);
   };
+  /** "Plates (lb)" when a bar or handle is added to what is typed, else "Weight (lb)". */
+  const weightLabel = (entry: ExerciseDraft) =>
+    `${barOf(entry) !== undefined ? 'Plates' : 'Weight'} (${unit})`;
   const navigate = useNavigate();
   const [draft] = useState(initial);
   /** The entry the form opened at; followed by key, so it survives reordering/removals. */
@@ -563,6 +580,9 @@ function WorkoutForm({
   const selected = routines
     .flatMap((routine) => routine.days.map((day) => ({ routine, day })))
     .find(({ day }) => day.id === routineDayId);
+  // Date, notes and routine day: one line for a routine day's workout (they're set already,
+  // and the exercises come first on a phone); tapping it shows the fields.
+  const [showDetails, setShowDetails] = useState(!selected);
 
   const chooseRoutineDay = async (dayId: string) => {
     setRoutineDayId(dayId);
@@ -724,56 +744,81 @@ function WorkoutForm({
         </div>
       </div>
 
-      <div className="card grid-2">
-        <label>
-          Date
-          <input
-            ref={dateRef}
-            type="date"
-            value={performedAt}
-            onChange={(e) => setPerformedAt(e.target.value)}
-            aria-invalid={taken ? true : undefined}
-            aria-describedby={taken ? 'date-taken' : undefined}
-            required
-          />
-          {taken && (
-            <span id="date-taken" className="field-error" role="alert">
-              You already logged a workout on {formatSessionDate(taken.performedAt)}
-              {taken.routineDay ? ` (${dayLabel(taken.routineDay)})` : ''}.{' '}
-              <Link to="/workouts/$workoutId/edit" params={{ workoutId: taken.id }}>
-                Edit that one
-              </Link>{' '}
-              or pick another date.
-            </span>
-          )}
-        </label>
-        <label>
-          Notes
-          <input
-            value={notes}
-            maxLength={1000}
-            placeholder="Optional"
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </label>
-        {routines.length > 0 && (
+      {!showDetails && !taken ? (
+        <button
+          type="button"
+          className="card details-summary"
+          aria-expanded={false}
+          onClick={() => setShowDetails(true)}
+        >
+          <span className="details-summary-text">
+            {[
+              /^\d{4}-\d{2}-\d{2}$/.test(performedAt)
+                ? formatSessionDate(new Date(`${performedAt}T00:00`).toISOString())
+                : performedAt,
+              selected ? dayLabel(selected.day) : 'No routine day',
+              notes.trim(),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          <span className="visually-hidden">: change date, notes or routine day</span>
+          <span className="details-summary-chevron">
+            <ChevronDownIcon />
+          </span>
+        </button>
+      ) : (
+        <div className="card grid-2">
           <label>
-            Routine day
-            <select value={routineDayId} onChange={(e) => void chooseRoutineDay(e.target.value)}>
-              <option value="">No routine day</option>
-              {routines.map((routine) => (
-                <optgroup key={routine.id} label={routine.name}>
-                  {routine.days.map((day) => (
-                    <option key={day.id} value={day.id}>
-                      {dayLabel(day)}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            Date
+            <input
+              ref={dateRef}
+              type="date"
+              value={performedAt}
+              onChange={(e) => setPerformedAt(e.target.value)}
+              aria-invalid={taken ? true : undefined}
+              aria-describedby={taken ? 'date-taken' : undefined}
+              required
+            />
+            {taken && (
+              <span id="date-taken" className="field-error" role="alert">
+                You already logged a workout on {formatSessionDate(taken.performedAt)}
+                {taken.routineDay ? ` (${dayLabel(taken.routineDay)})` : ''}.{' '}
+                <Link to="/workouts/$workoutId/edit" params={{ workoutId: taken.id }}>
+                  Edit that one
+                </Link>{' '}
+                or pick another date.
+              </span>
+            )}
           </label>
-        )}
-      </div>
+          <label>
+            Notes
+            <input
+              value={notes}
+              maxLength={1000}
+              placeholder="Optional"
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </label>
+          {routines.length > 0 && (
+            <label>
+              Routine day
+              <select value={routineDayId} onChange={(e) => void chooseRoutineDay(e.target.value)}>
+                <option value="">No routine day</option>
+                {routines.map((routine) => (
+                  <optgroup key={routine.id} label={routine.name}>
+                    {routine.days.map((day) => (
+                      <option key={day.id} value={day.id}>
+                        {dayLabel(day)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+      )}
 
       {entries.map((entry, entryIndex) => (
         // Named via aria-labelledby: a <legend> only names its fieldset as the first child,
@@ -879,51 +924,57 @@ function WorkoutForm({
           {entry.exerciseId !== '' && isSkipped(entry) && (
             <p className="hint">Left empty: skipped, not saved.</p>
           )}
+          {/* One line of column titles, then a row per set: number, reps, weight, remove. */}
+          <div className="set-labels" aria-hidden="true">
+            <span>#</span>
+            <span>Reps</span>
+            <span>{weightLabel(entry)}</span>
+          </div>
           {entry.sets.map((set, setIndex) => (
-            <div key={setIndex} className="set">
-              <div className="set-head">
-                <span className="muted">Set {setIndex + 1}</span>
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={`Remove set ${setIndex + 1}`}
-                  disabled={entry.sets.length === 1}
-                  onClick={() =>
-                    updateEntry(entry.key, (d) => ({
-                      ...d,
-                      sets: d.sets.filter((_, i) => i !== setIndex),
-                      pristine: false,
-                    }))
-                  }
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="set-fields">
-                <Stepper
-                  label="Reps"
-                  value={set.reps}
-                  step={REPS_STEP}
-                  min={1}
-                  required={!isBlankSet(set)}
-                  invalid={problems.some(
-                    (p) => p.key === entry.key && p.setIndex === setIndex && p.field === 'reps',
-                  )}
-                  onChange={(reps) => updateSet(entry.key, setIndex, { reps })}
-                />
-                <Stepper
-                  label={`${barOf(entry) !== undefined ? 'Plates' : 'Weight'} (${unit})`}
-                  value={set.weight}
-                  step={WEIGHT_STEP[unit]}
-                  min={0}
-                  required={!isBlankSet(set)}
-                  invalid={problems.some(
-                    (p) => p.key === entry.key && p.setIndex === setIndex && p.field === 'weight',
-                  )}
-                  decimal
-                  onChange={(weight) => updateSet(entry.key, setIndex, { weight })}
-                />
-              </div>
+            <div key={setIndex} className="set" role="group" aria-label={`Set ${setIndex + 1}`}>
+              <span className="set-number" aria-hidden="true">
+                {setIndex + 1}
+              </span>
+              <Stepper
+                label="Reps"
+                hideLabel
+                value={set.reps}
+                step={REPS_STEP}
+                min={1}
+                required={!isBlankSet(set)}
+                invalid={problems.some(
+                  (p) => p.key === entry.key && p.setIndex === setIndex && p.field === 'reps',
+                )}
+                onChange={(reps) => updateSet(entry.key, setIndex, { reps })}
+              />
+              <Stepper
+                label={weightLabel(entry)}
+                hideLabel
+                value={set.weight}
+                step={WEIGHT_STEP[unit]}
+                min={0}
+                required={!isBlankSet(set)}
+                invalid={problems.some(
+                  (p) => p.key === entry.key && p.setIndex === setIndex && p.field === 'weight',
+                )}
+                decimal
+                onChange={(weight) => updateSet(entry.key, setIndex, { weight })}
+              />
+              <button
+                type="button"
+                className="icon-button set-remove"
+                aria-label={`Remove set ${setIndex + 1}`}
+                disabled={entry.sets.length === 1}
+                onClick={() =>
+                  updateEntry(entry.key, (d) => ({
+                    ...d,
+                    sets: d.sets.filter((_, i) => i !== setIndex),
+                    pristine: false,
+                  }))
+                }
+              >
+                ✕
+              </button>
               <BarTotal
                 plates={set.weight}
                 barKg={barOf(entry)}

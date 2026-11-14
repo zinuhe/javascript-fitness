@@ -340,6 +340,50 @@ describe('starting a routine day', () => {
     expect(await screen.findByLabelText('Weight (lb)')).toHaveValue('50');
   });
 
+  it("shows a routine day's date and day as one line, opened by a tap or a taken date", async () => {
+    const me = signedInAs();
+    const { bench, row } = seedCatalog();
+    const routine = seedRoutine(me.id, {
+      name: 'Push / Pull',
+      days: [
+        { name: 'Push', exerciseIds: [bench.id] },
+        { name: 'Pull', exerciseIds: [row.id] },
+      ],
+    });
+    const { user, router } = renderApp(`/workouts/new?routineDayId=${routine.days[1].id}`);
+
+    // The exercises come first: date, day and notes wait behind one line.
+    const summary = await screen.findByRole('button', {
+      name: /Day 2 · Pull: change date, notes or routine day$/,
+    });
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Notes')).toBeNull();
+    expect(await exerciseSelect(1)).toHaveValue(row.id);
+    await user.click(summary);
+    expect(screen.getByLabelText('Routine day')).toHaveValue(routine.days[1].id);
+    await user.type(screen.getByLabelText('Notes'), 'Short on time');
+
+    // An empty workout opens with the fields, as before.
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await router.navigate({ to: '/workouts' });
+    await router.navigate({ to: '/workouts/new' });
+    expect(await screen.findByLabelText('Date')).toBeInTheDocument();
+
+    // With today taken, the date and its warning show without a tap.
+    seedWorkout(me.id, {
+      performedAt: new Date().toISOString(),
+      exercises: [{ exerciseId: bench.id, sets: [{ reps: 8, weightKg: 60 }] }],
+    });
+    await router.navigate({ to: '/workouts' });
+    await router.navigate({
+      to: '/workouts/new',
+      search: { routineDayId: routine.days[0].id },
+    });
+    expect(await screen.findByText(/You already logged a workout on/)).toBeInTheDocument();
+    // (The warning sits inside the Date label.)
+    expect(screen.getByLabelText(/^Date/)).toHaveAttribute('aria-invalid', 'true');
+  });
+
   it('lets you pick another day or an empty workout', async () => {
     const me = signedInAs();
     const { bench, row } = seedCatalog();

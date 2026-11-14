@@ -56,6 +56,13 @@ export const UserIcon = () => (
   </svg>
 );
 
+/** A chevron pointing down: tap to show more. */
+export const ChevronDownIcon = () => (
+  <svg {...base} width={20} height={20}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
 /** A pencil: edit. Small enough to sit next to each exercise. */
 export const PencilIcon = () => (
   <svg {...base} width={18} height={18}>

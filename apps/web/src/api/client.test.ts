@@ -115,6 +115,46 @@ describe('token refresh', () => {
     expect(tokenStore.get()).toBeNull();
   });
 
+  it('uses the tokens another tab rotated instead of its own revoked copy', async () => {
+    const original = signIn();
+    expireAccessTokens();
+    expect(tokenStore.get()).toEqual(original);
+    // Another tab refreshes: the pair it saves revokes this tab's refresh token.
+    const rotated = issueTokens(seedUser({ email: 'other-tab@example.com' }));
+    localStorage.setItem('fitness.tokens', JSON.stringify(rotated));
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+
+    const me = await api<UserProfile>('/auth/me');
+    unsubscribe();
+
+    expect(me.email).toBe('other-tab@example.com');
+    expect(listener).not.toHaveBeenCalled();
+    expect(apiState.refreshCalls).toBe(0);
+  });
+
+  it('keeps the session when another tab won a refresh race', async () => {
+    signIn();
+    expireAccessTokens();
+    const rotated = issueTokens(seedUser({ email: 'other-tab@example.com' }));
+    // This tab's refresh is rejected because the other tab rotated the pair first.
+    server.use(
+      http.post('/api/auth/refresh', () => {
+        localStorage.setItem('fitness.tokens', JSON.stringify(rotated));
+        return HttpResponse.json({ status: 401 }, { status: 401 });
+      }),
+    );
+    const listener = vi.fn();
+    const unsubscribe = onSessionExpired(listener);
+
+    const me = await api<UserProfile>('/auth/me');
+    unsubscribe();
+
+    expect(me.email).toBe('other-tab@example.com');
+    expect(listener).not.toHaveBeenCalled();
+    expect(tokenStore.get()).toEqual(rotated);
+  });
+
   it('does not try to refresh anonymous requests', async () => {
     const error = await api('/auth/login', {
       method: 'POST',

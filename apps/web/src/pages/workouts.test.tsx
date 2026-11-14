@@ -532,7 +532,13 @@ describe('editing a workout', () => {
     });
     const { user } = renderApp(`/workouts/${workout.id}/edit`);
 
-    const day = await screen.findByLabelText('Routine day');
+    // A routine day's workout shows its date, day and notes as one line until tapped.
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Day 1 · Chest: change date, notes or routine day$/,
+      }),
+    );
+    const day = screen.getByLabelText('Routine day');
     expect(day).toHaveValue(routine.days[0].id);
     await user.selectOptions(day, 'Day 3 · Legs');
     // Editing only relabels: the logged exercises stay as they are.
@@ -543,7 +549,12 @@ describe('editing a workout', () => {
     expect(apiState.workouts[0].routineDay).toMatchObject({ name: 'Legs' });
 
     await user.click(screen.getByRole('link', { name: 'Edit' }));
-    await user.selectOptions(await screen.findByLabelText('Routine day'), 'No routine day');
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Day 3 · Legs: change date, notes or routine day$/,
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText('Routine day'), 'No routine day');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
     await screen.findByRole('link', { name: 'Edit' });

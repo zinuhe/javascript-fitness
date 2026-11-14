@@ -687,6 +687,60 @@ fieldset.card > legend {
 .muscle-legend span.also::before {
   background: color-mix(in srgb, var(--accent) 45%, transparent);
 }
+/* An exercise's muscles. Phones: one line (small figure and names) that opens the large map,
+   so the progress shows on the first screen. Wider screens: always the large map. */
+.muscles-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.muscles-compact .muscle-legend {
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 4px 12px;
+}
+.muscles-chevron {
+  display: grid;
+  flex: none;
+  transition: transform 0.15s;
+}
+.muscles-worked.open .muscles-chevron {
+  transform: rotate(180deg);
+}
+.muscles-full {
+  display: none;
+}
+.muscles-worked.open .muscles-full {
+  display: flex;
+  margin-top: 12px;
+}
+/* The open line already names the muscles. */
+@media (max-width: 767px) {
+  .muscles-full .muscle-legend {
+    display: none;
+  }
+}
+@media (min-width: 768px) {
+  .muscles-compact {
+    display: none;
+  }
+  .muscles-full,
+  .muscles-worked.open .muscles-full {
+    display: flex;
+    margin-top: 0;
+  }
+}
 .list-row.with-figure {
   display: grid;
   /* Wide enough for a picture; the muscle figure (30px) is centred in it. */
@@ -926,6 +980,17 @@ textarea:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
+/* iOS Safari draws a date field as a centered control with a minimum width of its own,
+   wider than a phone's card: draw it like the other fields. */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  text-align: left;
+}
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+}
 .search {
   -webkit-appearance: none;
   appearance: none;
@@ -945,22 +1010,70 @@ fieldset {
   min-width: 0;
 }
 
-/* One set: title row, then the reps and weight steppers side by side. */
-.set {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.set-head {
+/* A routine day's workout: date, routine day and notes in one line that opens the fields. */
+.details-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 0.85rem;
-}
-.set-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 12px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 12px 16px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.details-summary-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.details-summary-chevron {
+  display: grid;
+  color: var(--muted);
+}
+
+/* Sets as rows under one line of column titles: number, reps, weight, remove. Narrower
+   −/+ buttons than elsewhere, so a 5-digit weight still fits next to the reps on a phone. */
+.set-labels,
+.set {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr) 28px;
+  column-gap: 8px;
+  align-items: center;
+}
+.set-labels {
+  margin-bottom: -6px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.set-labels span:first-child,
+.set-number {
+  text-align: center;
+}
+.set {
+  row-gap: 2px;
+}
+.set-number {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.set .stepper {
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+}
+.set .set-remove {
+  width: 28px;
+  margin: 0;
+}
+/* "+ bar 27.6 lb = 314.2 lb" under the steppers it adds up. */
+.set > .hint {
+  grid-column: 2 / -1;
+  margin: 0;
 }
 .stepper {
   display: grid;
@@ -1173,6 +1286,23 @@ table.compact th:last-child {
   }
 }
 
+/* Phones: nothing in the top bar to tap (the tab bar navigates), so it scrolls away and
+   leaves the screen to the page. A strip stays behind the status bar, where an app added to
+   the Home Screen draws under the clock. */
+@media (max-width: 767px) {
+  .topbar {
+    position: relative;
+  }
+  .shell::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 11;
+    height: var(--safe-top);
+    background: var(--surface);
+  }
+}
+
 .hide-on-phone {
   display: none;
 }
@@ -1237,14 +1367,21 @@ table.compact th:last-child {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  .set-fields {
-    max-width: 480px;
+  .set-labels,
+  .set {
+    max-width: 520px;
   }
 }
 
 /* Cards a page can open scrolled to (?exercise=): clear of the sticky top bar. */
 .scroll-target {
   scroll-margin-top: calc(64px + var(--safe-top));
+}
+/* Phones: the top bar scrolls away, so nothing covers the card but the status bar. */
+@media (max-width: 767px) {
+  .scroll-target {
+    scroll-margin-top: calc(12px + var(--safe-top));
+  }
 }
 /* Brief highlight on the card the page opened at. */
 .flash {

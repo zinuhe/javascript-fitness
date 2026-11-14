@@ -348,6 +348,15 @@ describe('editing and deleting exercises', () => {
     expect(
       screen.getByRole('img', { name: 'Works: Glutes (main), Hamstrings, Adductors' }),
     ).toBeInTheDocument();
+    // Phones show a one-line summary first; it opens and closes the large map.
+    const toggle = screen.getByRole('button', { name: 'Show the muscle map' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveTextContent('GlutesHamstrings, Adductors');
+    await user.click(toggle);
+    expect(screen.getByRole('button', { name: 'Hide the muscle map' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
   });
 
   it('shows the conflict when the new name already exists', async () => {
