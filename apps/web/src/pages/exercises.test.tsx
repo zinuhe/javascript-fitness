@@ -265,8 +265,8 @@ describe('exercise progress', () => {
       .slice(1)
       .map((row) => within(row).getAllByRole('cell')[3]);
     expect(topSets.map((cell) => cell.textContent)).toEqual([
-      '78 lb (35 kg)70 lb8 lb',
-      '88 lb (40 kg)80 lb8 lb',
+      '78 lb (35 kg)70 lb (32 kg)8 lb (4 kg)',
+      '88 lb (40 kg)80 lb (36 kg)8 lb (4 kg)',
     ]);
     expect(
       within(topSets[0]).getByRole('img', { name: 'Plates, 70 lb (31.75 kg)' }),

@@ -54,8 +54,9 @@ export function PlatesMark({ platesKg }: { platesKg: number }) {
 }
 
 /**
- * A set's total split into its plates and its bar (or handles), one small line each:
- * "◎ 80 lb" over "⊢⊣ 8 lb", or "🏋 2 × 12 lb" for two heavy dumbbells. Each icon names its
+ * A set's total split into its plates and its bar (or handles), one small line each with the
+ * other unit beside it: "◎ 80 lb (36 kg)" over "⊢⊣ 8 lb (4 kg)", or "🏋 2 × 12 lb (5 kg)"
+ * for two heavy dumbbells. Each icon names its
  * part, with the weight in both units, on hover or tap. Nothing for a set without a bar or
  * handle.
  */
@@ -81,21 +82,28 @@ export function SetParts({
   return (
     <span className="set-parts">
       <span className="set-part">
-        <PlatesMark platesKg={weightKg - fixedKg} />
-        {formatWeight(weightKg - fixedKg, unit)}
+        <span className="nowrap">
+          <PlatesMark platesKg={weightKg - fixedKg} />
+          {formatWeight(weightKg - fixedKg, unit)}
+        </span>{' '}
+        <span className="nowrap">({formatWholeInOtherUnit(weightKg - fixedKg, unit)})</span>
       </span>
       <span className="set-part">
-        {handles ? (
-          <WeightIcon name="Handle" kg={barKg}>
-            <DumbbellIcon size="1.15em" />
-          </WeightIcon>
-        ) : (
-          <WeightIcon name="Bar" kg={barKg}>
-            <BarIcon size="1.15em" />
-          </WeightIcon>
-        )}
-        {count > 1 ? `${count} × ` : ''}
-        {formatWeight(barKg, unit)}
+        <span className="nowrap">
+          {handles ? (
+            <WeightIcon name="Handle" kg={barKg}>
+              <DumbbellIcon size="1.15em" />
+            </WeightIcon>
+          ) : (
+            <WeightIcon name="Bar" kg={barKg}>
+              <BarIcon size="1.15em" />
+            </WeightIcon>
+          )}
+          {count > 1 ? `${count} × ` : ''}
+          {formatWeight(barKg, unit)}
+        </span>{' '}
+        {/* Of one bar or handle, like the weight before it. */}
+        <span className="nowrap">({formatWholeInOtherUnit(barKg, unit)})</span>
       </span>
     </span>
   );

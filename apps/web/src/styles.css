@@ -621,7 +621,8 @@ fieldset.card > legend {
   font-size: 0.75rem;
   font-weight: 400;
 }
-.set-part {
+/* The other unit moves under the weight, whole, when the column is narrow. */
+.set-part .nowrap {
   white-space: nowrap;
 }
 /* Heavy dumbbells: one row each (handle + its plates), then what they add up to. */
