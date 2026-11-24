@@ -833,7 +833,9 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
                     </Link>
                     {/* On "All", what each session was done with. */}
                     {severalEquipment && !equipment && point.equipment && (
-                      <span className="hint cell-note">{sessionEquipment(point)}</span>
+                      <span className="hint cell-note session-equipment">
+                        {sessionEquipment(point)}
+                      </span>
                     )}
                   </td>
                   <td className="wrap-on-phone">

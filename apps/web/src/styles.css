@@ -1386,6 +1386,20 @@ table.compact th:last-child {
   table.compact td.top-set .other-unit {
     display: inline;
   }
+  /* The room left over goes between the volume and the top set, and between pounds and
+     kilos. */
+  table.compact th.top-set,
+  table.compact td.top-set {
+    padding-left: 16px;
+  }
+  table.compact td.top-set .other-unit,
+  table.compact td.top-set .set-part .nowrap + .nowrap {
+    margin-left: 3px;
+  }
+  /* What each session was done with: the top set's icons (bar or dumbbell) already say. */
+  table.compact .session-equipment {
+    display: none;
+  }
   table.compact td.wrap-on-phone {
     white-space: normal;
   }
