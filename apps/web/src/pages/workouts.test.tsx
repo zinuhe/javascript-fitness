@@ -732,8 +732,8 @@ describe('barbell exercises', () => {
 
     await user.hover(await screen.findByRole('button', { name: /^Thu 8 Oct 2026: / }));
     const tip = chartTip();
-    expect(tip).toHaveTextContent('Plates only, without the bar');
-    expect(tip).toHaveTextContent('4 × 12 — 20 lb');
+    // The sets, their plates, then the bar: each in both units.
+    expect(tip).toHaveTextContent('4 × 12 reps Plates 20 lb (9 kg) Bar 28 lb (13 kg)');
   });
 
   it('uses the bar weight set in Account, keeping the bar of past workouts', async () => {
@@ -869,8 +869,8 @@ describe('heavy dumbbell exercises', () => {
 
     await user.hover(await screen.findByRole('button', { name: /^Thu 8 Oct 2026: / }));
     const tip = chartTip();
-    expect(tip).toHaveTextContent('Plates only, without the handles');
-    expect(tip).toHaveTextContent('3 × 10 — 20 lb');
+    // The plates of both, then one handle per dumbbell.
+    expect(tip).toHaveTextContent('3 × 10 reps Plates 20 lb (9 kg) Handles 2 × 12 lb (5 kg)');
   });
 
   it('fixes a session saved with a single handle once its plates are typed again', async () => {

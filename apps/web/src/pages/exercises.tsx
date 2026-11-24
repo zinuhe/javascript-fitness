@@ -38,6 +38,7 @@ import {
 } from '../components/ui';
 import { MuscleMap, MusclesWorked } from '../components/muscle-map';
 import { SetParts } from '../components/bar';
+import { BarIcon, DumbbellIcon, PlateIcon } from '../components/icons';
 import {
   ExerciseGallery,
   ExerciseThumb,
@@ -499,6 +500,21 @@ function OneRepMaxChart({
   const setsSummary = (point: ExerciseProgressPoint) =>
     sameSets(point) ?? point.sets.map((set) => setLine(point, set)).join(', ');
   const shown = active === null ? null : points[active];
+  /** "50 lb (23 kg)": a weight in the user's unit, then the other. */
+  const both = (kg: number) => `${formatWeight(kg, unit)} (${formatWholeInOtherUnit(kg, unit)})`;
+  // The bar, or one handle, of the shown session: listed after its plates.
+  const shownBarKg = shown?.sets.find((s) => s.barKg !== undefined)?.barKg;
+  const shownHandles = fixedPartOf(shown?.equipment) === 'handle';
+  const shownCount = shown ? fixedPartCount(shown.equipment, shown.dumbbells) : 1;
+  /** A set's weight: its plates (with their icon) when a bar or handles hold them. */
+  const setWeight = (point: ExerciseProgressPoint, set: Set) =>
+    set.barKg !== undefined ? (
+      <>
+        <PlateIcon size="1.1em" /> {both(plates(point, set))}
+      </>
+    ) : (
+      both(set.weightKg)
+    );
 
   return (
     <figure className="chart">
@@ -552,20 +568,38 @@ function OneRepMaxChart({
             {showEquipment && shown.equipment && (
               <span className="chart-tip-note">{sessionEquipment(shown)}</span>
             )}
-            {shown.sets.some((s) => s.barKg !== undefined) && (
-              <span className="chart-tip-note">
-                Plates only, without the {fixedPartOf(shown.equipment) ?? 'bar'}
-                {fixedPartCount(shown.equipment, shown.dumbbells) > 1 ? 's' : ''}
-              </span>
-            )}
+            {/* The sets, then what holds the plates: plates first, bar (or handles) last. */}
             {sameSets(shown) ? (
-              <p className="chart-tip-same">{sameSets(shown)}</p>
+              <div className="chart-tip-sets">
+                <span>
+                  {shown.sets.length} × {shown.sets[0].reps} reps
+                </span>
+                <span className="chart-tip-part">
+                  {shownBarKg !== undefined ? (
+                    <>
+                      <PlateIcon size="1.1em" /> Plates {both(plates(shown, shown.sets[0]))}
+                    </>
+                  ) : (
+                    both(shown.sets[0].weightKg)
+                  )}
+                </span>
+              </div>
             ) : (
               <ol>
                 {shown.sets.map((set, i) => (
-                  <li key={i}>{setLine(shown, set)}</li>
+                  <li key={i}>
+                    {set.reps} reps · {setWeight(shown, set)}
+                  </li>
                 ))}
               </ol>
+            )}
+            {shownBarKg !== undefined && (
+              <span className="chart-tip-part">
+                {shownHandles ? <DumbbellIcon size="1.1em" /> : <BarIcon size="1.1em" />}{' '}
+                {shownHandles ? (shownCount > 1 ? 'Handles' : 'Handle') : 'Bar'}{' '}
+                {shownCount > 1 ? `${shownCount} × ` : ''}
+                {both(shownBarKg)}
+              </span>
             )}
           </div>
         )}

@@ -1039,9 +1039,22 @@ fieldset.card > legend {
   font-size: 0.75rem;
   color: var(--muted);
 }
-.chart-tip-same {
-  margin: 4px 0 0;
+.chart-tip-sets {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+/* "◎ Plates 50 lb (23 kg)" and "⊢⊣ Bar 28 lb (13 kg)": what each set was loaded with. */
+.chart-tip-part {
+  display: block;
   color: var(--muted);
+}
+/* Icon size, not the chart's own full-width drawing. */
+.chart .chart-tip svg {
+  display: inline;
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.2em;
 }
 .chart-axis {
   display: flex;

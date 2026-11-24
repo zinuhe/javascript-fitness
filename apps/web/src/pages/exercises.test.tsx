@@ -337,13 +337,13 @@ describe('exercise progress', () => {
       within(tip)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['5 × 100 kg', '5 × 110 kg']);
+    ).toEqual(['5 reps · 100 kg (220 lb)', '5 reps · 110 kg (243 lb)']);
     await user.unhover(screen.getByRole('button', { name: /^Thu 8 Oct 2026: / }));
     expect(screen.queryByRole('tooltip', { name: SESSION_TIP })).not.toBeInTheDocument();
 
-    // A session whose sets were all the same shows as one line: sets × reps — weight.
+    // A session whose sets were all the same: sets × reps, then the weight.
     await user.hover(screen.getByRole('button', { name: 'Thu 1 Oct 2026: 1 × 5 — 100 kg' }));
-    expect(chartTip()).toHaveTextContent('Thu 1 Oct 20261 × 5 — 100 kg');
+    expect(chartTip()).toHaveTextContent('Thu 1 Oct 20261 × 5 reps100 kg (220 lb)');
   });
 });
 
