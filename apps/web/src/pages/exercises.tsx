@@ -1,4 +1,4 @@
-import { useState, useTransition, type ChangeEvent, type FormEvent } from 'react';
+import { useId, useState, useTransition, type ChangeEvent, type FormEvent } from 'react';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
 import {
@@ -10,6 +10,7 @@ import {
   type Exercise,
   type ExerciseImageSlot,
   type ExerciseProgressPoint,
+  type WeightUnit,
 } from '@fitness/contracts';
 import { ApiError } from '../api/client';
 import {
@@ -654,6 +655,96 @@ export function ExerciseDetailPage() {
   );
 }
 
+/** Epley estimated one-rep max, as the API computes it; a single rep is its own 1RM. */
+const estimateOneRepMax = (weightKg: number, reps: number) =>
+  reps <= 1 ? weightKg : weightKg * (1 + reps / 30);
+
+type SessionSet = { point: ExerciseProgressPoint; set: ExerciseProgressPoint['sets'][number] };
+
+/** The heaviest set and the set behind the best estimated 1RM; the latest one on a tie. */
+function standoutSets(points: ExerciseProgressPoint[]) {
+  let heaviest: SessionSet | undefined;
+  let strongest: (SessionSet & { oneRepMaxKg: number }) | undefined;
+  for (const point of points) {
+    for (const set of point.sets) {
+      if (!heaviest || set.weightKg >= heaviest.set.weightKg) heaviest = { point, set };
+      const oneRepMaxKg = estimateOneRepMax(set.weightKg, set.reps);
+      if (!strongest || oneRepMaxKg >= strongest.oneRepMaxKg) {
+        strongest = { point, set, oneRepMaxKg };
+      }
+    }
+  }
+  return { heaviest, strongest };
+}
+
+/** "100 kg (220 lb)": a stat in the user's unit, with the other one small. */
+function StatWeight({ kg, unit }: { kg: number; unit: WeightUnit }) {
+  return (
+    <>
+      {formatWeight(kg, unit)} <span className="hint">({formatWholeInOtherUnit(kg, unit)})</span>
+    </>
+  );
+}
+
+/**
+ * What the heaviest set was made of, when a bar or handles are part of its weight:
+ * "Plates 80 lb (36 kg)" and "Bar 8 lb (4 kg)", or "2 handles 24 lb (11 kg)".
+ */
+function HeaviestSetParts({ point, set }: SessionSet) {
+  const unit = useWeightUnit();
+  const fixedKg = fixedPartKg(set.barKg, point.equipment, point.dumbbells);
+  if (fixedKg === 0) return null;
+  const count = fixedPartCount(point.equipment, point.dumbbells);
+  const part = fixedPartOf(point.equipment) === 'handle' ? 'handle' : 'bar';
+  const label = count > 1 ? `${count} ${part}s` : part === 'bar' ? 'Bar' : 'Handle';
+  const line = (name: string, kg: number) => (
+    <span>
+      {name} {formatWeight(kg, unit)}{' '}
+      <span className="nowrap">({formatWholeInOtherUnit(kg, unit)})</span>
+    </span>
+  );
+  return (
+    <dd className="stat-parts">
+      {line('Plates', set.weightKg - fixedKg)}
+      {line(label, fixedKg)}
+    </dd>
+  );
+}
+
+/**
+ * Best est. 1RM, explained on hover, tap or focus: what the number means and the set it
+ * comes from. A focusable tile, since phones have no hover.
+ */
+function OneRepMaxStat({ kg, from }: { kg: number; from?: SessionSet }) {
+  const unit = useWeightUnit();
+  const id = useId();
+  return (
+    <div className="stat-explained" tabIndex={0} aria-describedby={id}>
+      <dt>
+        Best est. 1RM{' '}
+        <span className="stat-info" aria-hidden="true">
+          ?
+        </span>
+      </dt>
+      <dd>
+        <StatWeight kg={kg} unit={unit} />
+      </dd>
+      <span id={id} role="tooltip" className="stat-tip">
+        <strong>Estimated one-rep max:</strong> the most you could lift for a single rep, estimated
+        from your sets with more reps (Epley: weight × (1 + reps ÷ 30)).
+        {from && (
+          <span className="stat-tip-source">
+            {from.set.reps <= 1
+              ? `From a single rep of ${formatWeight(from.set.weightKg, unit)}`
+              : `From ${formatWeight(from.set.weightKg, unit)} × ${from.set.reps} reps`}{' '}
+            on {formatSessionDate(from.point.performedAt)}.
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 /** Progress over the logged sessions: best numbers, the 1RM chart and one row per session. */
 function ExerciseProgress({ exercise }: { exercise: Exercise }) {
   // undefined is "All": every session, whatever the equipment.
@@ -666,6 +757,7 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
   const points = [...progress.points].reverse(); // newest first
   const best = Math.max(0, ...progress.points.map((p) => p.estimatedOneRepMaxKg));
   const heaviest = Math.max(0, ...progress.points.map((p) => p.bestSetWeightKg));
+  const standout = standoutSets(progress.points);
 
   return (
     <div className="card stack" aria-busy={switching}>
@@ -695,13 +787,13 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
       ) : (
         <>
           <dl className="stats">
-            <div>
-              <dt>Best est. 1RM</dt>
-              <dd>{formatWeight(best, unit)}</dd>
-            </div>
+            <OneRepMaxStat kg={best} from={standout.strongest} />
             <div>
               <dt>Heaviest set</dt>
-              <dd>{formatWeight(heaviest, unit)}</dd>
+              <dd>
+                <StatWeight kg={heaviest} unit={unit} />
+              </dd>
+              {standout.heaviest && <HeaviestSetParts {...standout.heaviest} />}
             </div>
             <div>
               <dt>Sessions</dt>

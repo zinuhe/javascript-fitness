@@ -4,6 +4,10 @@ import { Equipment, Muscle, MuscleGroup } from '@fitness/contracts';
 import { apiState, seedExercise, seedRoutine, seedWorkout } from '../test/api';
 import { currentUrl, renderApp, signedInAs } from '../test/render';
 
+/** The chart's tooltip (a session's sets), not the Best est. 1RM explanation. */
+const SESSION_TIP = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) /;
+const chartTip = () => screen.getByRole('tooltip', { name: SESSION_TIP });
+
 describe('exercise catalog', () => {
   it('lists exercises alphabetically with readable labels', async () => {
     signedInAs();
@@ -222,6 +226,40 @@ describe('exercise progress', () => {
     expect(screen.getByText('Legs')).toBeInTheDocument();
   });
 
+  it('shows both units, what the heaviest set was made of, and explains the 1RM', async () => {
+    const me = signedInAs({ weightUnit: 'lb' });
+    const curl = seedExercise({ name: 'EZ Bar Curl', equipment: [Equipment.Barbell] });
+    // 80 lb of plates on an 8 lb bar (36.29 + 3.63 kg), 6 reps; then 70 lb of plates × 12.
+    seedWorkout(me.id, {
+      performedAt: '2026-11-08T15:00:00.000Z',
+      exercises: [{ exerciseId: curl.id, barKg: 3.63, sets: [{ reps: 6, weightKg: 39.92 }] }],
+    });
+    seedWorkout(me.id, {
+      performedAt: '2026-11-15T15:00:00.000Z',
+      exercises: [{ exerciseId: curl.id, barKg: 3.63, sets: [{ reps: 12, weightKg: 35.38 }] }],
+    });
+    const { user } = renderApp(`/exercises/${curl.id}`);
+
+    const stat = async (label: string) => (await screen.findByText(label)).closest('div')!;
+    // The heaviest set in both units, then its plates and its bar.
+    const heaviest = await stat('Heaviest set');
+    expect(heaviest).toHaveTextContent('88 lb (40 kg)');
+    expect(heaviest).toHaveTextContent('Plates 80 lb (36 kg)Bar 8 lb (4 kg)');
+
+    // 78 lb × (1 + 12/30) = 109.2 lb beats 88 lb × (1 + 6/30) = 105.6 lb.
+    const oneRm = await stat('Best est. 1RM');
+    expect(oneRm).toHaveTextContent('109.2 lb (50 kg)');
+    // Explained on hover, tap or focus: what it means, and the set it comes from.
+    const tip = screen.getByRole('tooltip', { name: /^Estimated one-rep max/ });
+    expect(oneRm).toHaveAttribute('aria-describedby', tip.id);
+    expect(tip).toHaveTextContent('the most you could lift for a single rep');
+    expect(tip).toHaveTextContent('Epley: weight × (1 + reps ÷ 30)');
+    expect(tip).toHaveTextContent('From 78 lb × 12 reps on Sun 15 Nov 2026.');
+    // A tap focuses the tile, which shows the tooltip on phones.
+    await user.click(oneRm);
+    expect(oneRm).toHaveFocus();
+  });
+
   it('lists sessions newest first with volume, heaviest set and estimated 1RM', async () => {
     const me = signedInAs();
     const squat = seedExercise({ name: 'Barbell Back Squat', muscleGroup: MuscleGroup.Legs });
@@ -277,7 +315,7 @@ describe('exercise progress', () => {
 
     // Hovering a session's point shows its day and every set.
     await user.hover(screen.getByRole('button', { name: /^Thu 8 Oct 2026: / }));
-    const tip = screen.getByRole('tooltip');
+    const tip = chartTip();
     expect(tip).toHaveTextContent('Thu 8 Oct 2026');
     expect(
       within(tip)
@@ -285,11 +323,11 @@ describe('exercise progress', () => {
         .map((li) => li.textContent),
     ).toEqual(['5 × 100 kg', '5 × 110 kg']);
     await user.unhover(screen.getByRole('button', { name: /^Thu 8 Oct 2026: / }));
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { name: SESSION_TIP })).not.toBeInTheDocument();
 
     // A session whose sets were all the same shows as one line: sets × reps — weight.
     await user.hover(screen.getByRole('button', { name: 'Thu 1 Oct 2026: 1 × 5 — 100 kg' }));
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Thu 1 Oct 20261 × 5 — 100 kg');
+    expect(chartTip()).toHaveTextContent('Thu 1 Oct 20261 × 5 — 100 kg');
   });
 });
 

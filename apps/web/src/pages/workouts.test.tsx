@@ -6,6 +6,10 @@ import { currentUrl, renderApp, signedInAs } from '../test/render';
 import { server } from '../test/setup';
 import { HttpResponse, http } from 'msw';
 
+/** The chart's tooltip (a session's sets), not the Best est. 1RM explanation. */
+const SESSION_TIP = /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) /;
+const chartTip = () => screen.getByRole('tooltip', { name: SESSION_TIP });
+
 /** The exercise picker inside the form's "Exercise N" group. */
 async function exerciseSelect(n: number) {
   const group = await screen.findByRole('group', { name: `Exercise ${n}` });
@@ -727,7 +731,7 @@ describe('barbell exercises', () => {
     const { user } = renderApp(`/exercises/${thrust.id}`);
 
     await user.hover(await screen.findByRole('button', { name: /^Thu 8 Oct 2026: / }));
-    const tip = screen.getByRole('tooltip');
+    const tip = chartTip();
     expect(tip).toHaveTextContent('Plates only, without the bar');
     expect(tip).toHaveTextContent('4 × 12 — 20 lb');
   });
@@ -864,7 +868,7 @@ describe('heavy dumbbell exercises', () => {
     const { user } = renderApp(`/exercises/${curl.id}`);
 
     await user.hover(await screen.findByRole('button', { name: /^Thu 8 Oct 2026: / }));
-    const tip = screen.getByRole('tooltip');
+    const tip = chartTip();
     expect(tip).toHaveTextContent('Plates only, without the handles');
     expect(tip).toHaveTextContent('3 × 10 — 20 lb');
   });
