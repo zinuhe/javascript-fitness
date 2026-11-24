@@ -899,10 +899,11 @@ fieldset.card > legend {
 .stats .nowrap {
   white-space: nowrap;
 }
-/* Phones: the session count needs less room than the two weights. */
+/* Phones: the session count takes just its title's width, and the heaviest set (with its
+   plates and bar) gets the most room, so each of its lines fits on one line. */
 @media (max-width: 639px) {
   .stats {
-    grid-template-columns: 1fr 1fr minmax(0, 0.7fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
   }
 }
 /* The heaviest set's plates and bar (or handles), under its weight. */
