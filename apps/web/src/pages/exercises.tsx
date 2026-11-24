@@ -817,8 +817,9 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
                 <th>#</th>
                 <th>Session</th>
                 <th>Volume</th>
-                <th>Top set</th>
-                <th>Est. 1RM</th>
+                <th className="top-set">Top set</th>
+                {/* Hidden on phones: the stats above and the chart already show it. */}
+                <th className="col-1rm">Est. 1RM</th>
               </tr>
             </thead>
             <tbody>
@@ -843,7 +844,7 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
                       ({formatTableVolume(point.totalVolumeKg, unit).other})
                     </span>
                   </td>
-                  <td className="wrap-on-phone">
+                  <td className="wrap-on-phone top-set">
                     <span className="nowrap">{formatWeight(point.bestSetWeightKg, unit)}</span>{' '}
                     <span className="hint other-unit">
                       ({formatWholeInOtherUnit(point.bestSetWeightKg, unit)})
@@ -856,7 +857,7 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
                       unit={unit}
                     />
                   </td>
-                  <td>{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
+                  <td className="col-1rm">{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
                 </tr>
               ))}
             </tbody>

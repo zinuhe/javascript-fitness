@@ -594,12 +594,19 @@ fieldset.card > legend {
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.1s;
+  /* Not just transparent while hidden: a hidden tip near a card's right edge would still
+     widen it and let it scroll sideways. */
+  display: none;
 }
 .bar-word:hover::after,
 .bar-word:focus::after {
-  opacity: 1;
+  display: block;
+}
+/* The top set's plates and bar sit in the table's last column on phones: their tips grow
+   to the left, staying inside the card. */
+.set-parts .bar-word::after {
+  left: auto;
+  right: -4px;
 }
 .bar-word:focus {
   outline: none;
@@ -1364,9 +1371,21 @@ table.compact th:last-child {
   text-align: right;
 }
 
-/* Phones: the session table wraps the date and puts the other unit under the volume,
-   so five columns fit the card; the weights stay on one line. */
+/* Phones: the session table drops the estimated 1RM (the stats and the chart show it),
+   leaving the top set room for its plates and bar; it wraps the date and puts the other unit
+   under the volume and the top set; the weights stay on one line. */
 @media (max-width: 639px) {
+  table.compact .col-1rm {
+    display: none;
+  }
+  /* With that room, the top set gets the widest column and keeps its other unit beside
+     it: "88 lb (40 kg)", "◎ 60 lb (27 kg)", "2 × 12 lb (5 kg)", each on one line. */
+  table.compact th.top-set {
+    width: 38%;
+  }
+  table.compact td.top-set .other-unit {
+    display: inline;
+  }
   table.compact td.wrap-on-phone {
     white-space: normal;
   }
