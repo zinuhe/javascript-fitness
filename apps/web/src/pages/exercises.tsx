@@ -37,6 +37,7 @@ import {
   trainingExercises,
 } from '../components/ui';
 import { MuscleMap, MusclesWorked } from '../components/muscle-map';
+import { SetParts } from '../components/bar';
 import {
   ExerciseGallery,
   ExerciseThumb,
@@ -655,6 +656,10 @@ export function ExerciseDetailPage() {
   );
 }
 
+/** A session's heaviest set (the first one, on a tie). */
+const topSet = (point: ExerciseProgressPoint) =>
+  point.sets.reduce((top, set) => (set.weightKg > top.weightKg ? set : top), point.sets[0]);
+
 /** Epley estimated one-rep max, as the API computes it; a single rep is its own 1RM. */
 const estimateOneRepMax = (weightKg: number, reps: number) =>
   reps <= 1 ? weightKg : weightKg * (1 + reps / 30);
@@ -843,6 +848,13 @@ function ExerciseProgress({ exercise }: { exercise: Exercise }) {
                     <span className="hint other-unit">
                       ({formatWholeInOtherUnit(point.bestSetWeightKg, unit)})
                     </span>
+                    {/* What the top set was made of: its plates over its bar (or handles). */}
+                    <SetParts
+                      {...topSet(point)}
+                      equipment={point.equipment}
+                      dumbbells={point.dumbbells}
+                      unit={unit}
+                    />
                   </td>
                   <td>{formatWeight(point.estimatedOneRepMaxKg, unit)}</td>
                 </tr>

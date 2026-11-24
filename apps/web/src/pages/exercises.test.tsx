@@ -258,6 +258,22 @@ describe('exercise progress', () => {
     // A tap focuses the tile, which shows the tooltip on phones.
     await user.click(oneRm);
     expect(oneRm).toHaveFocus();
+
+    // Each session's top set, then its plates over its bar.
+    const topSets = screen
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getAllByRole('cell')[3]);
+    expect(topSets.map((cell) => cell.textContent)).toEqual([
+      '78 lb (35 kg)70 lb8 lb',
+      '88 lb (40 kg)80 lb8 lb',
+    ]);
+    expect(
+      within(topSets[0]).getByRole('img', { name: 'Plates, 70 lb (31.75 kg)' }),
+    ).toHaveAttribute('data-tip', 'Plates: 70 lb (31.75 kg)');
+    expect(
+      within(topSets[0]).getByRole('img', { name: 'Bar, 8 lb (3.63 kg)' }),
+    ).toBeInTheDocument();
   });
 
   it('lists sessions newest first with volume, heaviest set and estimated 1RM', async () => {

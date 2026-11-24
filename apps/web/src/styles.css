@@ -612,6 +612,18 @@ fieldset.card > legend {
 .bar-icon svg {
   vertical-align: -0.2em;
 }
+/* A set's plates over its bar (or handles), small under its total: "◎ 80 lb", "⊢⊣ 8 lb". */
+.set-parts {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.set-part {
+  white-space: nowrap;
+}
 /* Heavy dumbbells: one row each (handle + its plates), then what they add up to. */
 .dumbbell-row {
   display: block;

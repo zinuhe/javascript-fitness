@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import type { WeightUnit } from '@fitness/contracts';
-import { DumbbellIcon, PlateIcon } from './icons';
+import type { Equipment, WeightUnit } from '@fitness/contracts';
+import { BarIcon, DumbbellIcon, PlateIcon } from './icons';
+import { fixedPartCount, fixedPartKg, fixedPartOf } from './ui';
 import { formatWeight, formatWholeInOtherUnit } from './units';
 
 /** "12 lb (5.44 kg)": a bar, handle or plates in both units, for a tooltip. */
@@ -49,6 +50,54 @@ export function PlatesMark({ platesKg }: { platesKg: number }) {
     <WeightIcon name="Plates" kg={platesKg}>
       <PlateIcon size="1.15em" />
     </WeightIcon>
+  );
+}
+
+/**
+ * A set's total split into its plates and its bar (or handles), one small line each:
+ * "◎ 80 lb" over "⊢⊣ 8 lb", or "🏋 2 × 12 lb" for two heavy dumbbells. Each icon names its
+ * part, with the weight in both units, on hover or tap. Nothing for a set without a bar or
+ * handle.
+ */
+export function SetParts({
+  weightKg,
+  barKg,
+  equipment,
+  dumbbells,
+  unit,
+}: {
+  /** The total lifted, bar or handles included. */
+  weightKg: number;
+  /** One bar, or one handle. */
+  barKg?: number;
+  equipment?: Equipment;
+  dumbbells?: number;
+  unit: WeightUnit;
+}) {
+  const fixedKg = fixedPartKg(barKg, equipment, dumbbells);
+  if (barKg === undefined || fixedKg === 0) return null;
+  const count = fixedPartCount(equipment, dumbbells);
+  const handles = fixedPartOf(equipment) === 'handle';
+  return (
+    <span className="set-parts">
+      <span className="set-part">
+        <PlatesMark platesKg={weightKg - fixedKg} />
+        {formatWeight(weightKg - fixedKg, unit)}
+      </span>
+      <span className="set-part">
+        {handles ? (
+          <WeightIcon name="Handle" kg={barKg}>
+            <DumbbellIcon size="1.15em" />
+          </WeightIcon>
+        ) : (
+          <WeightIcon name="Bar" kg={barKg}>
+            <BarIcon size="1.15em" />
+          </WeightIcon>
+        )}
+        {count > 1 ? `${count} × ` : ''}
+        {formatWeight(barKg, unit)}
+      </span>
+    </span>
   );
 }
 

@@ -31,6 +31,13 @@ export const DumbbellIcon = ({ size = 24 }: { size?: number | string }) => (
   </svg>
 );
 
+/** A bare bar with its collars: the bar a barbell's plates are loaded on. */
+export const BarIcon = ({ size = 24 }: { size?: number | string }) => (
+  <svg {...base} width={size} height={size}>
+    <path d="M2 12h20M5 9.5v5M19 9.5v5" />
+  </svg>
+);
+
 /** A weight plate: the plates loaded on a heavy dumbbell's handle. */
 export const PlateIcon = ({ size = 24 }: { size?: number | string }) => (
   <svg {...base} width={size} height={size}>
